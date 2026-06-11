@@ -10,6 +10,9 @@ const starterTrades = [
     entry: 198.42,
     exit: 201.1,
     size: 50,
+    stopLoss: 196.9,
+    accountSize: 25000,
+    riskPercent: 0.3,
     fees: 2,
     emotion: 'Patient',
     tags: 'breakout, large-cap',
@@ -24,6 +27,9 @@ const starterTrades = [
     entry: 179.25,
     exit: 176.8,
     size: 30,
+    stopLoss: 181.15,
+    accountSize: 25000,
+    riskPercent: 0.23,
     fees: 2.5,
     emotion: 'Focused',
     tags: 'vwap, momentum',
@@ -38,6 +44,9 @@ const starterTrades = [
     entry: 145.7,
     exit: 143.9,
     size: 25,
+    stopLoss: 144.5,
+    accountSize: 25000,
+    riskPercent: 0.12,
     fees: 1.5,
     emotion: 'Impatient',
     tags: 'pullback, lesson',
@@ -77,6 +86,56 @@ function currency(value) {
   }).format(value || 0);
 }
 
+function toOptionalNumber(value) {
+  if (value === '' || value === null || value === undefined) {
+    return null;
+  }
+
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function formatPercent(value) {
+  return value === null || value === undefined ? '—' : `${value.toFixed(2)}%`;
+}
+
+function formatRMultiple(value) {
+  return value === null || value === undefined ? '—' : `${value.toFixed(2)}R`;
+}
+
+function calculateRiskDollars(trade) {
+  const entry = toOptionalNumber(trade.entry);
+  const stopLoss = toOptionalNumber(trade.stopLoss);
+  const size = toOptionalNumber(trade.size);
+
+  if (entry === null || stopLoss === null || size === null) {
+    return null;
+  }
+
+  const riskDollars = Math.abs(entry - stopLoss) * size;
+  return riskDollars > 0 ? riskDollars : null;
+}
+
+function calculateRiskPercent(trade) {
+  const riskDollars = calculateRiskDollars(trade);
+  const accountSize = toOptionalNumber(trade.accountSize);
+
+  if (riskDollars === null || accountSize === null || accountSize <= 0) {
+    return null;
+  }
+
+  return (riskDollars / accountSize) * 100;
+}
+
+function calculateRMultiple(trade) {
+  const riskDollars = calculateRiskDollars(trade);
+  if (riskDollars === null) {
+    return null;
+  }
+
+  return calculatePnl(trade) / riskDollars;
+}
+
 function calculatePnl(trade) {
   const entry = Number(trade.entry) || 0;
   const exit = Number(trade.exit) || 0;
@@ -88,11 +147,14 @@ function calculatePnl(trade) {
 
 function getStats() {
   const pnlValues = trades.map(calculatePnl);
+  const rValues = trades.map(calculateRMultiple).filter((value) => value !== null);
   const wins = pnlValues.filter((value) => value > 0);
   const losses = pnlValues.filter((value) => value < 0);
   const totalPnl = pnlValues.reduce((sum, value) => sum + value, 0);
   const averageWin = wins.length ? wins.reduce((sum, value) => sum + value, 0) / wins.length : 0;
   const averageLoss = losses.length ? losses.reduce((sum, value) => sum + value, 0) / losses.length : 0;
+  const totalR = rValues.reduce((sum, value) => sum + value, 0);
+  const averageR = rValues.length ? totalR / rValues.length : null;
 
   return {
     totalPnl,
@@ -100,6 +162,8 @@ function getStats() {
     tradeCount: trades.length,
     averageWin,
     averageLoss,
+    totalR: rValues.length ? totalR : null,
+    averageR,
   };
 }
 
@@ -174,7 +238,12 @@ function screenshotPreview(trade) {
 
 function tradeCard(trade) {
   const pnl = calculatePnl(trade);
+  const stopLoss = toOptionalNumber(trade.stopLoss);
+  const riskDollars = calculateRiskDollars(trade);
+  const riskPercent = calculateRiskPercent(trade);
+  const rMultiple = calculateRMultiple(trade);
   const tone = pnl >= 0 ? 'positive' : 'negative';
+  const rTone = rMultiple === null || rMultiple >= 0 ? 'positive' : 'negative';
   return `
     <article class="trade-card">
       <div class="trade-card-header">
@@ -188,6 +257,10 @@ function tradeCard(trade) {
         <span>Entry: ${currency(Number(trade.entry))}</span>
         <span>Exit: ${currency(Number(trade.exit))}</span>
         <span>Size: ${escapeHtml(trade.size)}</span>
+        <span>Stop Loss: ${stopLoss === null ? '—' : currency(stopLoss)}</span>
+        <span>Risk $: ${riskDollars === null ? '—' : currency(riskDollars)}</span>
+        <span>Risk %: ${formatPercent(riskPercent)}</span>
+        <span class="${rTone}">R: ${formatRMultiple(rMultiple)}</span>
         <span>Emotion: ${escapeHtml(trade.emotion)}</span>
       </div>
       ${trade.tags ? `<p class="tags">${escapeHtml(trade.tags)}</p>` : ''}
@@ -229,6 +302,8 @@ function render() {
         ${statCard('target', 'Win rate', `${stats.winRate}%`)}
         ${statCard('chart', 'Trades logged', stats.tradeCount)}
         ${statCard('line', 'Avg win / loss', `${currency(stats.averageWin)} / ${currency(stats.averageLoss)}`)}
+        ${statCard('target', 'Total R', formatRMultiple(stats.totalR), stats.totalR === null || stats.totalR >= 0 ? 'positive' : 'negative')}
+        ${statCard('line', 'Average R', formatRMultiple(stats.averageR), stats.averageR === null || stats.averageR >= 0 ? 'positive' : 'negative')}
       </section>
 
       <section class="workspace-grid">
@@ -242,6 +317,9 @@ function render() {
             ${field('Entry', '<input name="entry" type="number" min="0" step="0.01" required />')}
             ${field('Exit', '<input name="exit" type="number" min="0" step="0.01" required />')}
             ${field('Size', '<input name="size" type="number" min="0.01" step="0.01" required />')}
+            ${field('Stop Loss', '<input name="stopLoss" type="number" min="0" step="0.01" placeholder="Optional" />')}
+            ${field('Account Size', '<input name="accountSize" type="number" min="0" step="0.01" placeholder="Optional" />')}
+            ${field('Risk %', '<input name="riskPercent" type="number" min="0" step="0.01" placeholder="Calculated" readonly />')}
             ${field('Fees', '<input name="fees" type="number" min="0" step="0.01" value="0" />')}
             ${field('Emotion', '<input name="emotion" placeholder="Calm, FOMO, patient..." value="Calm" />')}
             ${field('Tags', '<input name="tags" placeholder="gap, reversal, A+" />')}
@@ -284,6 +362,7 @@ function bindEvents() {
   const screenshotInput = tradeForm.querySelector('input[name="screenshot"]');
 
   tradeForm.addEventListener('submit', submitTrade);
+  tradeForm.addEventListener('input', updateRiskPercentField);
   screenshotInput.addEventListener('change', changeScreenshot);
 
   if (!isPasteListenerBound) {
@@ -299,6 +378,7 @@ function bindEvents() {
   document.querySelector('#importTrades').addEventListener('change', importTrades);
 
   updateScreenshotFieldPreview();
+  updateRiskPercentField({ currentTarget: tradeForm });
 
   document.querySelectorAll('[data-delete-trade]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -321,6 +401,14 @@ async function submitTrade(event) {
     entry: Number(formData.get('entry')),
     exit: Number(formData.get('exit')),
     size: Number(formData.get('size')),
+    stopLoss: toOptionalNumber(formData.get('stopLoss')),
+    accountSize: toOptionalNumber(formData.get('accountSize')),
+    riskPercent: calculateRiskPercent({
+      entry: formData.get('entry'),
+      stopLoss: formData.get('stopLoss'),
+      size: formData.get('size'),
+      accountSize: formData.get('accountSize'),
+    }),
     fees: Number(formData.get('fees')) || 0,
     emotion: String(formData.get('emotion')).trim() || 'Calm',
     tags: String(formData.get('tags')).trim(),
@@ -331,6 +419,24 @@ async function submitTrade(event) {
   selectedScreenshot = null;
   pastedScreenshotFile = null;
   persistTrades([nextTrade, ...trades]);
+}
+
+function updateRiskPercentField(event) {
+  const form = event.currentTarget;
+  const riskPercentInput = form.querySelector('input[name="riskPercent"]');
+  if (!riskPercentInput) {
+    return;
+  }
+
+  const formData = new FormData(form);
+  const riskPercent = calculateRiskPercent({
+    entry: formData.get('entry'),
+    stopLoss: formData.get('stopLoss'),
+    size: formData.get('size'),
+    accountSize: formData.get('accountSize'),
+  });
+
+  riskPercentInput.value = riskPercent === null ? '' : riskPercent.toFixed(2);
 }
 
 async function changeScreenshot(event) {
