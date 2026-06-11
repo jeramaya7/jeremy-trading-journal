@@ -135,6 +135,7 @@ function icon(name) {
     plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>',
     calendar: '<svg viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>',
     trash: '<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>',
+    image: '<svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>',
   };
   return icons[name] ?? '';
 }
@@ -146,6 +147,20 @@ function statCard(iconName, label, value, tone = '') {
       <span>${label}</span>
       <strong class="${tone}">${value}</strong>
     </article>
+  `;
+}
+
+function screenshotPreview(trade) {
+  if (!trade.screenshot?.dataUrl) {
+    return '';
+  }
+
+  const altText = escapeHtml(trade.screenshot.name || `${trade.symbol} trade screenshot`);
+  return `
+    <a class="screenshot-link" href="${escapeHtml(trade.screenshot.dataUrl)}" target="_blank" rel="noreferrer" aria-label="Open full-size screenshot for ${escapeHtml(trade.symbol)}">
+      <img class="screenshot-thumbnail" src="${escapeHtml(trade.screenshot.dataUrl)}" alt="${altText}" loading="lazy" />
+      <span>Open full-size chart</span>
+    </a>
   `;
 }
 
@@ -169,6 +184,7 @@ function tradeCard(trade) {
       </div>
       ${trade.tags ? `<p class="tags">${escapeHtml(trade.tags)}</p>` : ''}
       ${trade.notes ? `<p class="notes">${escapeHtml(trade.notes)}</p>` : ''}
+      ${screenshotPreview(trade)}
       <button class="icon-button" type="button" data-delete-trade="${escapeHtml(trade.id)}" aria-label="Delete ${escapeHtml(trade.symbol)} trade">
         ${icon('trash')} Delete
       </button>
@@ -217,12 +233,17 @@ function render() {
             ${field('Setup', '<input name="setup" placeholder="Breakout, pullback, VWAP..." />')}
             ${field('Entry', '<input name="entry" type="number" min="0" step="0.01" required />')}
             ${field('Exit', '<input name="exit" type="number" min="0" step="0.01" required />')}
-            ${field('Size', '<input name="size" type="number" min="0" step="1" required />')}
+            ${field('Size', '<input name="size" type="number" min="0.01" step="0.01" required />')}
             ${field('Fees', '<input name="fees" type="number" min="0" step="0.01" value="0" />')}
             ${field('Emotion', '<input name="emotion" placeholder="Calm, FOMO, patient..." value="Calm" />')}
             ${field('Tags', '<input name="tags" placeholder="gap, reversal, A+" />')}
           </div>
           ${field('Notes', '<textarea name="notes" rows="5" placeholder="What was the plan? What happened? What will you repeat or avoid?"></textarea>')}
+          <label class="screenshot-upload">
+            <span>${icon('image')} Trade screenshot</span>
+            <input name="screenshot" type="file" accept="image/*" />
+            <small>Optional. One image is stored locally with this trade and included in JSON backups.</small>
+          </label>
           <button class="primary-button" type="submit">Save trade</button>
         </form>
 
@@ -263,9 +284,11 @@ function bindEvents() {
   });
 }
 
-function submitTrade(event) {
+async function submitTrade(event) {
   event.preventDefault();
-  const formData = new FormData(event.currentTarget);
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  const screenshot = await readScreenshot(formData.get('screenshot'));
   const nextTrade = {
     id: crypto.randomUUID(),
     date: formData.get('date'),
@@ -279,9 +302,38 @@ function submitTrade(event) {
     emotion: String(formData.get('emotion')).trim() || 'Calm',
     tags: String(formData.get('tags')).trim(),
     notes: String(formData.get('notes')).trim(),
+    screenshot,
   };
 
   persistTrades([nextTrade, ...trades]);
+}
+
+function readScreenshot(file) {
+  if (!(file instanceof File) || !file.size) {
+    return null;
+  }
+
+  if (!file.type.startsWith('image/')) {
+    window.alert('Please choose an image file for the trade screenshot.');
+    return null;
+  }
+
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      resolve({
+        dataUrl: String(reader.result),
+        name: file.name,
+        type: file.type,
+        size: file.size,
+      });
+    };
+    reader.onerror = () => {
+      window.alert('The screenshot could not be read. Save the trade without it or choose another image.');
+      resolve(null);
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function exportTrades() {
