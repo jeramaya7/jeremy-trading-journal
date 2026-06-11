@@ -1,3 +1,5 @@
+import { calculatePnl, calculateRiskDollars, calculateRiskPercent, calculateRMultiple, optionalNumber } from './tradeMetrics.js';
+
 const STORAGE_KEY = 'jeremy-trading-journal:v1';
 
 const starterTrades = [
@@ -47,6 +49,9 @@ const starterTrades = [
 
 let trades = loadTrades();
 let searchQuery = '';
+let selectedScreenshot = null;
+let pastedScreenshotFile = null;
+let isPasteListenerBound = false;
 
 const app = document.querySelector('#root');
 
@@ -74,22 +79,31 @@ function currency(value) {
   }).format(value || 0);
 }
 
-function calculatePnl(trade) {
-  const entry = Number(trade.entry) || 0;
-  const exit = Number(trade.exit) || 0;
-  const size = Number(trade.size) || 0;
-  const fees = Number(trade.fees) || 0;
-  const gross = trade.direction === 'Short' ? (entry - exit) * size : (exit - entry) * size;
-  return gross - fees;
+function currencyOrDash(value) {
+  return value === null ? '—' : currency(value);
+}
+
+function percentOrDash(value) {
+  return value === null ? '—' : `${value.toFixed(2)}%`;
+}
+
+function rMultiple(value) {
+  return `${value.toFixed(2)}R`;
+}
+
+function rMultipleOrDash(value) {
+  return value === null ? '—' : rMultiple(value);
 }
 
 function getStats() {
   const pnlValues = trades.map(calculatePnl);
+  const rMultiples = trades.map(calculateRMultiple).filter((value) => value !== null);
   const wins = pnlValues.filter((value) => value > 0);
   const losses = pnlValues.filter((value) => value < 0);
   const totalPnl = pnlValues.reduce((sum, value) => sum + value, 0);
   const averageWin = wins.length ? wins.reduce((sum, value) => sum + value, 0) / wins.length : 0;
   const averageLoss = losses.length ? losses.reduce((sum, value) => sum + value, 0) / losses.length : 0;
+  const totalR = rMultiples.reduce((sum, value) => sum + value, 0);
 
   return {
     totalPnl,
@@ -97,6 +111,8 @@ function getStats() {
     tradeCount: trades.length,
     averageWin,
     averageLoss,
+    totalR,
+    averageR: rMultiples.length ? totalR / rMultiples.length : 0,
   };
 }
 
@@ -150,23 +166,32 @@ function statCard(iconName, label, value, tone = '') {
   `;
 }
 
-function screenshotPreview(trade) {
-  if (!trade.screenshot?.dataUrl) {
+function screenshotLink(screenshot, label) {
+  if (!screenshot?.dataUrl) {
     return '';
   }
 
-  const altText = escapeHtml(trade.screenshot.name || `${trade.symbol} trade screenshot`);
+  const safeLabel = escapeHtml(label);
+  const altText = escapeHtml(screenshot.name || `${label} screenshot`);
   return `
-    <a class="screenshot-link" href="${escapeHtml(trade.screenshot.dataUrl)}" target="_blank" rel="noreferrer" aria-label="Open full-size screenshot for ${escapeHtml(trade.symbol)}">
-      <img class="screenshot-thumbnail" src="${escapeHtml(trade.screenshot.dataUrl)}" alt="${altText}" loading="lazy" />
+    <a class="screenshot-link" href="${escapeHtml(screenshot.dataUrl)}" target="_blank" rel="noreferrer" aria-label="Open full-size screenshot for ${safeLabel}">
+      <img class="screenshot-thumbnail" src="${escapeHtml(screenshot.dataUrl)}" alt="${altText}" loading="lazy" />
       <span>Open full-size chart</span>
     </a>
   `;
 }
 
+function screenshotPreview(trade) {
+  return screenshotLink(trade.screenshot, trade.symbol);
+}
+
 function tradeCard(trade) {
   const pnl = calculatePnl(trade);
+  const riskDollars = calculateRiskDollars(trade);
+  const riskPercent = calculateRiskPercent(trade);
+  const tradeRMultiple = calculateRMultiple(trade);
   const tone = pnl >= 0 ? 'positive' : 'negative';
+  const rTone = tradeRMultiple === null || tradeRMultiple >= 0 ? 'positive' : 'negative';
   return `
     <article class="trade-card">
       <div class="trade-card-header">
@@ -181,6 +206,9 @@ function tradeCard(trade) {
         <span>Exit: ${currency(Number(trade.exit))}</span>
         <span>Size: ${escapeHtml(trade.size)}</span>
         <span>Emotion: ${escapeHtml(trade.emotion)}</span>
+        <span>Risk $: ${currencyOrDash(riskDollars)}</span>
+        <span>Risk %: ${percentOrDash(riskPercent)}</span>
+        <span>R: <strong class="${rTone}">${rMultipleOrDash(tradeRMultiple)}</strong></span>
       </div>
       ${trade.tags ? `<p class="tags">${escapeHtml(trade.tags)}</p>` : ''}
       ${trade.notes ? `<p class="notes">${escapeHtml(trade.notes)}</p>` : ''}
@@ -221,6 +249,8 @@ function render() {
         ${statCard('target', 'Win rate', `${stats.winRate}%`)}
         ${statCard('chart', 'Trades logged', stats.tradeCount)}
         ${statCard('line', 'Avg win / loss', `${currency(stats.averageWin)} / ${currency(stats.averageLoss)}`)}
+        ${statCard('target', 'Total R', rMultiple(stats.totalR), stats.totalR >= 0 ? 'positive' : 'negative')}
+        ${statCard('line', 'Average R', rMultiple(stats.averageR), stats.averageR >= 0 ? 'positive' : 'negative')}
       </section>
 
       <section class="workspace-grid">
@@ -234,16 +264,23 @@ function render() {
             ${field('Entry', '<input name="entry" type="number" min="0" step="0.01" required />')}
             ${field('Exit', '<input name="exit" type="number" min="0" step="0.01" required />')}
             ${field('Size', '<input name="size" type="number" min="0.01" step="0.01" required />')}
+            ${field('Stop Loss', '<input name="stopLoss" type="number" min="0" step="0.01" placeholder="195.00" />')}
+            ${field('Account Size', '<input name="accountSize" type="number" min="0" step="0.01" placeholder="25000" />')}
+            ${field('Risk %', '<input name="riskPercent" type="number" step="0.01" placeholder="Calculated" readonly />')}
             ${field('Fees', '<input name="fees" type="number" min="0" step="0.01" value="0" />')}
             ${field('Emotion', '<input name="emotion" placeholder="Calm, FOMO, patient..." value="Calm" />')}
             ${field('Tags', '<input name="tags" placeholder="gap, reversal, A+" />')}
           </div>
           ${field('Notes', '<textarea name="notes" rows="5" placeholder="What was the plan? What happened? What will you repeat or avoid?"></textarea>')}
-          <label class="screenshot-upload">
-            <span>${icon('image')} Trade screenshot</span>
-            <input name="screenshot" type="file" accept="image/*" />
-            <small>Optional. One image is stored locally with this trade and included in JSON backups.</small>
-          </label>
+          <div class="screenshot-upload-field">
+            <label class="screenshot-upload" id="screenshotUpload">
+              <span>${icon('image')} Trade screenshot</span>
+              <input name="screenshot" type="file" accept="image/*" />
+              <small>Optional. One image is stored locally with this trade and included in JSON backups.</small>
+              <small>Tip: Paste a screenshot with Ctrl+V / Cmd+V</small>
+            </label>
+            <div class="screenshot-field-preview" id="screenshotFieldPreview" aria-live="polite"></div>
+          </div>
           <button class="primary-button" type="submit">Save trade</button>
         </form>
 
@@ -268,7 +305,19 @@ function field(label, control) {
 }
 
 function bindEvents() {
-  document.querySelector('#tradeForm').addEventListener('submit', submitTrade);
+  const tradeForm = document.querySelector('#tradeForm');
+  const screenshotInput = tradeForm.querySelector('input[name="screenshot"]');
+  const riskInputs = tradeForm.querySelectorAll('input[name="entry"], input[name="stopLoss"], input[name="size"], input[name="accountSize"]');
+
+  tradeForm.addEventListener('submit', submitTrade);
+  screenshotInput.addEventListener('change', changeScreenshot);
+  riskInputs.forEach((input) => input.addEventListener('input', updateRiskPercentField));
+  updateRiskPercentField();
+
+  if (!isPasteListenerBound) {
+    document.addEventListener('paste', pasteScreenshot);
+    isPasteListenerBound = true;
+  }
   document.querySelector('#searchInput').addEventListener('input', (event) => {
     searchQuery = event.target.value;
     render();
@@ -277,6 +326,8 @@ function bindEvents() {
   document.querySelector('#exportTrades').addEventListener('click', exportTrades);
   document.querySelector('#importTrades').addEventListener('change', importTrades);
 
+  updateScreenshotFieldPreview();
+
   document.querySelectorAll('[data-delete-trade]').forEach((button) => {
     button.addEventListener('click', () => {
       persistTrades(trades.filter((trade) => trade.id !== button.dataset.deleteTrade));
@@ -284,11 +335,28 @@ function bindEvents() {
   });
 }
 
+function updateRiskPercentField() {
+  const tradeForm = document.querySelector('#tradeForm');
+  const riskPercentInput = tradeForm?.querySelector('input[name="riskPercent"]');
+  if (!tradeForm || !riskPercentInput) {
+    return;
+  }
+
+  const formData = new FormData(tradeForm);
+  const riskPercent = calculateRiskPercent({
+    entry: formData.get('entry'),
+    stopLoss: formData.get('stopLoss'),
+    size: formData.get('size'),
+    accountSize: formData.get('accountSize'),
+  });
+  riskPercentInput.value = riskPercent === null ? '' : riskPercent.toFixed(2);
+}
+
 async function submitTrade(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const formData = new FormData(form);
-  const screenshot = await readScreenshot(formData.get('screenshot'));
+  const screenshot = selectedScreenshot ?? await readScreenshot(formData.get('screenshot') || pastedScreenshotFile);
   const nextTrade = {
     id: crypto.randomUUID(),
     date: formData.get('date'),
@@ -298,14 +366,76 @@ async function submitTrade(event) {
     entry: Number(formData.get('entry')),
     exit: Number(formData.get('exit')),
     size: Number(formData.get('size')),
+    stopLoss: optionalNumber(formData.get('stopLoss')),
+    accountSize: optionalNumber(formData.get('accountSize')),
     fees: Number(formData.get('fees')) || 0,
     emotion: String(formData.get('emotion')).trim() || 'Calm',
     tags: String(formData.get('tags')).trim(),
     notes: String(formData.get('notes')).trim(),
     screenshot,
   };
+  nextTrade.riskPercent = calculateRiskPercent(nextTrade);
 
+  selectedScreenshot = null;
+  pastedScreenshotFile = null;
   persistTrades([nextTrade, ...trades]);
+}
+
+async function changeScreenshot(event) {
+  pastedScreenshotFile = null;
+  selectedScreenshot = await readScreenshot(event.target.files?.[0]);
+  updateScreenshotFieldPreview();
+}
+
+async function pasteScreenshot(event) {
+  const file = getClipboardImageFile(event.clipboardData);
+  if (!file) {
+    return;
+  }
+
+  event.preventDefault();
+  pastedScreenshotFile = file;
+  setFileInputFile(document.querySelector('input[name="screenshot"]'), file);
+  selectedScreenshot = await readScreenshot(file);
+  updateScreenshotFieldPreview();
+}
+
+function getClipboardImageFile(clipboardData) {
+  if (!clipboardData) {
+    return null;
+  }
+
+  const items = Array.from(clipboardData.items ?? []);
+  const imageItem = items.find((item) => item.kind === 'file' && item.type.startsWith('image/'));
+  const itemFile = imageItem?.getAsFile();
+  if (itemFile) {
+    return itemFile;
+  }
+
+  return Array.from(clipboardData.files ?? []).find((file) => file.type.startsWith('image/')) ?? null;
+}
+
+function setFileInputFile(input, file) {
+  if (!input || !file || typeof DataTransfer === 'undefined') {
+    return;
+  }
+
+  try {
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    input.files = dataTransfer.files;
+  } catch {
+    pastedScreenshotFile = file;
+  }
+}
+
+function updateScreenshotFieldPreview() {
+  const preview = document.querySelector('#screenshotFieldPreview');
+  if (!preview) {
+    return;
+  }
+
+  preview.innerHTML = selectedScreenshot ? screenshotLink(selectedScreenshot, 'selected trade screenshot') : '';
 }
 
 function readScreenshot(file) {
