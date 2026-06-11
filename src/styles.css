@@ -218,7 +218,8 @@ h2 {
 .field input,
 .field select,
 .field textarea,
-.search-input {
+.search-input,
+.screenshot-upload {
   background: #f8fafc;
   border: 1px solid #d8e1ee;
   border-radius: 14px;
@@ -231,9 +232,38 @@ h2 {
 .field input:focus,
 .field select:focus,
 .field textarea:focus,
-.search-input:focus {
+.search-input:focus,
+.screenshot-upload:focus-within {
   border-color: #276ef1;
   box-shadow: 0 0 0 4px rgba(39, 110, 241, 0.12);
+}
+
+.screenshot-upload {
+  color: #43536b;
+  cursor: pointer;
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 1rem;
+}
+
+.screenshot-upload span {
+  align-items: center;
+  color: #31517c;
+  display: inline-flex;
+  font-size: 0.86rem;
+  font-weight: 900;
+  gap: 0.45rem;
+}
+
+.screenshot-upload input {
+  cursor: pointer;
+  padding: 0;
+}
+
+.screenshot-upload small {
+  color: #64748b;
+  font-weight: 700;
+  line-height: 1.5;
 }
 
 .journal-header {
@@ -296,6 +326,36 @@ h2 {
   font-size: 0.88rem;
   font-weight: 800;
   margin: 0.4rem 0;
+}
+
+.screenshot-link {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #d8e1ee;
+  border-radius: 16px;
+  color: #31517c;
+  display: flex;
+  font-size: 0.88rem;
+  font-weight: 900;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+  padding: 0.55rem;
+  text-decoration: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.screenshot-link:hover {
+  border-color: #276ef1;
+  box-shadow: 0 12px 30px rgba(39, 110, 241, 0.12);
+  transform: translateY(-1px);
+}
+
+.screenshot-thumbnail {
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  height: 74px;
+  object-fit: cover;
+  width: 118px;
 }
 
 .icon-button {
