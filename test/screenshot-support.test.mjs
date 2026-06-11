@@ -33,3 +33,20 @@ test('helper copy and JSON import/export preserve screenshot data', () => {
   assertIncludes(source, 'JSON.stringify(trades, null, 2)', 'Export serializes full trade objects, including screenshot data.');
   assertIncludes(source, 'persistTrades(importedTrades)', 'Import persists full trade objects, including screenshot data.');
 });
+
+test('risk fields and calculations are available for trade logging', () => {
+  assertIncludes(source, 'input name="stopLoss" type="number"', 'The trade form includes a Stop Loss field.');
+  assertIncludes(source, 'input name="accountSize" type="number"', 'The trade form includes an Account Size field.');
+  assertIncludes(source, 'input name="riskPercent" type="number"', 'The trade form includes a calculated Risk % field.');
+  assertIncludes(source, 'Math.abs(entry - stopLoss) * size', 'Risk dollars are calculated from entry, stop loss, and position size.');
+  assertIncludes(source, 'return (riskDollars / accountSize) * 100;', 'Risk percent is calculated from risk dollars and account size.');
+  assertIncludes(source, 'return calculatePnl(trade) / riskDollars;', 'R multiple is calculated from P&L and risk dollars.');
+});
+
+test('risk metrics render on cards and summary', () => {
+  assertIncludes(source, 'Risk $: ${riskDollars === null ?', 'Trade cards render risk dollars with blank-field fallback.');
+  assertIncludes(source, 'Risk %: ${formatPercent(riskPercent)}', 'Trade cards render risk percent.');
+  assertIncludes(source, 'R: ${formatRMultiple(rMultiple)}', 'Trade cards render R multiple.');
+  assertIncludes(source, "statCard('target', 'Total R'", 'The summary includes total R.');
+  assertIncludes(source, "statCard('line', 'Average R'", 'The summary includes average R.');
+});
