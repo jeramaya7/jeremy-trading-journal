@@ -233,7 +233,7 @@ function render() {
             ${field('Setup', '<input name="setup" placeholder="Breakout, pullback, VWAP..." />')}
             ${field('Entry', '<input name="entry" type="number" min="0" step="0.01" required />')}
             ${field('Exit', '<input name="exit" type="number" min="0" step="0.01" required />')}
-            ${field('Size', '<input name="size" type="number" min="0" step="1" required />')}
+            ${field('Size', '<input name="size" type="number" min="0.01" step="0.01" required />')}
             ${field('Fees', '<input name="fees" type="number" min="0" step="0.01" value="0" />')}
             ${field('Emotion', '<input name="emotion" placeholder="Calm, FOMO, patient..." value="Calm" />')}
             ${field('Tags', '<input name="tags" placeholder="gap, reversal, A+" />')}
