@@ -47,6 +47,9 @@ const starterTrades = [
 
 let trades = loadTrades();
 let searchQuery = '';
+let selectedScreenshot = null;
+let pastedScreenshotFile = null;
+let isPasteListenerBound = false;
 
 const app = document.querySelector('#root');
 
@@ -150,18 +153,23 @@ function statCard(iconName, label, value, tone = '') {
   `;
 }
 
-function screenshotPreview(trade) {
-  if (!trade.screenshot?.dataUrl) {
+function screenshotLink(screenshot, label) {
+  if (!screenshot?.dataUrl) {
     return '';
   }
 
-  const altText = escapeHtml(trade.screenshot.name || `${trade.symbol} trade screenshot`);
+  const safeLabel = escapeHtml(label);
+  const altText = escapeHtml(screenshot.name || `${label} screenshot`);
   return `
-    <a class="screenshot-link" href="${escapeHtml(trade.screenshot.dataUrl)}" target="_blank" rel="noreferrer" aria-label="Open full-size screenshot for ${escapeHtml(trade.symbol)}">
-      <img class="screenshot-thumbnail" src="${escapeHtml(trade.screenshot.dataUrl)}" alt="${altText}" loading="lazy" />
+    <a class="screenshot-link" href="${escapeHtml(screenshot.dataUrl)}" target="_blank" rel="noreferrer" aria-label="Open full-size screenshot for ${safeLabel}">
+      <img class="screenshot-thumbnail" src="${escapeHtml(screenshot.dataUrl)}" alt="${altText}" loading="lazy" />
       <span>Open full-size chart</span>
     </a>
   `;
+}
+
+function screenshotPreview(trade) {
+  return screenshotLink(trade.screenshot, trade.symbol);
 }
 
 function tradeCard(trade) {
@@ -239,11 +247,15 @@ function render() {
             ${field('Tags', '<input name="tags" placeholder="gap, reversal, A+" />')}
           </div>
           ${field('Notes', '<textarea name="notes" rows="5" placeholder="What was the plan? What happened? What will you repeat or avoid?"></textarea>')}
-          <label class="screenshot-upload">
-            <span>${icon('image')} Trade screenshot</span>
-            <input name="screenshot" type="file" accept="image/*" />
-            <small>Optional. One image is stored locally with this trade and included in JSON backups.</small>
-          </label>
+          <div class="screenshot-upload-field">
+            <label class="screenshot-upload" id="screenshotUpload">
+              <span>${icon('image')} Trade screenshot</span>
+              <input name="screenshot" type="file" accept="image/*" />
+              <small>Optional. One image is stored locally with this trade and included in JSON backups.</small>
+              <small>Tip: Paste a screenshot with Ctrl+V / Cmd+V</small>
+            </label>
+            <div class="screenshot-field-preview" id="screenshotFieldPreview" aria-live="polite"></div>
+          </div>
           <button class="primary-button" type="submit">Save trade</button>
         </form>
 
@@ -268,7 +280,16 @@ function field(label, control) {
 }
 
 function bindEvents() {
-  document.querySelector('#tradeForm').addEventListener('submit', submitTrade);
+  const tradeForm = document.querySelector('#tradeForm');
+  const screenshotInput = tradeForm.querySelector('input[name="screenshot"]');
+
+  tradeForm.addEventListener('submit', submitTrade);
+  screenshotInput.addEventListener('change', changeScreenshot);
+
+  if (!isPasteListenerBound) {
+    document.addEventListener('paste', pasteScreenshot);
+    isPasteListenerBound = true;
+  }
   document.querySelector('#searchInput').addEventListener('input', (event) => {
     searchQuery = event.target.value;
     render();
@@ -276,6 +297,8 @@ function bindEvents() {
   });
   document.querySelector('#exportTrades').addEventListener('click', exportTrades);
   document.querySelector('#importTrades').addEventListener('change', importTrades);
+
+  updateScreenshotFieldPreview();
 
   document.querySelectorAll('[data-delete-trade]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -288,7 +311,7 @@ async function submitTrade(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const formData = new FormData(form);
-  const screenshot = await readScreenshot(formData.get('screenshot'));
+  const screenshot = selectedScreenshot ?? await readScreenshot(formData.get('screenshot') || pastedScreenshotFile);
   const nextTrade = {
     id: crypto.randomUUID(),
     date: formData.get('date'),
@@ -305,7 +328,66 @@ async function submitTrade(event) {
     screenshot,
   };
 
+  selectedScreenshot = null;
+  pastedScreenshotFile = null;
   persistTrades([nextTrade, ...trades]);
+}
+
+async function changeScreenshot(event) {
+  pastedScreenshotFile = null;
+  selectedScreenshot = await readScreenshot(event.target.files?.[0]);
+  updateScreenshotFieldPreview();
+}
+
+async function pasteScreenshot(event) {
+  const file = getClipboardImageFile(event.clipboardData);
+  if (!file) {
+    return;
+  }
+
+  event.preventDefault();
+  pastedScreenshotFile = file;
+  setFileInputFile(document.querySelector('input[name="screenshot"]'), file);
+  selectedScreenshot = await readScreenshot(file);
+  updateScreenshotFieldPreview();
+}
+
+function getClipboardImageFile(clipboardData) {
+  if (!clipboardData) {
+    return null;
+  }
+
+  const items = Array.from(clipboardData.items ?? []);
+  const imageItem = items.find((item) => item.kind === 'file' && item.type.startsWith('image/'));
+  const itemFile = imageItem?.getAsFile();
+  if (itemFile) {
+    return itemFile;
+  }
+
+  return Array.from(clipboardData.files ?? []).find((file) => file.type.startsWith('image/')) ?? null;
+}
+
+function setFileInputFile(input, file) {
+  if (!input || !file || typeof DataTransfer === 'undefined') {
+    return;
+  }
+
+  try {
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    input.files = dataTransfer.files;
+  } catch {
+    pastedScreenshotFile = file;
+  }
+}
+
+function updateScreenshotFieldPreview() {
+  const preview = document.querySelector('#screenshotFieldPreview');
+  if (!preview) {
+    return;
+  }
+
+  preview.innerHTML = selectedScreenshot ? screenshotLink(selectedScreenshot, 'selected trade screenshot') : '';
 }
 
 function readScreenshot(file) {

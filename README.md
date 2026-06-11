@@ -8,6 +8,7 @@ A local-first trading journal built with plain HTML, CSS, and JavaScript. Log tr
 - Automatically calculate per-trade P&L and portfolio summary metrics.
 - Search journal entries by symbol, setup, direction, tags, emotion, or notes.
 - Persist trades in browser local storage for a quick no-backend workflow.
+- Attach trade screenshots with the file picker or by pasting an image from the clipboard.
 - Import and export the full journal as JSON.
 - Responsive interface for desktop and mobile review sessions.
 
@@ -19,9 +20,10 @@ Start the development server:
 npm run dev
 ```
 
-Run a JavaScript syntax check:
+Run automated tests and a JavaScript syntax check:
 
 ```bash
+npm run test
 npm run check
 ```
 
