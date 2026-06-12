@@ -22,6 +22,7 @@ npm run dev
 
 ## cTrader OAuth setup
 
+The cTrader integration adds OAuth connection routes plus a JSON WebSocket client for app authentication, account discovery, and account authorization. Trade sync is not implemented yet. Configure these environment variables before opening `/auth/ctrader/start`:
 The first cTrader integration step adds OAuth connection routes only; trade sync is not implemented yet. Configure these environment variables before opening `/auth/ctrader/start`:
 
 ```bash
@@ -31,6 +32,7 @@ export CTRADER_REDIRECT_URI=http://localhost:5173/auth/ctrader/callback
 export CTRADER_ENVIRONMENT=demo # or live
 ```
 
+The backend redirects users to cTrader with account-read scope, exchanges the callback code for tokens, and stores the token pair encrypted at rest in `.data/ctrader-tokens.json`. The WebSocket client targets `demo.ctraderapi.com:5036` or `live.ctraderapi.com:5036` based on `CTRADER_ENVIRONMENT`. Set `CTRADER_TOKEN_ENCRYPTION_KEY` in deployed environments to use a dedicated token encryption secret; otherwise the backend derives encryption from `CTRADER_CLIENT_SECRET` for local development.
 The backend redirects users to cTrader with account-read scope, exchanges the callback code for tokens, and stores the token pair encrypted at rest in `.data/ctrader-tokens.json`. Set `CTRADER_TOKEN_ENCRYPTION_KEY` in deployed environments to use a dedicated token encryption secret; otherwise the backend derives encryption from `CTRADER_CLIENT_SECRET` for local development.
 
 Run automated tests and a JavaScript syntax check:
@@ -47,6 +49,7 @@ npm run check
 ├── index.html
 ├── package.json
 ├── src
+│   ├── ctrader-open-api.js
 │   ├── main.js
 │   ├── server.js
 │   └── styles.css
