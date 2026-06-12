@@ -7,6 +7,7 @@ import {
   buildBackendUrl,
   fetchBackendJson,
   getBackendDeploymentHint,
+  getBackendDiagnostics,
   getConfiguredBackendBaseUrl,
 } from '../src/backend-api.js';
 
@@ -47,6 +48,19 @@ test('GitHub Pages without a backend URL reports deployment architecture instead
   assert.equal(buildBackendUrl(CTRADER_ENDPOINTS.status, pagesRuntime), CTRADER_ENDPOINTS.status);
 });
 
+
+test('backend diagnostics expose the configured backend URL and status endpoint', () => {
+  const diagnostics = getBackendDiagnostics(runtime({
+    location: { hostname: 'jeramaya7.github.io', origin: 'https://jeramaya7.github.io', href: 'https://jeramaya7.github.io/jeremy-trading-journal/' },
+    JEREMY_TRADING_JOURNAL_BACKEND_URL: 'https://journal-backend.example.com/',
+  }));
+
+  assert.equal(diagnostics.configured, true);
+  assert.equal(diagnostics.backendUrl, 'https://journal-backend.example.com');
+  assert.equal(diagnostics.statusUrl, 'https://journal-backend.example.com/api/ctrader/status');
+  assert.equal(diagnostics.connectionStatus, 'Not checked');
+});
+
 test('fetchBackendJson stops GitHub Pages calls before JSON parsing', async () => {
   const pagesRuntime = runtime({ location: { hostname: 'jeramaya7.github.io' } });
 
@@ -57,6 +71,19 @@ test('fetchBackendJson stops GitHub Pages calls before JSON parsing', async () =
     }),
     (error) => error instanceof BackendUnavailableError
       && error.message.includes('Node backend deployed separately'),
+  );
+});
+
+
+test('fetchBackendJson identifies the exact GitHub Pages HTML endpoint', async () => {
+  await assert.rejects(
+    fetchBackendJson(CTRADER_ENDPOINTS.status, {
+      runtime: runtime({ location: { hostname: 'jeramaya7.github.io', origin: 'https://jeramaya7.github.io', href: 'https://jeramaya7.github.io/jeremy-trading-journal/' } }),
+      fetchImpl: async () => assert.fail('fetch should not be called without an explicit backend URL'),
+    }),
+    (error) => error instanceof BackendUnavailableError
+      && error.url === 'https://jeramaya7.github.io/api/ctrader/status'
+      && error.message.includes('skipped fetch URL was https://jeramaya7.github.io/api/ctrader/status'),
   );
 });
 

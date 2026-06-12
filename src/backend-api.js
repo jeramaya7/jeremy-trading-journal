@@ -1,5 +1,6 @@
 const BACKEND_BASE_URL_GLOBAL = 'JEREMY_TRADING_JOURNAL_BACKEND_URL';
 const BACKEND_BASE_URL_STORAGE_KEY = 'jeremy-trading-journal:backend-base-url:v1';
+const HTML_PREVIEW_LENGTH = 120;
 
 export const CTRADER_ENDPOINTS = Object.freeze({
   status: '/api/ctrader/status',
@@ -16,6 +17,7 @@ export class BackendUnavailableError extends Error {
     this.status = options.status;
     this.contentType = options.contentType;
     this.url = options.url;
+    this.bodyPreview = options.bodyPreview;
     this.cause = options.cause;
   }
 }
@@ -46,6 +48,14 @@ export function isGitHubPagesHost(hostname) {
   return String(hostname || '').toLowerCase().endsWith('.github.io');
 }
 
+export function resolveRuntimeUrl(path, runtime = globalThis) {
+  try {
+    return new URL(path, runtime?.location?.href || runtime?.location?.origin || 'http://localhost/').toString();
+  } catch {
+    return path;
+  }
+}
+
 export function getBackendDeploymentHint(runtime = globalThis) {
   const configuredBaseUrl = getConfiguredBackendBaseUrl(runtime);
   if (configuredBaseUrl) {
@@ -68,18 +78,46 @@ export function buildBackendUrl(path, runtime = globalThis) {
   return new URL(path, `${configuredBaseUrl}/`).toString();
 }
 
+export function getBackendDiagnostics(runtime = globalThis) {
+  const configuredBaseUrl = getConfiguredBackendBaseUrl(runtime);
+  const statusUrl = buildBackendUrl(CTRADER_ENDPOINTS.status, runtime);
+  const absoluteStatusUrl = resolveRuntimeUrl(statusUrl, runtime);
+  const origin = runtime?.location?.origin || '';
+
+  return {
+    configured: Boolean(configuredBaseUrl),
+    backendUrl: configuredBaseUrl || (origin ? `${origin} (same origin fallback)` : 'Not configured'),
+    statusUrl: absoluteStatusUrl,
+    connectionStatus: configuredBaseUrl || !getBackendDeploymentHint(runtime) ? 'Not checked' : 'Not configured',
+    deploymentHint: getBackendDeploymentHint(runtime),
+  };
+}
+
+function previewResponseBody(text) {
+  return String(text || '').replace(/\s+/g, ' ').trim().slice(0, HTML_PREVIEW_LENGTH);
+}
+
+async function readResponseText(response) {
+  if (typeof response.text === 'function') {
+    return response.text();
+  }
+
+  return '';
+}
+
 export async function fetchBackendJson(path, options = {}) {
   const runtime = options.runtime || globalThis;
   const fetchImpl = options.fetchImpl || runtime.fetch;
   const deploymentHint = getBackendDeploymentHint(runtime);
   const url = buildBackendUrl(path, runtime);
+  const displayUrl = resolveRuntimeUrl(url, runtime);
 
   if (deploymentHint) {
-    throw new BackendUnavailableError(deploymentHint, { url });
+    throw new BackendUnavailableError(`${deploymentHint} The skipped fetch URL was ${displayUrl}.`, { url: displayUrl });
   }
 
   if (typeof fetchImpl !== 'function') {
-    throw new BackendUnavailableError('This browser cannot contact the cTrader backend because fetch is unavailable.', { url });
+    throw new BackendUnavailableError('This browser cannot contact the cTrader backend because fetch is unavailable.', { url: displayUrl });
   }
 
   let response;
@@ -93,28 +131,36 @@ export async function fetchBackendJson(path, options = {}) {
     });
   } catch (error) {
     throw new BackendUnavailableError(
-      `The cTrader backend is unavailable at ${url}. Deploy the Node backend and configure the journal to use its public URL.`,
-      { url, cause: error },
+      `The cTrader backend is unavailable at ${displayUrl}. Deploy the Node backend and configure the journal to use its public URL.`,
+      { url: displayUrl, cause: error },
     );
   }
 
   const contentType = response.headers?.get?.('content-type') || '';
-  if (!contentType.toLowerCase().includes('application/json')) {
+  const isJsonResponse = contentType.toLowerCase().includes('application/json');
+  const responseText = await readResponseText(response);
+  const bodyPreview = previewResponseBody(responseText);
+
+  if (!isJsonResponse) {
     throw new BackendUnavailableError(
-      `The cTrader backend did not return JSON from ${url}. If this is GitHub Pages, deploy the Node backend separately and set window.JEREMY_TRADING_JOURNAL_BACKEND_URL to its URL.`,
-      { status: response.status, contentType, url },
+      `The cTrader backend did not return JSON from ${displayUrl} (HTTP ${response.status || 'unknown'}, Content-Type: ${contentType || 'unknown'}). This endpoint is returning ${bodyPreview.startsWith('<!DOCTYPE') || bodyPreview.startsWith('<html') ? 'HTML' : 'non-JSON'} instead of the Node API response. Deploy the Node backend separately from GitHub Pages and set window.JEREMY_TRADING_JOURNAL_BACKEND_URL to its public URL.`,
+      { status: response.status, contentType, url: displayUrl, bodyPreview },
     );
   }
 
   let body;
   try {
-    body = await response.json();
+    if (responseText || typeof response.json !== 'function') {
+      body = JSON.parse(responseText);
+    } else {
+      body = await response.json();
+    }
   } catch (error) {
     throw new BackendUnavailableError(
-      `The cTrader backend returned invalid JSON from ${url}. Check the deployed Node backend logs.`,
-      { status: response.status, contentType, url, cause: error },
+      `The cTrader backend returned invalid JSON from ${displayUrl} (HTTP ${response.status || 'unknown'}, Content-Type: ${contentType || 'unknown'}). Check the deployed Node backend logs.`,
+      { status: response.status, contentType, url: displayUrl, bodyPreview, cause: error },
     );
   }
 
-  return { response, body, url };
+  return { response, body, url: displayUrl };
 }

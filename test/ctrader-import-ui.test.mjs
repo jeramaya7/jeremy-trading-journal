@@ -53,3 +53,11 @@ test('cTrader Auto Sync keeps syncing while the app is open', () => {
   assertIncludes(source, 'window.setInterval(() => {', 'Auto Sync repeats without requiring the user to press Sync.');
   assertIncludes(source, 'scheduleCTraderAutoSync();', 'The app schedules Auto Sync during startup and preference changes.');
 });
+
+test('cTrader backend diagnostics show backend URL and connection status', () => {
+  assertIncludes(source, 'renderCTraderBackendDiagnostics()', 'The hero renders backend diagnostics near the cTrader controls.');
+  assertIncludes(source, 'Backend URL', 'The diagnostics display the backend URL used by fetch calls.');
+  assertIncludes(source, 'Status check URL', 'The diagnostics display the exact status endpoint being checked.');
+  assertIncludes(source, 'Connection status', 'The diagnostics display the current backend/cTrader connection state.');
+  assertIncludes(source, 'describeCTraderConnectionStatus(status)', 'The connection status is derived from the backend status response.');
+});

@@ -1,5 +1,5 @@
 import { buildCTraderSyncPlan } from './ctrader-sync.js';
-import { CTRADER_ENDPOINTS, fetchBackendJson } from './backend-api.js';
+import { CTRADER_ENDPOINTS, fetchBackendJson, getBackendDiagnostics } from './backend-api.js';
 
 const STORAGE_KEY = 'jeremy-trading-journal:v1';
 const AUTO_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-auto-sync:v1';
@@ -71,6 +71,7 @@ let isCheckingCTraderConnection = false;
 let isCTraderAutoSyncEnabled = loadCTraderAutoSyncSetting();
 let cTraderLastSyncAt = loadCTraderLastSyncTime();
 let cTraderAutoSyncTimer = null;
+let cTraderBackendDiagnostics = getCTraderBackendDiagnostics();
 
 const app = document.querySelector('#root');
 
@@ -352,6 +353,7 @@ function render() {
             <input type="file" accept="application/json" id="importTrades" />
           </label>
           <p class="sync-meta">Last cTrader sync: <strong>${escapeHtml(formatSyncTime(cTraderLastSyncAt))}</strong></p>
+          ${renderCTraderBackendDiagnostics()}
           ${cTraderSyncStatus ? `<p class="import-status ${escapeHtml(cTraderSyncStatus.tone)}" role="status">${escapeHtml(cTraderSyncStatus.message)}</p>` : ''}
         </div>
       </section>
@@ -585,6 +587,46 @@ function readScreenshot(file) {
   });
 }
 
+function getCTraderBackendDiagnostics(overrides = {}) {
+  return {
+    ...getBackendDiagnostics(window),
+    connectionStatus: overrides.connectionStatus || getBackendDiagnostics(window).connectionStatus,
+    tone: overrides.tone || (getBackendDiagnostics(window).deploymentHint ? 'error' : 'pending'),
+  };
+}
+
+function setCTraderBackendDiagnostics(overrides = {}) {
+  cTraderBackendDiagnostics = getCTraderBackendDiagnostics(overrides);
+}
+
+function renderCTraderBackendDiagnostics() {
+  return `
+    <dl class="backend-diagnostics" aria-label="cTrader backend diagnostics">
+      <div>
+        <dt>Backend URL</dt>
+        <dd>${escapeHtml(cTraderBackendDiagnostics.backendUrl)}</dd>
+      </div>
+      <div>
+        <dt>Status check URL</dt>
+        <dd>${escapeHtml(cTraderBackendDiagnostics.statusUrl)}</dd>
+      </div>
+      <div>
+        <dt>Connection status</dt>
+        <dd class="diagnostic-${escapeHtml(cTraderBackendDiagnostics.tone)}">${escapeHtml(cTraderBackendDiagnostics.connectionStatus)}</dd>
+      </div>
+    </dl>
+  `;
+}
+
+function describeCTraderConnectionStatus(status) {
+  if (status.connected) {
+    const account = status.accountId ? ` Account: ${status.accountId}.` : '';
+    return `Connected to cTrader.${account}`;
+  }
+
+  return status.error || 'Backend reached, but cTrader OAuth is not connected yet.';
+}
+
 function changeCTraderAutoSyncSetting(event) {
   persistCTraderAutoSyncSetting(event.target.checked);
   cTraderSyncStatus = {
@@ -599,10 +641,16 @@ function changeCTraderAutoSyncSetting(event) {
 }
 
 async function checkCTraderConnection() {
-  const { response, body: status } = await fetchBackendJson(CTRADER_ENDPOINTS.status);
+  setCTraderBackendDiagnostics({ connectionStatus: 'Checking backend status...', tone: 'pending' });
+  const { response, body: status, url } = await fetchBackendJson(CTRADER_ENDPOINTS.status);
   if (!response.ok || !status.connected) {
-    throw new Error(status.error || 'cTrader is not connected.');
+    setCTraderBackendDiagnostics({ connectionStatus: describeCTraderConnectionStatus(status), tone: 'error' });
+    const error = new Error(status.error || 'cTrader is not connected.');
+    error.url = url;
+    throw error;
   }
+
+  setCTraderBackendDiagnostics({ connectionStatus: describeCTraderConnectionStatus(status), tone: 'success' });
   return status;
 }
 
@@ -622,6 +670,8 @@ async function syncCTrader(options = {}) {
       throw new Error(preview.error || 'cTrader sync failed');
     }
 
+    setCTraderBackendDiagnostics({ connectionStatus: 'Backend reachable; cTrader journal preview loaded.', tone: 'success' });
+
     const previewTrades = Array.isArray(preview.trades) ? preview.trades : [];
     const syncPlan = buildCTraderSyncPlan(previewTrades, trades);
 
@@ -636,6 +686,7 @@ async function syncCTrader(options = {}) {
       message: `${isAutoSync ? 'Auto Sync complete.' : 'Sync complete.'} New trades imported: ${syncPlan.importedCount}. Trades skipped: ${syncPlan.skippedCount}.`,
     };
   } catch (error) {
+    setCTraderBackendDiagnostics({ connectionStatus: error.url ? `Backend error at ${error.url}` : 'Backend check failed', tone: 'error' });
     cTraderSyncStatus = {
       tone: 'error',
       message: error.message || 'cTrader sync failed.',
@@ -679,6 +730,7 @@ async function syncCTraderOnStartup() {
   try {
     await checkCTraderConnection();
   } catch (error) {
+    setCTraderBackendDiagnostics({ connectionStatus: error.url ? `Backend error at ${error.url}` : 'Backend check failed', tone: 'error' });
     cTraderSyncStatus = {
       tone: 'error',
       message: error.message || 'cTrader is not connected. Connect cTrader to enable Auto Sync.',
