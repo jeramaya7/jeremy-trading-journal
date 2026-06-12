@@ -3,6 +3,7 @@ import { buildCTraderSyncPlan } from './ctrader-sync.js';
 const STORAGE_KEY = 'jeremy-trading-journal:v1';
 const AUTO_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-auto-sync:v1';
 const LAST_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-last-sync:v1';
+const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 
 const starterTrades = [
   {
@@ -68,6 +69,7 @@ let isSyncingCTrader = false;
 let isCheckingCTraderConnection = false;
 let isCTraderAutoSyncEnabled = loadCTraderAutoSyncSetting();
 let cTraderLastSyncAt = loadCTraderLastSyncTime();
+let cTraderAutoSyncTimer = null;
 
 const app = document.querySelector('#root');
 
@@ -94,6 +96,7 @@ function loadCTraderAutoSyncSetting() {
 function persistCTraderAutoSyncSetting(isEnabled) {
   isCTraderAutoSyncEnabled = isEnabled;
   window.localStorage.setItem(AUTO_SYNC_STORAGE_KEY, isEnabled ? 'on' : 'off');
+  scheduleCTraderAutoSync();
   render();
 }
 
@@ -644,6 +647,21 @@ async function syncCTrader(options = {}) {
   }
 }
 
+function scheduleCTraderAutoSync() {
+  if (cTraderAutoSyncTimer !== null) {
+    clearInterval(cTraderAutoSyncTimer);
+    cTraderAutoSyncTimer = null;
+  }
+
+  if (!isCTraderAutoSyncEnabled) {
+    return;
+  }
+
+  cTraderAutoSyncTimer = window.setInterval(() => {
+    syncCTraderOnStartup();
+  }, AUTO_SYNC_INTERVAL_MS);
+}
+
 async function syncCTraderOnStartup() {
   if (!isCTraderAutoSyncEnabled) {
     cTraderSyncStatus = { tone: 'pending', message: 'Auto Sync is off.' };
@@ -703,4 +721,5 @@ function importTrades(event) {
 }
 
 render();
+scheduleCTraderAutoSync();
 syncCTraderOnStartup();
