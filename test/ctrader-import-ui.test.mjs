@@ -12,7 +12,7 @@ function assertIncludes(text, expected, message) {
 test('cTrader sync button calls the journal preview API', () => {
   assertIncludes(source, 'id="syncCTrader"', 'The hero actions render a Sync cTrader button.');
   assertIncludes(source, "document.querySelector('#syncCTrader').addEventListener('click', () => syncCTrader({ source: 'manual' }));", 'The cTrader sync button is wired to the sync handler.');
-  assertIncludes(source, "fetch('/api/ctrader/journal-preview')", 'The sync handler automatically fetches newly closed cTrader journal preview trades from the API.');
+  assertIncludes(source, 'fetchBackendJson(CTRADER_ENDPOINTS.journalPreview)', 'The sync handler automatically fetches newly closed cTrader journal preview trades from the API.');
   assertIncludes(source, 'Sync cTrader', 'The button copy uses the one-click synchronization language.');
 });
 
@@ -39,7 +39,7 @@ test('cTrader Auto Sync runs on startup and exposes settings metadata', () => {
   assertIncludes(source, "const LAST_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-last-sync:v1';", 'Last sync time is persisted separately from trades.');
   assertIncludes(source, 'id="autoSyncCTrader"', 'The hero actions render an Auto Sync checkbox.');
   assertIncludes(source, "document.querySelector('#autoSyncCTrader').addEventListener('change', changeCTraderAutoSyncSetting);", 'The Auto Sync checkbox updates the saved preference.');
-  assertIncludes(source, "fetch('/api/ctrader/status')", 'Startup Auto Sync checks cTrader connection status before syncing trades.');
+  assertIncludes(source, 'fetchBackendJson(CTRADER_ENDPOINTS.status)', 'Startup Auto Sync checks cTrader connection status before syncing trades.');
   assertIncludes(source, "syncCTrader({ source: 'auto' })", 'Startup Auto Sync imports new cTrader trades without pressing Sync.');
   assertIncludes(source, 'Last cTrader sync:', 'The UI shows the last cTrader sync time.');
   assertIncludes(source, 'syncCTraderOnStartup();', 'The app starts Auto Sync after the first render.');

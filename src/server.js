@@ -29,6 +29,14 @@ const contentTypes = {
 
 export function createAppServer(options = {}) {
   return createServer(async (request, response) => {
+    setCorsHeaders(response, options);
+
+    if (request.method === 'OPTIONS') {
+      response.writeHead(204);
+      response.end();
+      return;
+    }
+
     const url = new URL(request.url || '/', getRequestOrigin(request));
 
     if (request.method === 'GET' && url.pathname === '/auth/ctrader/start') {
@@ -606,6 +614,14 @@ function serializeCookie(name, value, options = {}) {
     segments.push(`Path=${options.path}`);
   }
   return segments.join('; ');
+}
+
+
+function setCorsHeaders(response, options = {}) {
+  const allowedOrigin = options.corsOrigin || process.env.JOURNAL_FRONTEND_ORIGIN || '*';
+  response.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+  response.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  response.setHeader('Access-Control-Allow-Headers', 'Accept, Content-Type');
 }
 
 function sendJson(response, statusCode, payload) {
