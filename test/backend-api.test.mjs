@@ -70,6 +70,23 @@ test('backend diagnostics expose the configured backend URL and status endpoint'
   assert.equal(diagnostics.connectionStatus, 'Not checked');
 });
 
+test('backend diagnostics never report a same-origin fallback on GitHub Pages', () => {
+  const diagnostics = getBackendDiagnostics(runtime({
+    location: {
+      hostname: 'jeramaya7.github.io',
+      origin: 'https://jeramaya7.github.io',
+      href: 'https://jeramaya7.github.io/jeremy-trading-journal/',
+    },
+  }));
+
+  assert.equal(diagnostics.configured, true);
+  assert.equal(diagnostics.backendUrl, DEFAULT_BACKEND_BASE_URL);
+  assert.equal(diagnostics.statusUrl, 'https://jeremy-trading-journal.onrender.com/api/ctrader/status');
+  assert.equal(diagnostics.connectionStatus, 'Not checked');
+  assert.ok(!diagnostics.backendUrl.includes('same origin fallback'));
+  assert.ok(!diagnostics.statusUrl.includes('jeramaya7.github.io/api/ctrader/status'));
+});
+
 test('fetchBackendJson calls the Render backend from GitHub Pages by default', async () => {
   const pagesRuntime = runtime({ location: { hostname: 'jeramaya7.github.io' } });
 

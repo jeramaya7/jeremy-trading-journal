@@ -85,13 +85,12 @@ export function getBackendDiagnostics(runtime = globalThis) {
   const configuredBaseUrl = getConfiguredBackendBaseUrl(runtime);
   const statusUrl = buildBackendUrl(CTRADER_ENDPOINTS.status, runtime);
   const absoluteStatusUrl = resolveRuntimeUrl(statusUrl, runtime);
-  const origin = runtime?.location?.origin || '';
 
   return {
-    configured: Boolean(configuredBaseUrl),
-    backendUrl: configuredBaseUrl || (origin ? `${origin} (same origin fallback)` : 'Not configured'),
+    configured: true,
+    backendUrl: configuredBaseUrl,
     statusUrl: absoluteStatusUrl,
-    connectionStatus: configuredBaseUrl || !getBackendDeploymentHint(runtime) ? 'Not checked' : 'Not configured',
+    connectionStatus: 'Not checked',
     deploymentHint: getBackendDeploymentHint(runtime),
   };
 }
