@@ -51,6 +51,11 @@ export function createAppServer(options = {}) {
       return;
     }
 
+    if (request.method === 'GET' && url.pathname === '/api/ctrader/status') {
+      await getCtraderStatus(response, options);
+      return;
+    }
+
     if (request.method === 'GET') {
       await serveStaticFile(response, url.pathname);
       return;
@@ -328,6 +333,32 @@ export async function storeRawCtraderDeals(dealsResult, options = {}) {
   return storedPayload;
 }
 
+async function getCtraderStatus(response, options = {}) {
+  const config = getCtraderConfig(options.env);
+  if (!config.ok) {
+    sendConfigurationError(response, config);
+    return;
+  }
+
+  try {
+    const tokens = await loadStoredCtraderTokens(config, options);
+    sendJson(response, 200, {
+      provider: 'ctrader',
+      connected: true,
+      environment: config.environment,
+      tokenType: tokens.tokenType,
+      expiresAt: tokens.record?.expiresAt || null,
+    });
+  } catch (error) {
+    sendJson(response, 401, {
+      provider: 'ctrader',
+      connected: false,
+      environment: config.environment,
+      error: error.message,
+    });
+  }
+}
+
 async function getCtraderDeals(response, url, options = {}) {
   const config = getCtraderConfig(options.env);
   if (!config.ok) {
@@ -448,7 +479,7 @@ async function completeCtraderAuth(request, response, url, options = {}) {
   <body>
     <h1>cTrader connected</h1>
     <p>Tokens were stored securely for the ${escapeHtml(tokenRecord.environment)} environment.</p>
-    <p>Trade sync is not implemented yet.</p>
+    <p>Return to the journal to use Sync cTrader or Auto Sync.</p>
     <p><a href="/">Return to the journal</a></p>
   </body>
 </html>`);
