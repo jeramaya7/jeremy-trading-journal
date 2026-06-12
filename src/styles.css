@@ -18,6 +18,7 @@ body {
 
 svg {
   fill: none;
+  flex: 0 0 auto;
   height: 1em;
   stroke: currentColor;
   stroke-linecap: round;
@@ -43,6 +44,7 @@ button,
   font-weight: 700;
   gap: 0.5rem;
   justify-content: center;
+  line-height: 1.2;
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
@@ -54,7 +56,7 @@ button:hover,
 .app-shell {
   margin: 0 auto;
   max-width: 1280px;
-  padding: 2rem;
+  padding: clamp(1rem, 3vw, 2rem);
 }
 
 .hero-card,
@@ -70,10 +72,10 @@ button:hover,
   align-items: center;
   border-radius: 32px;
   display: flex;
-  gap: 2rem;
+  gap: clamp(1.25rem, 4vw, 2.5rem);
   justify-content: space-between;
   overflow: hidden;
-  padding: 2.5rem;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
   position: relative;
 }
 
@@ -82,6 +84,7 @@ button:hover,
   border-radius: 999px;
   content: "";
   height: 220px;
+  pointer-events: none;
   position: absolute;
   right: -70px;
   top: -80px;
@@ -101,7 +104,7 @@ button:hover,
 }
 
 h1 {
-  font-size: clamp(2.4rem, 5vw, 5rem);
+  font-size: clamp(2.25rem, 5vw, 5rem);
   letter-spacing: -0.07em;
   line-height: 0.95;
   margin: 0.75rem 0 1rem;
@@ -116,16 +119,19 @@ h2 {
 
 .hero-copy {
   color: #64748b;
-  font-size: 1.12rem;
+  font-size: clamp(1rem, 2vw, 1.12rem);
   line-height: 1.7;
   margin: 0;
   max-width: 650px;
 }
 
 .hero-actions {
+  align-items: stretch;
   display: flex;
+  flex: 0 0 auto;
   flex-wrap: wrap;
   gap: 0.75rem;
+  justify-content: flex-end;
   position: relative;
   z-index: 1;
 }
@@ -146,6 +152,7 @@ h2 {
 .secondary-button {
   background: #172033;
   color: #ffffff;
+  white-space: nowrap;
 }
 
 .upload-button input {
@@ -155,12 +162,13 @@ h2 {
 .stats-grid {
   display: grid;
   gap: 1rem;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 1.25rem 0;
 }
 
 .stat-card {
   border-radius: 24px;
+  min-width: 0;
   padding: 1.25rem;
 }
 
@@ -184,19 +192,22 @@ h2 {
 }
 
 .stat-card strong {
-  font-size: clamp(1.35rem, 2vw, 1.8rem);
+  display: block;
+  font-size: clamp(1.25rem, 2vw, 1.8rem);
+  overflow-wrap: anywhere;
 }
 
 .workspace-grid {
   align-items: start;
   display: grid;
   gap: 1.25rem;
-  grid-template-columns: minmax(320px, 0.85fr) minmax(420px, 1.15fr);
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
 }
 
 .panel {
   border-radius: 28px;
-  padding: 1.4rem;
+  min-width: 0;
+  padding: clamp(1.1rem, 2vw, 1.4rem);
 }
 
 .form-grid {
@@ -213,6 +224,7 @@ h2 {
   font-size: 0.86rem;
   font-weight: 800;
   gap: 0.4rem;
+  min-width: 0;
 }
 
 .field input,
@@ -224,9 +236,15 @@ h2 {
   border: 1px solid #d8e1ee;
   border-radius: 14px;
   color: #172033;
+  min-height: 46px;
   outline: none;
   padding: 0.8rem 0.9rem;
   width: 100%;
+}
+
+.field textarea {
+  min-height: 132px;
+  resize: vertical;
 }
 
 .field input:focus,
@@ -236,6 +254,11 @@ h2 {
 .screenshot-upload:focus-within {
   border-color: #276ef1;
   box-shadow: 0 0 0 4px rgba(39, 110, 241, 0.12);
+}
+
+.screenshot-upload-field {
+  display: grid;
+  gap: 0.75rem;
 }
 
 .screenshot-upload {
@@ -257,6 +280,7 @@ h2 {
 
 .screenshot-upload input {
   cursor: pointer;
+  min-height: 0;
   padding: 0;
 }
 
@@ -275,7 +299,7 @@ h2 {
 }
 
 .search-input {
-  max-width: 260px;
+  max-width: 300px;
 }
 
 .trade-list {
@@ -288,6 +312,7 @@ h2 {
 
 .trade-card {
   border-radius: 20px;
+  min-width: 0;
   padding: 1rem;
 }
 
@@ -298,11 +323,21 @@ h2 {
   justify-content: space-between;
 }
 
+.trade-card-header > div {
+  min-width: 0;
+}
+
+.trade-card-header strong {
+  flex: 0 0 auto;
+  text-align: right;
+}
+
 .trade-symbol {
   font-size: 1.25rem;
   font-weight: 900;
   letter-spacing: -0.03em;
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .trade-meta,
@@ -311,14 +346,20 @@ h2 {
   color: #64748b;
   line-height: 1.6;
   margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
 }
 
 .trade-details {
   color: #43536b;
   display: grid;
-  gap: 0.45rem;
+  gap: 0.5rem 0.75rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin: 0.9rem 0;
+}
+
+.trade-details span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .tags {
@@ -326,6 +367,7 @@ h2 {
   font-size: 0.88rem;
   font-weight: 800;
   margin: 0.4rem 0;
+  overflow-wrap: anywhere;
 }
 
 .screenshot-link {
@@ -353,6 +395,7 @@ h2 {
 .screenshot-thumbnail {
   aspect-ratio: 16 / 9;
   border-radius: 12px;
+  flex: 0 0 auto;
   height: 74px;
   object-fit: cover;
   width: 118px;
@@ -373,6 +416,12 @@ h2 {
   color: #d92d20;
 }
 
+@media (max-width: 1100px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 980px) {
   .hero-card,
   .journal-header {
@@ -380,12 +429,17 @@ h2 {
     flex-direction: column;
   }
 
+  .hero-actions {
+    justify-content: flex-start;
+  }
+
   .workspace-grid {
     grid-template-columns: 1fr;
   }
 
-  .stats-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .trade-list {
+    max-height: none;
+    padding-right: 0;
   }
 
   .search-input {
@@ -394,19 +448,96 @@ h2 {
 }
 
 @media (max-width: 620px) {
+  body {
+    min-width: 0;
+  }
+
   .app-shell {
-    padding: 1rem;
+    padding: 0.75rem;
   }
 
   .hero-card,
   .panel {
     border-radius: 22px;
-    padding: 1.2rem;
+    padding: 1.1rem;
+  }
+
+  .hero-card::after {
+    height: 160px;
+    right: -90px;
+    top: -85px;
+    width: 160px;
+  }
+
+  .eyebrow,
+  .section-title {
+    align-items: flex-start;
+    font-size: 0.78rem;
+    line-height: 1.35;
+  }
+
+  h1 {
+    letter-spacing: -0.055em;
+  }
+
+  .hero-actions,
+  .secondary-button,
+  .upload-button {
+    width: 100%;
   }
 
   .stats-grid,
   .form-grid,
   .trade-details {
     grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    gap: 0.75rem;
+  }
+
+  .stat-card {
+    align-items: center;
+    display: grid;
+    gap: 0 0.85rem;
+    grid-template-columns: auto 1fr;
+    padding: 1rem;
+  }
+
+  .stat-icon {
+    grid-row: span 2;
+    margin-bottom: 0;
+  }
+
+  .journal-header {
+    gap: 0.75rem;
+  }
+
+  .trade-card {
+    padding: 0.9rem;
+  }
+
+  .trade-card-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .trade-card-header strong {
+    text-align: left;
+  }
+
+  .screenshot-link {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .screenshot-thumbnail {
+    height: auto;
+    width: 100%;
+  }
+
+  .icon-button {
+    width: 100%;
   }
 }
