@@ -608,3 +608,51 @@ h2 {
     width: 100%;
   }
 }
+
+.backend-diagnostics {
+  background: rgba(234, 241, 255, 0.78);
+  border: 1px solid rgba(39, 110, 241, 0.16);
+  border-radius: 16px;
+  color: #31517c;
+  display: grid;
+  flex-basis: 100%;
+  font-size: 0.78rem;
+  gap: 0.45rem;
+  line-height: 1.35;
+  margin: 0;
+  max-width: 100%;
+  padding: 0.85rem;
+}
+
+.backend-diagnostics div {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.backend-diagnostics dt {
+  color: #64748b;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.backend-diagnostics dd {
+  color: #172033;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-weight: 800;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.backend-diagnostics .diagnostic-success {
+  color: #059669;
+}
+
+.backend-diagnostics .diagnostic-pending {
+  color: #31517c;
+}
+
+.backend-diagnostics .diagnostic-error {
+  color: #b91c1c;
+}

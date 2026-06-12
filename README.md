@@ -72,11 +72,29 @@ Finally, point the static frontend at the backend by defining `window.JEREMY_TRA
 <script type="module" src="./src/main.js"></script>
 ```
 
-If no backend URL is configured on a `*.github.io` page, the journal will not try to parse the GitHub Pages HTML fallback as JSON. Instead, it shows a deployment message explaining that the Node backend is missing.
+If no backend URL is configured on a `*.github.io` page, the journal will not try to parse the GitHub Pages HTML fallback as JSON. Instead, it shows a deployment message explaining that the Node backend is missing. For this project site, the missing-backend fetch would otherwise resolve to `https://jeramaya7.github.io/api/ctrader/status`, which is a GitHub Pages HTML route, not a JSON API route.
+
+The production UI includes a cTrader backend diagnostics panel next to the Auto Sync controls. Use it to confirm:
+
+- **Backend URL**: must be the deployed Node service URL, not `https://jeramaya7.github.io` and not the GitHub Pages project URL.
+- **Status check URL**: must end with `/api/ctrader/status` on the deployed Node service.
+- **Connection status**: shows whether the backend was reached and whether cTrader OAuth tokens are connected.
+
+The Node backend must be hosted anywhere that can run `node src/server.js` continuously with private environment variables and persistent token storage. GitHub Pages is only for static files and cannot be the cTrader backend. A correct production path is:
+
+```text
+GitHub Pages frontend -> HTTPS Node backend /api/ctrader/status -> encrypted OAuth tokens -> cTrader Open API WebSocket
+```
 
 ### cTrader production endpoint checklist
 
 Verify these routes against the deployed Node backend URL before sharing the GitHub Pages frontend:
+
+- From a terminal, verify the exact status endpoint returns JSON and CORS headers for GitHub Pages:
+
+  ```bash
+  curl -i -H 'Origin: https://jeramaya7.github.io' -H 'Accept: application/json' https://your-journal-backend.example.com/api/ctrader/status
+  ```
 
 - `GET /api/ctrader/status` returns JSON. It should return `connected: false` with a clear error before OAuth tokens exist, and `connected: true` after connection.
 - `GET /auth/ctrader/start` redirects to cTrader OAuth.
