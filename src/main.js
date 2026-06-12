@@ -1,4 +1,5 @@
 import { buildCTraderSyncPlan } from './ctrader-sync.js';
+import { CTRADER_ENDPOINTS, fetchBackendJson } from './backend-api.js';
 
 const STORAGE_KEY = 'jeremy-trading-journal:v1';
 const AUTO_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-auto-sync:v1';
@@ -598,8 +599,7 @@ function changeCTraderAutoSyncSetting(event) {
 }
 
 async function checkCTraderConnection() {
-  const response = await fetch('/api/ctrader/status');
-  const status = await response.json();
+  const { response, body: status } = await fetchBackendJson(CTRADER_ENDPOINTS.status);
   if (!response.ok || !status.connected) {
     throw new Error(status.error || 'cTrader is not connected.');
   }
@@ -617,8 +617,7 @@ async function syncCTrader(options = {}) {
   render();
 
   try {
-    const response = await fetch('/api/ctrader/journal-preview');
-    const preview = await response.json();
+    const { response, body: preview } = await fetchBackendJson(CTRADER_ENDPOINTS.journalPreview);
     if (!response.ok) {
       throw new Error(preview.error || 'cTrader sync failed');
     }

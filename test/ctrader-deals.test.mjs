@@ -476,3 +476,25 @@ test('GET /api/ctrader/status reports disconnected when tokens are missing', asy
     await rm(dataDir, { recursive: true, force: true });
   }
 });
+
+test('backend supports cross-origin GitHub Pages API checks', async () => {
+  const server = createAppServer({ env: validEnv, corsOrigin: 'https://jeramaya7.github.io' });
+
+  await new Promise((resolve) => server.listen(0, resolve));
+  try {
+    const { port } = server.address();
+    const response = await fetch(`http://127.0.0.1:${port}/api/ctrader/status`, {
+      method: 'OPTIONS',
+      headers: {
+        Origin: 'https://jeramaya7.github.io',
+        'Access-Control-Request-Method': 'GET',
+      },
+    });
+
+    assert.equal(response.status, 204);
+    assert.equal(response.headers.get('access-control-allow-origin'), 'https://jeramaya7.github.io');
+    assert.match(response.headers.get('access-control-allow-methods'), /GET/);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});

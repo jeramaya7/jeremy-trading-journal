@@ -31,11 +31,58 @@ export CTRADER_CLIENT_ID=your-client-id
 export CTRADER_CLIENT_SECRET=your-client-secret
 export CTRADER_REDIRECT_URI=http://localhost:5173/auth/ctrader/callback
 export CTRADER_ENVIRONMENT=demo # or live
+export CTRADER_TOKEN_ENCRYPTION_KEY=use-a-long-random-secret-in-production
 ```
 
 The backend redirects users to cTrader with account-read scope, exchanges the callback code for tokens, and stores the token pair encrypted at rest in `.data/ctrader-tokens.json`. The WebSocket client targets `demo.ctraderapi.com:5036` or `live.ctraderapi.com:5036` based on `CTRADER_ENVIRONMENT`. Set `CTRADER_TOKEN_ENCRYPTION_KEY` in deployed environments to use a dedicated token encryption secret; otherwise the backend derives encryption from `CTRADER_CLIENT_SECRET` for local development.
 
 Auto Sync is on by default in the browser UI. On app startup, the journal checks `/api/ctrader/status`; if cTrader is connected, it fetches `/api/ctrader/journal-preview`, imports only new trades, records the last sync time, and continues polling in the background. Turn the Auto Sync checkbox off if you prefer to sync only with the manual **Sync cTrader** button.
+
+### Production deployment architecture
+
+GitHub Pages can host the static journal files, but it cannot run the Node backend in `src/server.js`, cannot keep cTrader OAuth secrets, and cannot store encrypted OAuth tokens. A production cTrader sync deployment therefore needs two pieces:
+
+1. **Static frontend**: GitHub Pages can serve `index.html`, `src/main.js`, `src/styles.css`, and other browser assets.
+2. **Node backend**: deploy this repository as a Node service on a platform that supports long-running Node processes and persistent secret storage, such as Render, Railway, Fly.io, a VPS, or another Node host. The service must run `npm install` and `npm run server` (or `node src/server.js`) with `PORT` supplied by the host.
+
+Configure the cTrader application redirect URI to point at the deployed backend callback, for example:
+
+```text
+https://your-journal-backend.example.com/auth/ctrader/callback
+```
+
+Then set the backend environment variables on the Node host:
+
+```bash
+CTRADER_CLIENT_ID=your-client-id
+CTRADER_CLIENT_SECRET=your-client-secret
+CTRADER_REDIRECT_URI=https://your-journal-backend.example.com/auth/ctrader/callback
+CTRADER_ENVIRONMENT=demo # or live
+CTRADER_TOKEN_ENCRYPTION_KEY=use-a-long-random-secret-in-production
+CTRADER_TOKEN_STORE_DIR=/persistent/private/data # optional, but recommended if the host has a mounted disk
+JOURNAL_FRONTEND_ORIGIN=https://jeramaya7.github.io # optional CORS allow-origin; defaults to *
+```
+
+Finally, point the static frontend at the backend by defining `window.JEREMY_TRADING_JOURNAL_BACKEND_URL` before `src/main.js` loads in `index.html`:
+
+```html
+<script>
+  window.JEREMY_TRADING_JOURNAL_BACKEND_URL = 'https://your-journal-backend.example.com';
+</script>
+<script type="module" src="./src/main.js"></script>
+```
+
+If no backend URL is configured on a `*.github.io` page, the journal will not try to parse the GitHub Pages HTML fallback as JSON. Instead, it shows a deployment message explaining that the Node backend is missing.
+
+### cTrader production endpoint checklist
+
+Verify these routes against the deployed Node backend URL before sharing the GitHub Pages frontend:
+
+- `GET /api/ctrader/status` returns JSON. It should return `connected: false` with a clear error before OAuth tokens exist, and `connected: true` after connection.
+- `GET /auth/ctrader/start` redirects to cTrader OAuth.
+- `GET /auth/ctrader/callback` is the redirect URI registered with cTrader and stores encrypted tokens after OAuth succeeds.
+- `GET /api/ctrader/journal-preview` returns JSON preview trades for import.
+- `GET /api/ctrader/deals` returns JSON raw cTrader deals and stores the raw response server-side for audit/debugging.
 
 Run automated tests and a JavaScript syntax check:
 
@@ -51,6 +98,7 @@ npm run check
 ├── index.html
 ├── package.json
 ├── src
+│   ├── backend-api.js
 │   ├── ctrader-journal-mapper.js
 │   ├── ctrader-open-api.js
 │   ├── ctrader-sync.js
@@ -58,6 +106,7 @@ npm run check
 │   ├── server.js
 │   └── styles.css
 └── test
+    ├── backend-api.test.mjs
     ├── ctrader-auth.test.mjs
     ├── ctrader-deals.test.mjs
     ├── ctrader-import-ui.test.mjs
