@@ -36,7 +36,7 @@ export CTRADER_TOKEN_ENCRYPTION_KEY=use-a-long-random-secret-in-production
 
 The backend redirects users to cTrader with account-read scope, exchanges the callback code for tokens, and stores the token pair encrypted at rest in `.data/ctrader-tokens.json`. The WebSocket client targets `demo.ctraderapi.com:5036` or `live.ctraderapi.com:5036` based on `CTRADER_ENVIRONMENT`. Set `CTRADER_TOKEN_ENCRYPTION_KEY` in deployed environments to use a dedicated token encryption secret; otherwise the backend derives encryption from `CTRADER_CLIENT_SECRET` for local development.
 
-Auto Sync is on by default in the browser UI. On app startup, the journal checks `/api/ctrader/status`; if cTrader is connected, it fetches `/api/ctrader/journal-preview`, imports only new trades, records the last sync time, and continues polling in the background. Turn the Auto Sync checkbox off if you prefer to sync only with the manual **Sync cTrader** button.
+Auto Sync is on by default in the browser UI. On app startup, the journal checks `https://jeremy-trading-journal.onrender.com/api/ctrader/status`; if cTrader is connected, it fetches `https://jeremy-trading-journal.onrender.com/api/ctrader/journal-preview`, imports only new trades, records the last sync time, and continues polling in the background. Turn the Auto Sync checkbox off if you prefer to sync only with the manual **Sync cTrader** button.
 
 ### Production deployment architecture
 
@@ -45,10 +45,10 @@ GitHub Pages can host the static journal files, but it cannot run the Node backe
 1. **Static frontend**: GitHub Pages can serve `index.html`, `src/main.js`, `src/styles.css`, and other browser assets.
 2. **Node backend**: deploy this repository as a Node service on a platform that supports long-running Node processes and persistent secret storage, such as Render, Railway, Fly.io, a VPS, or another Node host. The service must run `npm install` and `npm run server` (or `node src/server.js`) with `PORT` supplied by the host.
 
-Configure the cTrader application redirect URI to point at the deployed backend callback, for example:
+Configure the cTrader application redirect URI to point at the deployed Render backend callback:
 
 ```text
-https://your-journal-backend.example.com/auth/ctrader/callback
+https://jeremy-trading-journal.onrender.com/auth/ctrader/callback
 ```
 
 Then set the backend environment variables on the Node host:
@@ -56,34 +56,25 @@ Then set the backend environment variables on the Node host:
 ```bash
 CTRADER_CLIENT_ID=your-client-id
 CTRADER_CLIENT_SECRET=your-client-secret
-CTRADER_REDIRECT_URI=https://your-journal-backend.example.com/auth/ctrader/callback
+CTRADER_REDIRECT_URI=https://jeremy-trading-journal.onrender.com/auth/ctrader/callback
 CTRADER_ENVIRONMENT=demo # or live
 CTRADER_TOKEN_ENCRYPTION_KEY=use-a-long-random-secret-in-production
 CTRADER_TOKEN_STORE_DIR=/persistent/private/data # optional, but recommended if the host has a mounted disk
 JOURNAL_FRONTEND_ORIGIN=https://jeramaya7.github.io # optional CORS allow-origin; defaults to *
 ```
 
-Finally, point the static frontend at the backend by defining `window.JEREMY_TRADING_JOURNAL_BACKEND_URL` before `src/main.js` loads in `index.html`:
-
-```html
-<script>
-  window.JEREMY_TRADING_JOURNAL_BACKEND_URL = 'https://your-journal-backend.example.com';
-</script>
-<script type="module" src="./src/main.js"></script>
-```
-
-If no backend URL is configured on a `*.github.io` page, the journal will not try to parse the GitHub Pages HTML fallback as JSON. Instead, it shows a deployment message explaining that the Node backend is missing. For this project site, the missing-backend fetch would otherwise resolve to `https://jeramaya7.github.io/api/ctrader/status`, which is a GitHub Pages HTML route, not a JSON API route.
+The static frontend now defaults to the live Render backend at `https://jeremy-trading-journal.onrender.com`, so cTrader status checks, manual syncs, Auto Sync runs, and raw deal requests do not use relative GitHub Pages paths. If you need to test against another backend, define `window.JEREMY_TRADING_JOURNAL_BACKEND_URL` before `src/main.js` loads in `index.html` or store `jeremy-trading-journal:backend-base-url:v1` in `localStorage`.
 
 The production UI includes a cTrader backend diagnostics panel next to the Auto Sync controls. Use it to confirm:
 
-- **Backend URL**: must be the deployed Node service URL, not `https://jeramaya7.github.io` and not the GitHub Pages project URL.
-- **Status check URL**: must end with `/api/ctrader/status` on the deployed Node service.
+- **Backend URL**: must be `https://jeremy-trading-journal.onrender.com` (or an intentional override), not `https://jeramaya7.github.io` and not the GitHub Pages project URL.
+- **Status check URL**: must be `https://jeremy-trading-journal.onrender.com/api/ctrader/status` (or the equivalent intentional override).
 - **Connection status**: shows whether the backend was reached and whether cTrader OAuth tokens are connected.
 
 The Node backend must be hosted anywhere that can run `node src/server.js` continuously with private environment variables and persistent token storage. GitHub Pages is only for static files and cannot be the cTrader backend. A correct production path is:
 
 ```text
-GitHub Pages frontend -> HTTPS Node backend /api/ctrader/status -> encrypted OAuth tokens -> cTrader Open API WebSocket
+GitHub Pages frontend -> https://jeremy-trading-journal.onrender.com/api/ctrader/status -> encrypted OAuth tokens -> cTrader Open API WebSocket
 ```
 
 ### cTrader production endpoint checklist
@@ -93,7 +84,7 @@ Verify these routes against the deployed Node backend URL before sharing the Git
 - From a terminal, verify the exact status endpoint returns JSON and CORS headers for GitHub Pages:
 
   ```bash
-  curl -i -H 'Origin: https://jeramaya7.github.io' -H 'Accept: application/json' https://your-journal-backend.example.com/api/ctrader/status
+  curl -i -H 'Origin: https://jeramaya7.github.io' -H 'Accept: application/json' https://jeremy-trading-journal.onrender.com/api/ctrader/status
   ```
 
 - `GET /api/ctrader/status` returns JSON. It should return `connected: false` with a clear error before OAuth tokens exist, and `connected: true` after connection.

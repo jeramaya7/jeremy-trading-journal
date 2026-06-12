@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   CTRADER_ENDPOINTS,
+  DEFAULT_BACKEND_BASE_URL,
   BackendUnavailableError,
   buildBackendUrl,
   fetchBackendJson,
@@ -29,7 +30,13 @@ test('cTrader production endpoint registry covers status, sync, raw deals, and O
   });
 });
 
-test('backend base URL can be configured for static production hosting', () => {
+test('backend base URL defaults to the live Render backend and can be overridden', () => {
+  assert.equal(getConfiguredBackendBaseUrl(runtime()), DEFAULT_BACKEND_BASE_URL);
+  assert.equal(
+    buildBackendUrl(CTRADER_ENDPOINTS.journalPreview, runtime()),
+    'https://jeremy-trading-journal.onrender.com/api/ctrader/journal-preview',
+  );
+
   const configuredRuntime = runtime({
     JEREMY_TRADING_JOURNAL_BACKEND_URL: 'https://journal-backend.example.com/',
   });
@@ -41,13 +48,15 @@ test('backend base URL can be configured for static production hosting', () => {
   );
 });
 
-test('GitHub Pages without a backend URL reports deployment architecture instead of fetching HTML', () => {
+test('GitHub Pages uses the live Render backend instead of relative HTML fallback paths', () => {
   const pagesRuntime = runtime({ location: { hostname: 'jeramaya7.github.io' } });
 
-  assert.match(getBackendDeploymentHint(pagesRuntime), /GitHub Pages site only hosts the static journal/);
-  assert.equal(buildBackendUrl(CTRADER_ENDPOINTS.status, pagesRuntime), CTRADER_ENDPOINTS.status);
+  assert.equal(getBackendDeploymentHint(pagesRuntime), '');
+  assert.equal(
+    buildBackendUrl(CTRADER_ENDPOINTS.status, pagesRuntime),
+    'https://jeremy-trading-journal.onrender.com/api/ctrader/status',
+  );
 });
-
 
 test('backend diagnostics expose the configured backend URL and status endpoint', () => {
   const diagnostics = getBackendDiagnostics(runtime({
@@ -61,29 +70,36 @@ test('backend diagnostics expose the configured backend URL and status endpoint'
   assert.equal(diagnostics.connectionStatus, 'Not checked');
 });
 
-test('fetchBackendJson stops GitHub Pages calls before JSON parsing', async () => {
+test('fetchBackendJson calls the Render backend from GitHub Pages by default', async () => {
   const pagesRuntime = runtime({ location: { hostname: 'jeramaya7.github.io' } });
 
-  await assert.rejects(
-    fetchBackendJson(CTRADER_ENDPOINTS.status, {
-      runtime: pagesRuntime,
-      fetchImpl: async () => assert.fail('fetch should not be called when deployment is known to be missing a backend'),
-    }),
-    (error) => error instanceof BackendUnavailableError
-      && error.message.includes('Node backend deployed separately'),
-  );
+  const result = await fetchBackendJson(CTRADER_ENDPOINTS.status, {
+    runtime: pagesRuntime,
+    fetchImpl: async (url) => {
+      assert.equal(url, 'https://jeremy-trading-journal.onrender.com/api/ctrader/status');
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => 'application/json' },
+        async json() {
+          return { connected: false };
+        },
+      };
+    },
+  });
+
+  assert.deepEqual(result.body, { connected: false });
 });
 
-
-test('fetchBackendJson identifies the exact GitHub Pages HTML endpoint', async () => {
+test('fetchBackendJson reports the exact Render backend URL on request failures', async () => {
   await assert.rejects(
     fetchBackendJson(CTRADER_ENDPOINTS.status, {
       runtime: runtime({ location: { hostname: 'jeramaya7.github.io', origin: 'https://jeramaya7.github.io', href: 'https://jeramaya7.github.io/jeremy-trading-journal/' } }),
-      fetchImpl: async () => assert.fail('fetch should not be called without an explicit backend URL'),
+      fetchImpl: async () => { throw new Error('network down'); },
     }),
     (error) => error instanceof BackendUnavailableError
-      && error.url === 'https://jeramaya7.github.io/api/ctrader/status'
-      && error.message.includes('skipped fetch URL was https://jeramaya7.github.io/api/ctrader/status'),
+      && error.url === 'https://jeremy-trading-journal.onrender.com/api/ctrader/status'
+      && error.message.includes('https://jeremy-trading-journal.onrender.com/api/ctrader/status'),
   );
 });
 
