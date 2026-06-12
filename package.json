@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "python3 -m http.server 5173",
-    "check": "node --check src/main.js",
-    "test": "node --test"
+    "dev": "node src/server.js",
+    "check": "node --check src/main.js && node --check src/server.js",
+    "test": "node --test",
+    "server": "node src/server.js"
   }
 }
