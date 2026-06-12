@@ -44,3 +44,12 @@ test('cTrader Auto Sync runs on startup and exposes settings metadata', () => {
   assertIncludes(source, 'Last cTrader sync:', 'The UI shows the last cTrader sync time.');
   assertIncludes(source, 'syncCTraderOnStartup();', 'The app starts Auto Sync after the first render.');
 });
+
+test('cTrader Auto Sync keeps syncing while the app is open', () => {
+  assertIncludes(source, 'const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000;', 'Auto Sync uses a defined repeat interval.');
+  assertIncludes(source, 'let cTraderAutoSyncTimer = null;', 'The app tracks the active Auto Sync timer.');
+  assertIncludes(source, 'function scheduleCTraderAutoSync()', 'Auto Sync can schedule recurring sync checks.');
+  assertIncludes(source, 'clearInterval(cTraderAutoSyncTimer);', 'Changing Auto Sync clears the previous timer to avoid duplicate polling.');
+  assertIncludes(source, 'window.setInterval(() => {', 'Auto Sync repeats without requiring the user to press Sync.');
+  assertIncludes(source, 'scheduleCTraderAutoSync();', 'The app schedules Auto Sync during startup and preference changes.');
+});
