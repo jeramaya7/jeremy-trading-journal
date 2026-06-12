@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node src/server.js",
-    "check": "node --check src/main.js && node --check src/server.js && node --check src/ctrader-open-api.js",
+    "check": "node --check src/main.js && node --check src/server.js && node --check src/ctrader-open-api.js && node --check src/ctrader-journal-mapper.js && node --check src/ctrader-sync.js",
     "test": "node --test",
     "server": "node src/server.js"
   }
