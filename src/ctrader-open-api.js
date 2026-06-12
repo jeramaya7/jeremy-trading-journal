@@ -10,6 +10,8 @@ export const CTRADER_PAYLOAD_TYPES = {
   PROTO_OA_APPLICATION_AUTH_RES: 2101,
   PROTO_OA_ACCOUNT_AUTH_REQ: 2102,
   PROTO_OA_ACCOUNT_AUTH_RES: 2103,
+  PROTO_OA_DEAL_LIST_REQ: 2133,
+  PROTO_OA_DEAL_LIST_RES: 2134,
   PROTO_OA_ERROR_RES: 2142,
   PROTO_OA_GET_ACCOUNTS_BY_ACCESS_TOKEN_REQ: 2149,
   PROTO_OA_GET_ACCOUNTS_BY_ACCESS_TOKEN_RES: 2150,
@@ -133,6 +135,31 @@ export class CTraderOpenApiJsonClient {
     );
 
     return response.payload?.ctidTraderAccount || [];
+  }
+
+  async getDealList(ctidTraderAccountId, { fromTimestamp, toTimestamp, maxRows } = {}) {
+    if (!ctidTraderAccountId) {
+      throw new Error('cTrader account ID is required to fetch deals');
+    }
+
+    const payload = { ctidTraderAccountId };
+    if (fromTimestamp !== undefined) {
+      payload.fromTimestamp = fromTimestamp;
+    }
+    if (toTimestamp !== undefined) {
+      payload.toTimestamp = toTimestamp;
+    }
+    if (maxRows !== undefined) {
+      payload.maxRows = maxRows;
+    }
+
+    const response = await this.sendRequest(
+      CTRADER_PAYLOAD_TYPES.PROTO_OA_DEAL_LIST_REQ,
+      payload,
+      CTRADER_PAYLOAD_TYPES.PROTO_OA_DEAL_LIST_RES,
+    );
+
+    return response.payload || { ctidTraderAccountId, deal: [] };
   }
 
   async authorizeAccount(ctidTraderAccountId, accessToken = this.accessToken) {

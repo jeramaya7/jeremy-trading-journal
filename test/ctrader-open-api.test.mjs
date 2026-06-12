@@ -193,6 +193,44 @@ test('runs app auth, account list, and account authorization in sequence', async
   assert.deepEqual(result.accounts, [{ ctidTraderAccountId: 67890 }]);
 });
 
+
+test('fetches historical cTrader deals for an authorized account', async () => {
+  const client = createClient();
+  const dealsPromise = client.getDealList(12345, {
+    fromTimestamp: 1_690_000_000_000,
+    toTimestamp: 1_700_000_000_000,
+    maxRows: 25,
+  });
+  const socket = FakeWebSocket.instances[0];
+  socket.open();
+  await flushMicrotasks();
+
+  const sentMessage = socket.sentMessages[0];
+  assert.equal(sentMessage.payloadType, CTRADER_PAYLOAD_TYPES.PROTO_OA_DEAL_LIST_REQ);
+  assert.deepEqual(sentMessage.payload, {
+    ctidTraderAccountId: 12345,
+    fromTimestamp: 1_690_000_000_000,
+    toTimestamp: 1_700_000_000_000,
+    maxRows: 25,
+  });
+
+  socket.receive({
+    clientMsgId: sentMessage.clientMsgId,
+    payloadType: CTRADER_PAYLOAD_TYPES.PROTO_OA_DEAL_LIST_RES,
+    payload: {
+      ctidTraderAccountId: 12345,
+      deal: [{ dealId: 1, dealStatus: 'FILLED' }],
+      hasMore: false,
+    },
+  });
+
+  assert.deepEqual(await dealsPromise, {
+    ctidTraderAccountId: 12345,
+    deal: [{ dealId: 1, dealStatus: 'FILLED' }],
+    hasMore: false,
+  });
+});
+
 test('rejects cTrader API error responses', async () => {
   const client = createClient();
   const authPromise = client.authenticateApplication();
