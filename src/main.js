@@ -59,6 +59,8 @@ let searchQuery = '';
 let selectedScreenshot = null;
 let pastedScreenshotFile = null;
 let isPasteListenerBound = false;
+let cTraderImportStatus = null;
+let isImportingCTrader = false;
 
 const app = document.querySelector('#root');
 
@@ -203,6 +205,7 @@ function icon(name) {
     calendar: '<svg viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>',
     trash: '<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>',
     image: '<svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>',
+    refresh: '<svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>',
   };
   return icons[name] ?? '';
 }
@@ -289,11 +292,15 @@ function render() {
           </p>
         </div>
         <div class="hero-actions">
+          <button class="secondary-button" type="button" id="importCTrader" ${isImportingCTrader ? 'disabled' : ''}>
+            ${icon('refresh')} ${isImportingCTrader ? 'Importing cTrader...' : 'Import from cTrader'}
+          </button>
           <button class="secondary-button" type="button" id="exportTrades">${icon('download')} Export JSON</button>
           <label class="secondary-button upload-button">
             ${icon('upload')} Import JSON
             <input type="file" accept="application/json" id="importTrades" />
           </label>
+          ${cTraderImportStatus ? `<p class="import-status ${escapeHtml(cTraderImportStatus.tone)}" role="status">${escapeHtml(cTraderImportStatus.message)}</p>` : ''}
         </div>
       </section>
 
@@ -374,6 +381,7 @@ function bindEvents() {
     render();
     document.querySelector('#searchInput').focus();
   });
+  document.querySelector('#importCTrader').addEventListener('click', importFromCTrader);
   document.querySelector('#exportTrades').addEventListener('click', exportTrades);
   document.querySelector('#importTrades').addEventListener('change', importTrades);
 
@@ -522,6 +530,127 @@ function readScreenshot(file) {
     };
     reader.readAsDataURL(file);
   });
+}
+
+async function importFromCTrader() {
+  if (isImportingCTrader) {
+    return;
+  }
+
+  isImportingCTrader = true;
+  cTraderImportStatus = { tone: 'pending', message: 'Importing cTrader trades...' };
+  render();
+
+  try {
+    const response = await fetch('/api/ctrader/journal-preview');
+    const preview = await response.json();
+    if (!response.ok) {
+      throw new Error(preview.error || 'cTrader import failed');
+    }
+
+    const previewTrades = Array.isArray(preview.trades) ? preview.trades : [];
+    const seenSourceKeys = new Set();
+    const importedTrades = previewTrades
+      .map(convertCTraderPreviewTradeToJournalEntry)
+      .filter((trade) => shouldImportCTraderTrade(trade, trades, seenSourceKeys));
+
+    if (importedTrades.length) {
+      persistTrades([...importedTrades, ...trades]);
+    }
+
+    const duplicateCount = previewTrades.length - importedTrades.length;
+    const duplicateMessage = duplicateCount > 0 ? ` ${duplicateCount} duplicate ${duplicateCount === 1 ? 'trade was' : 'trades were'} skipped.` : '';
+    cTraderImportStatus = {
+      tone: 'success',
+      message: `Imported ${importedTrades.length} cTrader ${importedTrades.length === 1 ? 'trade' : 'trades'}.${duplicateMessage}`,
+    };
+  } catch (error) {
+    cTraderImportStatus = {
+      tone: 'error',
+      message: error.message || 'cTrader import failed.',
+    };
+  } finally {
+    isImportingCTrader = false;
+    render();
+  }
+}
+
+function convertCTraderPreviewTradeToJournalEntry(previewTrade) {
+  const sourceTradeId = getCTraderSourceTradeId(previewTrade);
+  const sourceLabel = sourceTradeId === null ? 'unknown source trade' : `source trade ${sourceTradeId}`;
+  const importedNotes = `Imported from cTrader ${sourceLabel}.`;
+  const previewNotes = String(previewTrade.notes || '').trim();
+  const notes = previewNotes && !previewNotes.toLowerCase().includes('preview only')
+    ? `${importedNotes} ${previewNotes}`
+    : importedNotes;
+
+  return {
+    ...previewTrade,
+    id: sourceTradeId === null ? crypto.randomUUID() : `ctrader-${sourceTradeId}`,
+    provider: 'ctrader',
+    sourceTradeId,
+    setup: previewTrade.setup === 'cTrader import preview' ? 'cTrader import' : (previewTrade.setup || 'cTrader import'),
+    emotion: previewTrade.emotion || 'Imported',
+    tags: normalizeImportedTags(previewTrade.tags),
+    notes,
+    importedAt: new Date().toISOString(),
+  };
+}
+
+function normalizeImportedTags(tags) {
+  const normalizedTags = String(tags || '')
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter((tag) => tag && tag !== 'import-preview');
+
+  if (!normalizedTags.includes('ctrader')) {
+    normalizedTags.unshift('ctrader');
+  }
+  if (!normalizedTags.includes('imported')) {
+    normalizedTags.push('imported');
+  }
+
+  return normalizedTags.join(', ');
+}
+
+function shouldImportCTraderTrade(candidateTrade, existingTrades, seenSourceKeys) {
+  const candidateKey = getImportedTradeSourceKey(candidateTrade);
+  if (!candidateKey) {
+    return true;
+  }
+  if (seenSourceKeys.has(candidateKey) || hasSourceTradeAlreadyBeenImported(candidateTrade, existingTrades)) {
+    return false;
+  }
+
+  seenSourceKeys.add(candidateKey);
+  return true;
+}
+
+function hasSourceTradeAlreadyBeenImported(candidateTrade, existingTrades) {
+  const candidateKey = getImportedTradeSourceKey(candidateTrade);
+  if (!candidateKey) {
+    return false;
+  }
+
+  return existingTrades.some((existingTrade) => getImportedTradeSourceKey(existingTrade) === candidateKey);
+}
+
+function getImportedTradeSourceKey(trade) {
+  if (trade?.provider !== 'ctrader') {
+    return null;
+  }
+
+  const sourceTradeId = getCTraderSourceTradeId(trade);
+  return sourceTradeId === null ? null : `ctrader:${sourceTradeId}`;
+}
+
+function getCTraderSourceTradeId(trade) {
+  const sourceTradeId = trade?.sourceTradeId ?? trade?.sourceDealId;
+  if (sourceTradeId === null || sourceTradeId === undefined || sourceTradeId === '') {
+    return null;
+  }
+
+  return String(sourceTradeId);
 }
 
 function exportTrades() {

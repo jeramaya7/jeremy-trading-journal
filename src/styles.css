@@ -53,6 +53,12 @@ button:hover,
   transform: translateY(-1px);
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none;
+}
+
 .app-shell {
   margin: 0 auto;
   max-width: 1280px;
@@ -157,6 +163,31 @@ h2 {
 
 .upload-button input {
   display: none;
+}
+
+.import-status {
+  background: #f8fafc;
+  border: 1px solid #d8e1ee;
+  border-radius: 14px;
+  color: #43536b;
+  flex-basis: 100%;
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.45;
+  margin: 0;
+  padding: 0.8rem 0.9rem;
+}
+
+.import-status.success {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
+}
+
+.import-status.error {
+  background: #fff2f2;
+  border-color: #fecaca;
+  color: #b42318;
 }
 
 .stats-grid {
