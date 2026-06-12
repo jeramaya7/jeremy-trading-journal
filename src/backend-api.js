@@ -1,5 +1,7 @@
 const BACKEND_BASE_URL_GLOBAL = 'JEREMY_TRADING_JOURNAL_BACKEND_URL';
 const BACKEND_BASE_URL_STORAGE_KEY = 'jeremy-trading-journal:backend-base-url:v1';
+
+export const DEFAULT_BACKEND_BASE_URL = 'https://jeremy-trading-journal.onrender.com';
 const HTML_PREVIEW_LENGTH = 120;
 
 export const CTRADER_ENDPOINTS = Object.freeze({
@@ -38,10 +40,15 @@ export function getConfiguredBackendBaseUrl(runtime = globalThis) {
   }
 
   try {
-    return normalizeBackendBaseUrl(runtime?.localStorage?.getItem(BACKEND_BASE_URL_STORAGE_KEY));
+    const storedBaseUrl = normalizeBackendBaseUrl(runtime?.localStorage?.getItem(BACKEND_BASE_URL_STORAGE_KEY));
+    if (storedBaseUrl) {
+      return storedBaseUrl;
+    }
   } catch {
-    return '';
+    // Ignore inaccessible localStorage and fall back to the production backend.
   }
+
+  return DEFAULT_BACKEND_BASE_URL;
 }
 
 export function isGitHubPagesHost(hostname) {
@@ -71,10 +78,6 @@ export function getBackendDeploymentHint(runtime = globalThis) {
 
 export function buildBackendUrl(path, runtime = globalThis) {
   const configuredBaseUrl = getConfiguredBackendBaseUrl(runtime);
-  if (!configuredBaseUrl) {
-    return path;
-  }
-
   return new URL(path, `${configuredBaseUrl}/`).toString();
 }
 
@@ -131,7 +134,7 @@ export async function fetchBackendJson(path, options = {}) {
     });
   } catch (error) {
     throw new BackendUnavailableError(
-      `The cTrader backend is unavailable at ${displayUrl}. Deploy the Node backend and configure the journal to use its public URL.`,
+      `The cTrader backend is unavailable at ${displayUrl}. Confirm the Render backend is reachable or configure the journal with another public backend URL.`,
       { url: displayUrl, cause: error },
     );
   }
@@ -143,7 +146,7 @@ export async function fetchBackendJson(path, options = {}) {
 
   if (!isJsonResponse) {
     throw new BackendUnavailableError(
-      `The cTrader backend did not return JSON from ${displayUrl} (HTTP ${response.status || 'unknown'}, Content-Type: ${contentType || 'unknown'}). This endpoint is returning ${bodyPreview.startsWith('<!DOCTYPE') || bodyPreview.startsWith('<html') ? 'HTML' : 'non-JSON'} instead of the Node API response. Deploy the Node backend separately from GitHub Pages and set window.JEREMY_TRADING_JOURNAL_BACKEND_URL to its public URL.`,
+      `The cTrader backend did not return JSON from ${displayUrl} (HTTP ${response.status || 'unknown'}, Content-Type: ${contentType || 'unknown'}). This endpoint is returning ${bodyPreview.startsWith('<!DOCTYPE') || bodyPreview.startsWith('<html') ? 'HTML' : 'non-JSON'} instead of the Node API response. Confirm the Render backend is reachable or set window.JEREMY_TRADING_JOURNAL_BACKEND_URL to another public backend URL.`,
       { status: response.status, contentType, url: displayUrl, bodyPreview },
     );
   }
