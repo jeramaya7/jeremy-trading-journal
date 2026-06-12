@@ -1,6 +1,8 @@
 import { buildCTraderSyncPlan } from './ctrader-sync.js';
 
 const STORAGE_KEY = 'jeremy-trading-journal:v1';
+const AUTO_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-auto-sync:v1';
+const LAST_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-last-sync:v1';
 
 const starterTrades = [
   {
@@ -63,6 +65,9 @@ let pastedScreenshotFile = null;
 let isPasteListenerBound = false;
 let cTraderSyncStatus = null;
 let isSyncingCTrader = false;
+let isCheckingCTraderConnection = false;
+let isCTraderAutoSyncEnabled = loadCTraderAutoSyncSetting();
+let cTraderLastSyncAt = loadCTraderLastSyncTime();
 
 const app = document.querySelector('#root');
 
@@ -80,6 +85,26 @@ function persistTrades(nextTrades) {
   trades = nextTrades;
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));
   render();
+}
+
+function loadCTraderAutoSyncSetting() {
+  return window.localStorage.getItem(AUTO_SYNC_STORAGE_KEY) !== 'off';
+}
+
+function persistCTraderAutoSyncSetting(isEnabled) {
+  isCTraderAutoSyncEnabled = isEnabled;
+  window.localStorage.setItem(AUTO_SYNC_STORAGE_KEY, isEnabled ? 'on' : 'off');
+  render();
+}
+
+function loadCTraderLastSyncTime() {
+  const savedSyncTime = window.localStorage.getItem(LAST_SYNC_STORAGE_KEY);
+  return savedSyncTime ? String(savedSyncTime) : null;
+}
+
+function persistCTraderLastSyncTime(syncTime) {
+  cTraderLastSyncAt = syncTime;
+  window.localStorage.setItem(LAST_SYNC_STORAGE_KEY, syncTime);
 }
 
 function currency(value) {
@@ -105,6 +130,22 @@ function formatPercent(value) {
 
 function formatRMultiple(value) {
   return value === null || value === undefined ? '—' : `${value.toFixed(2)}R`;
+}
+
+function formatSyncTime(value) {
+  if (!value) {
+    return 'Never';
+  }
+
+  const syncDate = new Date(value);
+  if (Number.isNaN(syncDate.getTime())) {
+    return 'Never';
+  }
+
+  return syncDate.toLocaleString([], {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
 }
 
 function calculateRiskDollars(trade) {
@@ -294,7 +335,11 @@ function render() {
           </p>
         </div>
         <div class="hero-actions">
-          <button class="secondary-button" type="button" id="syncCTrader" ${isSyncingCTrader ? 'disabled' : ''}>
+          <label class="auto-sync-toggle">
+            <input type="checkbox" id="autoSyncCTrader" ${isCTraderAutoSyncEnabled ? 'checked' : ''} />
+            <span>Auto Sync ${isCTraderAutoSyncEnabled ? 'ON' : 'OFF'}</span>
+          </label>
+          <button class="secondary-button" type="button" id="syncCTrader" ${isSyncingCTrader || isCheckingCTraderConnection ? 'disabled' : ''}>
             ${icon('refresh')} ${isSyncingCTrader ? 'Syncing cTrader...' : 'Sync cTrader'}
           </button>
           <button class="secondary-button" type="button" id="exportTrades">${icon('download')} Export JSON</button>
@@ -302,6 +347,7 @@ function render() {
             ${icon('upload')} Import JSON
             <input type="file" accept="application/json" id="importTrades" />
           </label>
+          <p class="sync-meta">Last cTrader sync: <strong>${escapeHtml(formatSyncTime(cTraderLastSyncAt))}</strong></p>
           ${cTraderSyncStatus ? `<p class="import-status ${escapeHtml(cTraderSyncStatus.tone)}" role="status">${escapeHtml(cTraderSyncStatus.message)}</p>` : ''}
         </div>
       </section>
@@ -383,7 +429,8 @@ function bindEvents() {
     render();
     document.querySelector('#searchInput').focus();
   });
-  document.querySelector('#syncCTrader').addEventListener('click', syncCTrader);
+  document.querySelector('#autoSyncCTrader').addEventListener('change', changeCTraderAutoSyncSetting);
+  document.querySelector('#syncCTrader').addEventListener('click', () => syncCTrader({ source: 'manual' }));
   document.querySelector('#exportTrades').addEventListener('click', exportTrades);
   document.querySelector('#importTrades').addEventListener('change', importTrades);
 
@@ -534,13 +581,36 @@ function readScreenshot(file) {
   });
 }
 
-async function syncCTrader() {
+function changeCTraderAutoSyncSetting(event) {
+  persistCTraderAutoSyncSetting(event.target.checked);
+  cTraderSyncStatus = {
+    tone: event.target.checked ? 'success' : 'pending',
+    message: `Auto Sync ${event.target.checked ? 'enabled' : 'disabled'}.`,
+  };
+  render();
+
+  if (event.target.checked) {
+    syncCTraderOnStartup();
+  }
+}
+
+async function checkCTraderConnection() {
+  const response = await fetch('/api/ctrader/status');
+  const status = await response.json();
+  if (!response.ok || !status.connected) {
+    throw new Error(status.error || 'cTrader is not connected.');
+  }
+  return status;
+}
+
+async function syncCTrader(options = {}) {
   if (isSyncingCTrader) {
     return;
   }
 
   isSyncingCTrader = true;
-  cTraderSyncStatus = { tone: 'pending', message: 'Syncing cTrader trades...' };
+  const isAutoSync = options.source === 'auto';
+  cTraderSyncStatus = { tone: 'pending', message: isAutoSync ? 'Auto Sync checking cTrader trades...' : 'Syncing cTrader trades...' };
   render();
 
   try {
@@ -557,9 +627,11 @@ async function syncCTrader() {
       persistTrades([...syncPlan.importedTrades, ...trades]);
     }
 
+    const syncedAt = new Date().toISOString();
+    persistCTraderLastSyncTime(syncedAt);
     cTraderSyncStatus = {
       tone: 'success',
-      message: `New trades imported: ${syncPlan.importedCount}. Trades skipped: ${syncPlan.skippedCount}.`,
+      message: `${isAutoSync ? 'Auto Sync complete.' : 'Sync complete.'} New trades imported: ${syncPlan.importedCount}. Trades skipped: ${syncPlan.skippedCount}.`,
     };
   } catch (error) {
     cTraderSyncStatus = {
@@ -570,6 +642,37 @@ async function syncCTrader() {
     isSyncingCTrader = false;
     render();
   }
+}
+
+async function syncCTraderOnStartup() {
+  if (!isCTraderAutoSyncEnabled) {
+    cTraderSyncStatus = { tone: 'pending', message: 'Auto Sync is off.' };
+    render();
+    return;
+  }
+
+  if (isSyncingCTrader || isCheckingCTraderConnection) {
+    return;
+  }
+
+  isCheckingCTraderConnection = true;
+  cTraderSyncStatus = { tone: 'pending', message: 'Checking cTrader connection for Auto Sync...' };
+  render();
+
+  try {
+    await checkCTraderConnection();
+  } catch (error) {
+    cTraderSyncStatus = {
+      tone: 'error',
+      message: error.message || 'cTrader is not connected. Connect cTrader to enable Auto Sync.',
+    };
+    return;
+  } finally {
+    isCheckingCTraderConnection = false;
+    render();
+  }
+
+  await syncCTrader({ source: 'auto' });
 }
 
 function exportTrades() {
@@ -600,3 +703,4 @@ function importTrades(event) {
 }
 
 render();
+syncCTraderOnStartup();

@@ -165,6 +165,41 @@ h2 {
   display: none;
 }
 
+.auto-sync-toggle {
+  align-items: center;
+  background: #eaf1ff;
+  border: 1px solid rgba(39, 110, 241, 0.18);
+  border-radius: 14px;
+  color: #1e4fbf;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.9rem;
+  font-weight: 900;
+  gap: 0.5rem;
+  min-height: 48px;
+  padding: 0.85rem 1rem;
+  white-space: nowrap;
+}
+
+.auto-sync-toggle input {
+  accent-color: #276ef1;
+  height: 1rem;
+  width: 1rem;
+}
+
+.sync-meta {
+  color: #64748b;
+  flex-basis: 100%;
+  font-size: 0.84rem;
+  font-weight: 800;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.sync-meta strong {
+  color: #172033;
+}
+
 .import-status {
   background: #f8fafc;
   border: 1px solid #d8e1ee;
@@ -513,7 +548,8 @@ h2 {
 
   .hero-actions,
   .secondary-button,
-  .upload-button {
+  .upload-button,
+  .auto-sync-toggle {
     width: 100%;
   }
 

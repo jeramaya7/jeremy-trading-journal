@@ -419,3 +419,60 @@ test('GET /api/ctrader/journal-preview returns mapped trades without saving jour
     await rm(dataDir, { recursive: true, force: true });
   }
 });
+
+
+test('GET /api/ctrader/status reports stored cTrader connection state', async () => {
+  const dataDir = await mkdtemp(join(tmpdir(), 'ctrader-status-test-'));
+  const config = {
+    ok: true,
+    clientId: validEnv.CTRADER_CLIENT_ID,
+    clientSecret: validEnv.CTRADER_CLIENT_SECRET,
+    redirectUri: validEnv.CTRADER_REDIRECT_URI,
+    environment: validEnv.CTRADER_ENVIRONMENT,
+    encryptionSecret: validEnv.CTRADER_TOKEN_ENCRYPTION_KEY,
+  };
+  await storeEncryptedTokens(config, {
+    accessToken: 'stored-access-token',
+    refreshToken: 'stored-refresh-token',
+    tokenType: 'Bearer',
+    expiresIn: 3600,
+  }, { dataDir });
+
+  const server = createAppServer({ dataDir, env: validEnv });
+
+  await new Promise((resolve) => server.listen(0, resolve));
+  try {
+    const { port } = server.address();
+    const response = await fetch(`http://127.0.0.1:${port}/api/ctrader/status`);
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.provider, 'ctrader');
+    assert.equal(body.connected, true);
+    assert.equal(body.environment, 'demo');
+    assert.equal(body.tokenType, 'Bearer');
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('GET /api/ctrader/status reports disconnected when tokens are missing', async () => {
+  const dataDir = await mkdtemp(join(tmpdir(), 'ctrader-status-missing-test-'));
+  const server = createAppServer({ dataDir, env: validEnv });
+
+  await new Promise((resolve) => server.listen(0, resolve));
+  try {
+    const { port } = server.address();
+    const response = await fetch(`http://127.0.0.1:${port}/api/ctrader/status`);
+    const body = await response.json();
+
+    assert.equal(response.status, 401);
+    assert.equal(body.provider, 'ctrader');
+    assert.equal(body.connected, false);
+    assert.match(body.error, /tokens have not been stored/i);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
