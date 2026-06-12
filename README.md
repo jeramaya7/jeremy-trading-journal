@@ -1,6 +1,6 @@
 # Jeremy Trading Journal
 
-A local-first trading journal built with plain HTML, CSS, and JavaScript. Log trades, track realized P&L, calculate win rate, search entries, and import/export your journal as JSON.
+A local-first trading journal built with plain HTML, CSS, and JavaScript. Log trades, track realized P&L, calculate win rate, search entries, and import/export your journal as JSON. A minimal Node backend is included for initiating cTrader OAuth connection setup.
 
 ## Features
 
@@ -14,11 +14,24 @@ A local-first trading journal built with plain HTML, CSS, and JavaScript. Log tr
 
 ## Getting started
 
-Start the development server:
+Start the development server, including the minimal backend routes:
 
 ```bash
 npm run dev
 ```
+
+## cTrader OAuth setup
+
+The first cTrader integration step adds OAuth connection routes only; trade sync is not implemented yet. Configure these environment variables before opening `/auth/ctrader/start`:
+
+```bash
+export CTRADER_CLIENT_ID=your-client-id
+export CTRADER_CLIENT_SECRET=your-client-secret
+export CTRADER_REDIRECT_URI=http://localhost:5173/auth/ctrader/callback
+export CTRADER_ENVIRONMENT=demo # or live
+```
+
+The backend redirects users to cTrader with account-read scope, exchanges the callback code for tokens, and stores the token pair encrypted at rest in `.data/ctrader-tokens.json`. Set `CTRADER_TOKEN_ENCRYPTION_KEY` in deployed environments to use a dedicated token encryption secret; otherwise the backend derives encryption from `CTRADER_CLIENT_SECRET` for local development.
 
 Run automated tests and a JavaScript syntax check:
 
@@ -35,10 +48,11 @@ npm run check
 ├── package.json
 ├── src
 │   ├── main.js
+│   ├── server.js
 │   └── styles.css
 └── README.md
 ```
 
 ## Notes
 
-This app stores data in the browser using `localStorage`. Export your journal regularly if you want a backup or need to move data to another browser.
+This app stores journal entries in the browser using `localStorage`. Export your journal regularly if you want a backup or need to move data to another browser. cTrader OAuth tokens are server-side secrets and are written to `.data/`, which is ignored by Git.
