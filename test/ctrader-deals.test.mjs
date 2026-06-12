@@ -9,9 +9,12 @@ import {
   createAppServer,
   decryptTokenPayload,
   encryptTokenPayload,
-  mapCtraderDealsToJournalTrades,
   storeEncryptedTokens,
 } from '../src/server.js';
+import {
+  mapCtraderClosingDealToJournalTrade,
+  mapCtraderDealsToJournalTrades,
+} from '../src/ctrader-journal-mapper.js';
 
 const validEnv = {
   CTRADER_CLIENT_ID: 'client-id',
@@ -46,7 +49,6 @@ test('builds default recent cTrader deals request query', () => {
     maxRows: 100,
   });
 });
-
 
 test('maps completed cTrader deals into journal preview trade objects', () => {
   const trades = mapCtraderDealsToJournalTrades({
@@ -140,6 +142,50 @@ test('maps completed cTrader deals into journal preview trade objects', () => {
       notes: 'Preview only. Not saved to the journal.',
     },
   ]);
+});
+
+test('maps an individual cTrader closing deal into the journal trade schema', () => {
+  const trade = mapCtraderClosingDealToJournalTrade({
+    dealId: 777,
+    positionId: 888,
+    symbolId: 1,
+    tradeSide: 2,
+    executionPrice: '1.0850',
+    executionTimestamp: 1_700_100_000_000,
+    volume: '25000',
+    closePositionDetail: {
+      entryTimestamp: 1_700_000_000_000,
+      entryPrice: '1.0800',
+      realizedNetProfit: '120.5',
+      commission: '-3.25',
+      swap: '1.00',
+      pnlConversionFee: '-0.75',
+      closedVolume: '25000',
+    },
+  }, null, { accountId: 24680 });
+
+  assert.deepEqual(trade, {
+    id: 'ctrader-777',
+    provider: 'ctrader',
+    accountId: 24680,
+    sourceDealId: 777,
+    sourcePositionId: 888,
+    symbol: '1',
+    direction: 'Long',
+    entry: 1.08,
+    exit: 1.085,
+    size: 25000,
+    volume: 25000,
+    openTime: '2023-11-14T22:13:20.000Z',
+    closeTime: '2023-11-16T02:00:00.000Z',
+    date: '2023-11-16',
+    netProfitLoss: 120.5,
+    fees: 5,
+    setup: 'cTrader import preview',
+    emotion: '',
+    tags: 'ctrader, import-preview',
+    notes: 'Preview only. Not saved to the journal.',
+  });
 });
 
 test('GET /api/ctrader/deals authorizes account, fetches raw deals, stores raw response, and returns JSON', async () => {
