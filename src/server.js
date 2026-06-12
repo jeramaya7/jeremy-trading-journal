@@ -1,14 +1,17 @@
-import { createHmac, randomBytes, scryptSync, createCipheriv, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, scryptSync, createCipheriv, createDecipheriv, timingSafeEqual } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { mkdir, rename, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { CTraderOpenApiJsonClient } from './ctrader-open-api.js';
+
 const PORT = Number(process.env.PORT) || 5173;
 const ROOT_DIR = join(fileURLToPath(new URL('..', import.meta.url)));
-const DATA_DIR = process.env.CTRADER_TOKEN_STORE_DIR || join(ROOT_DIR, '.data');
-const TOKEN_STORE_PATH = join(DATA_DIR, 'ctrader-tokens.json');
+const DEFAULT_RECENT_DEALS_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
+const DEFAULT_DEALS_MAX_ROWS = 100;
+const RAW_DEALS_FILE_NAME = 'ctrader-raw-deals.json';
 const CTRADER_AUTHORIZE_URL = 'https://id.ctrader.com/my/settings/openapi/grantingaccess/';
 const CTRADER_TOKEN_URL = 'https://openapi.ctrader.com/apps/token';
 const STATE_COOKIE_NAME = 'ctrader_oauth_state';
@@ -21,7 +24,7 @@ const contentTypes = {
   '.json': 'application/json; charset=utf-8',
 };
 
-export function createAppServer() {
+export function createAppServer(options = {}) {
   return createServer(async (request, response) => {
     const url = new URL(request.url || '/', getRequestOrigin(request));
 
@@ -31,7 +34,17 @@ export function createAppServer() {
     }
 
     if (request.method === 'GET' && url.pathname === '/auth/ctrader/callback') {
-      await completeCtraderAuth(request, response, url);
+      await completeCtraderAuth(request, response, url, options);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/api/ctrader/deals') {
+      await getCtraderDeals(response, url, options);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/api/ctrader/journal-preview') {
+      await getCtraderJournalPreview(response, url, options);
       return;
     }
 
@@ -163,7 +176,7 @@ export function encryptTokenPayload(payload, secret) {
   };
 }
 
-export async function storeEncryptedTokens(config, tokens) {
+export async function storeEncryptedTokens(config, tokens, options = {}) {
   if (!tokens.accessToken || !tokens.refreshToken) {
     throw new Error('cTrader token response did not include both access and refresh tokens');
   }
@@ -186,11 +199,256 @@ export async function storeEncryptedTokens(config, tokens) {
     encryptedTokens,
   };
 
-  await mkdir(DATA_DIR, { recursive: true, mode: 0o700 });
-  const tempPath = `${TOKEN_STORE_PATH}.${process.pid}.${Date.now()}.tmp`;
+  const tokenStorePath = getTokenStorePath(options);
+  await mkdir(getDataDir(options), { recursive: true, mode: 0o700 });
+  const tempPath = `${tokenStorePath}.${process.pid}.${Date.now()}.tmp`;
   await writeFile(tempPath, `${JSON.stringify(tokenRecord, null, 2)}\n`, { mode: 0o600 });
-  await rename(tempPath, TOKEN_STORE_PATH);
+  await rename(tempPath, tokenStorePath);
   return tokenRecord;
+}
+
+export function decryptTokenPayload(encryptedPayload, secret) {
+  if (encryptedPayload?.algorithm !== 'aes-256-gcm' || encryptedPayload?.kdf !== 'scrypt') {
+    throw new Error('Unsupported cTrader token encryption format');
+  }
+
+  const salt = Buffer.from(encryptedPayload.salt, 'base64url');
+  const iv = Buffer.from(encryptedPayload.iv, 'base64url');
+  const authTag = Buffer.from(encryptedPayload.authTag, 'base64url');
+  const ciphertext = Buffer.from(encryptedPayload.ciphertext, 'base64url');
+  const key = scryptSync(secret, salt, 32);
+  const decipher = createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(authTag);
+  const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
+  return JSON.parse(plaintext);
+}
+
+export async function loadStoredCtraderTokens(config, options = {}) {
+  let tokenRecord;
+  try {
+    tokenRecord = JSON.parse(await readFile(getTokenStorePath(options), 'utf8'));
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      throw new Error('cTrader OAuth tokens have not been stored yet; connect cTrader first');
+    }
+    throw error;
+  }
+
+  if (tokenRecord.provider !== 'ctrader') {
+    throw new Error('Stored token record is not for cTrader');
+  }
+  if (tokenRecord.environment !== config.environment) {
+    throw new Error(`Stored cTrader tokens are for ${tokenRecord.environment}, but ${config.environment} is configured`);
+  }
+
+  const decryptedTokens = decryptTokenPayload(tokenRecord.encryptedTokens, config.encryptionSecret);
+  if (!decryptedTokens.accessToken) {
+    throw new Error('Stored cTrader tokens do not include an access token');
+  }
+
+  return {
+    ...decryptedTokens,
+    tokenType: decryptedTokens.tokenType || tokenRecord.tokenType || 'Bearer',
+    record: tokenRecord,
+  };
+}
+
+export function buildCtraderDealsRequest(url, now = Date.now()) {
+  const toTimestamp = parseTimestampQuery(url.searchParams.get('toTimestamp'), now);
+  const fromTimestamp = parseTimestampQuery(
+    url.searchParams.get('fromTimestamp'),
+    toTimestamp - DEFAULT_RECENT_DEALS_LOOKBACK_MS,
+  );
+  const maxRows = parseIntegerQuery(url.searchParams.get('maxRows'), DEFAULT_DEALS_MAX_ROWS);
+  const accountIdQuery = url.searchParams.get('ctidTraderAccountId') || url.searchParams.get('accountId');
+
+  return {
+    ctidTraderAccountId: accountIdQuery ? parseIntegerQuery(accountIdQuery) : undefined,
+    fromTimestamp,
+    toTimestamp,
+    maxRows,
+  };
+}
+
+export async function fetchRecentCtraderDeals(config, tokens, requestOptions = {}, options = {}) {
+  const OpenApiClient = options.OpenApiClient || CTraderOpenApiJsonClient;
+  const client = options.openApiClient || new OpenApiClient({
+    environment: config.environment,
+    clientId: config.clientId,
+    clientSecret: config.clientSecret,
+    accessToken: tokens.accessToken,
+  });
+
+  try {
+    const accountAuth = await client.authenticateAndAuthorizeAccount(
+      requestOptions.ctidTraderAccountId,
+      tokens.accessToken,
+    );
+    const rawDeals = await client.getDealList(accountAuth.authorizedAccountId, {
+      fromTimestamp: requestOptions.fromTimestamp,
+      toTimestamp: requestOptions.toTimestamp,
+      maxRows: requestOptions.maxRows,
+    });
+
+    return {
+      environment: config.environment,
+      accountId: accountAuth.authorizedAccountId,
+      accounts: accountAuth.accounts,
+      request: {
+        fromTimestamp: requestOptions.fromTimestamp,
+        toTimestamp: requestOptions.toTimestamp,
+        maxRows: requestOptions.maxRows,
+      },
+      rawDeals,
+    };
+  } finally {
+    if (typeof client.close === 'function') {
+      client.close();
+    }
+  }
+}
+
+export function mapCtraderDealsToJournalTrades(rawDeals, options = {}) {
+  const deals = Array.isArray(rawDeals?.deal) ? rawDeals.deal : [];
+  const openingDealsByPosition = new Map();
+
+  for (const deal of deals) {
+    if (!deal?.positionId || isClosingDeal(deal)) {
+      continue;
+    }
+
+    const key = String(deal.positionId);
+    const existingDeal = openingDealsByPosition.get(key);
+    if (!existingDeal || Number(deal.executionTimestamp || 0) < Number(existingDeal.executionTimestamp || 0)) {
+      openingDealsByPosition.set(key, deal);
+    }
+  }
+
+  return deals
+    .filter(isClosingDeal)
+    .map((deal) => mapCtraderClosingDealToJournalTrade(
+      deal,
+      openingDealsByPosition.get(String(deal.positionId)),
+      options,
+    ));
+}
+
+export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, options = {}) {
+  const closePositionDetail = deal.closePositionDetail || {};
+  const direction = getJournalDirection(openingDeal?.tradeSide, deal.tradeSide);
+  const closeTime = toIsoTimestamp(deal.executionTimestamp);
+  const openTime = toIsoTimestamp(
+    closePositionDetail.entryTimestamp
+      ?? closePositionDetail.openTimestamp
+      ?? openingDeal?.executionTimestamp,
+  );
+  const commission = toFiniteNumber(closePositionDetail.commission, 0);
+  const swap = toFiniteNumber(closePositionDetail.swap, 0);
+  const pnlConversionFee = toFiniteNumber(closePositionDetail.pnlConversionFee, 0);
+  const entry = toFiniteNumber(closePositionDetail.entryPrice ?? openingDeal?.executionPrice);
+  const exit = toFiniteNumber(deal.executionPrice ?? closePositionDetail.exitPrice);
+  const volume = toFiniteNumber(
+    closePositionDetail.closedVolume
+      ?? closePositionDetail.volume
+      ?? deal.filledVolume
+      ?? deal.volume
+      ?? openingDeal?.filledVolume
+      ?? openingDeal?.volume,
+  );
+
+  return {
+    id: `ctrader-${deal.dealId ?? deal.positionId ?? cryptoSafeId(options)}`,
+    provider: 'ctrader',
+    accountId: options.accountId ?? null,
+    sourceDealId: deal.dealId ?? null,
+    sourcePositionId: deal.positionId ?? null,
+    symbol: getCtraderDealSymbol(deal, openingDeal),
+    direction,
+    entry,
+    exit,
+    size: volume,
+    volume,
+    openTime,
+    closeTime,
+    date: closeTime ? closeTime.slice(0, 10) : null,
+    netProfitLoss: getNetProfitLoss(closePositionDetail),
+    fees: Math.abs(commission) + Math.abs(swap) + Math.abs(pnlConversionFee),
+    setup: 'cTrader import preview',
+    emotion: '',
+    tags: 'ctrader, import-preview',
+    notes: 'Preview only. Not saved to the journal.',
+  };
+}
+
+export async function storeRawCtraderDeals(dealsResult, options = {}) {
+  const storedPayload = {
+    provider: 'ctrader',
+    environment: dealsResult.environment,
+    accountId: dealsResult.accountId,
+    fetchedAt: new Date(options.now?.() ?? Date.now()).toISOString(),
+    request: dealsResult.request,
+    rawDeals: dealsResult.rawDeals,
+  };
+  const rawDealsStorePath = getRawDealsStorePath(options);
+  await mkdir(getDataDir(options), { recursive: true, mode: 0o700 });
+  const tempPath = `${rawDealsStorePath}.${process.pid}.${Date.now()}.tmp`;
+  await writeFile(tempPath, `${JSON.stringify(storedPayload, null, 2)}\n`, { mode: 0o600 });
+  await rename(tempPath, rawDealsStorePath);
+  return storedPayload;
+}
+
+async function getCtraderDeals(response, url, options = {}) {
+  const config = getCtraderConfig(options.env);
+  if (!config.ok) {
+    sendConfigurationError(response, config);
+    return;
+  }
+
+  try {
+    const tokens = await loadStoredCtraderTokens(config, options);
+    const requestOptions = buildCtraderDealsRequest(url, options.now?.() ?? Date.now());
+    const dealsResult = await fetchRecentCtraderDeals(config, tokens, requestOptions, options);
+    const stored = await storeRawCtraderDeals(dealsResult, options);
+    sendJson(response, 200, {
+      provider: 'ctrader',
+      environment: dealsResult.environment,
+      accountId: dealsResult.accountId,
+      accounts: dealsResult.accounts,
+      request: dealsResult.request,
+      storedAt: stored.fetchedAt,
+      rawDeals: dealsResult.rawDeals,
+    });
+  } catch (error) {
+    sendJson(response, 502, { error: error.message });
+  }
+}
+
+async function getCtraderJournalPreview(response, url, options = {}) {
+  const config = getCtraderConfig(options.env);
+  if (!config.ok) {
+    sendConfigurationError(response, config);
+    return;
+  }
+
+  try {
+    const tokens = await loadStoredCtraderTokens(config, options);
+    const requestOptions = buildCtraderDealsRequest(url, options.now?.() ?? Date.now());
+    const dealsResult = await fetchRecentCtraderDeals(config, tokens, requestOptions, options);
+    const trades = mapCtraderDealsToJournalTrades(dealsResult.rawDeals, {
+      accountId: dealsResult.accountId,
+    });
+
+    sendJson(response, 200, {
+      provider: 'ctrader',
+      environment: dealsResult.environment,
+      accountId: dealsResult.accountId,
+      request: dealsResult.request,
+      tradeCount: trades.length,
+      trades,
+    });
+  } catch (error) {
+    sendJson(response, 502, { error: error.message });
+  }
 }
 
 async function startCtraderAuth(request, response) {
@@ -214,7 +472,7 @@ async function startCtraderAuth(request, response) {
   response.end();
 }
 
-async function completeCtraderAuth(request, response, url) {
+async function completeCtraderAuth(request, response, url, options = {}) {
   const config = getCtraderConfig();
   if (!config.ok) {
     sendConfigurationError(response, config);
@@ -242,7 +500,7 @@ async function completeCtraderAuth(request, response, url) {
 
   try {
     const tokens = await exchangeAuthorizationCode(config, code);
-    const tokenRecord = await storeEncryptedTokens(config, tokens);
+    const tokenRecord = await storeEncryptedTokens(config, tokens, options);
     response.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
       'Set-Cookie': serializeCookie(STATE_COOKIE_NAME, '', {
@@ -309,6 +567,137 @@ function sendConfigurationError(response, config) {
     expected: ['demo', 'live'],
     received: config.invalidEnvironment,
   });
+}
+
+function isClosingDeal(deal) {
+  return Boolean(deal?.closePositionDetail);
+}
+
+function getJournalDirection(openingTradeSide, closingTradeSide) {
+  const normalizedOpeningSide = normalizeTradeSide(openingTradeSide);
+  if (normalizedOpeningSide === 'BUY') {
+    return 'Long';
+  }
+  if (normalizedOpeningSide === 'SELL') {
+    return 'Short';
+  }
+
+  const normalizedClosingSide = normalizeTradeSide(closingTradeSide);
+  if (normalizedClosingSide === 'SELL') {
+    return 'Long';
+  }
+  if (normalizedClosingSide === 'BUY') {
+    return 'Short';
+  }
+
+  return 'Long';
+}
+
+function normalizeTradeSide(tradeSide) {
+  if (tradeSide === undefined || tradeSide === null) {
+    return null;
+  }
+  if (typeof tradeSide === 'number') {
+    if (tradeSide === 1) {
+      return 'BUY';
+    }
+    if (tradeSide === 2) {
+      return 'SELL';
+    }
+  }
+
+  const normalized = String(tradeSide).toUpperCase();
+  if (normalized.includes('BUY')) {
+    return 'BUY';
+  }
+  if (normalized.includes('SELL')) {
+    return 'SELL';
+  }
+  return null;
+}
+
+function getCtraderDealSymbol(deal, openingDeal = null) {
+  return deal.symbolName
+    || deal.symbol
+    || openingDeal?.symbolName
+    || openingDeal?.symbol
+    || (deal.symbolId !== undefined ? String(deal.symbolId) : null)
+    || (openingDeal?.symbolId !== undefined ? String(openingDeal.symbolId) : null)
+    || 'Unknown';
+}
+
+function getNetProfitLoss(closePositionDetail) {
+  const explicitNetProfitLoss = toFiniteNumber(
+    closePositionDetail.netProfitLoss
+      ?? closePositionDetail.netProfit
+      ?? closePositionDetail.realizedNetProfit,
+  );
+  if (explicitNetProfitLoss !== null) {
+    return explicitNetProfitLoss;
+  }
+
+  const grossProfit = toFiniteNumber(closePositionDetail.grossProfit, 0);
+  const swap = toFiniteNumber(closePositionDetail.swap, 0);
+  const commission = toFiniteNumber(closePositionDetail.commission, 0);
+  const pnlConversionFee = toFiniteNumber(closePositionDetail.pnlConversionFee, 0);
+  return grossProfit + swap + commission + pnlConversionFee;
+}
+
+function toIsoTimestamp(timestamp) {
+  const parsed = toFiniteNumber(timestamp);
+  if (parsed === null) {
+    return null;
+  }
+  return new Date(parsed).toISOString();
+}
+
+function toFiniteNumber(value, fallback = null) {
+  if (value === null || value === undefined || value === '') {
+    return fallback;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function cryptoSafeId(options = {}) {
+  if (typeof options.idFactory === 'function') {
+    return options.idFactory();
+  }
+  return base64Url(randomBytes(9));
+}
+
+function getDataDir(options = {}) {
+  return options.dataDir || process.env.CTRADER_TOKEN_STORE_DIR || join(ROOT_DIR, '.data');
+}
+
+function getTokenStorePath(options = {}) {
+  return options.tokenStorePath || join(getDataDir(options), 'ctrader-tokens.json');
+}
+
+function getRawDealsStorePath(options = {}) {
+  return options.rawDealsStorePath || join(getDataDir(options), RAW_DEALS_FILE_NAME);
+}
+
+function parseTimestampQuery(value, fallback) {
+  if (value === null || value === undefined || value === '') {
+    return fallback;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 2_147_483_646_000) {
+    throw new Error('cTrader deal timestamp query values must be integer milliseconds from 0 through 2147483646000');
+  }
+  return parsed;
+}
+
+function parseIntegerQuery(value, fallback) {
+  if (value === null || value === undefined || value === '') {
+    return fallback;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error('cTrader deal query values for accountId and maxRows must be positive integers');
+  }
+  return parsed;
 }
 
 function getRequestOrigin(request) {
