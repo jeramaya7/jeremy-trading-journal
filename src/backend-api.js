@@ -81,15 +81,23 @@ export function buildBackendUrl(path, runtime = globalThis) {
   return new URL(path, `${configuredBaseUrl}/`).toString();
 }
 
+export function buildCTraderOAuthUrl(path) {
+  return new URL(path, `${DEFAULT_BACKEND_BASE_URL}/`).toString();
+}
+
 export function getBackendDiagnostics(runtime = globalThis) {
   const configuredBaseUrl = getConfiguredBackendBaseUrl(runtime);
   const statusUrl = buildBackendUrl(CTRADER_ENDPOINTS.status, runtime);
+  const authStartUrl = buildCTraderOAuthUrl(CTRADER_ENDPOINTS.authStart);
+  const authCallbackUrl = buildCTraderOAuthUrl(CTRADER_ENDPOINTS.authCallback);
   const absoluteStatusUrl = resolveRuntimeUrl(statusUrl, runtime);
 
   return {
     configured: true,
     backendUrl: configuredBaseUrl,
     statusUrl: absoluteStatusUrl,
+    authStartUrl,
+    authCallbackUrl,
     connectionStatus: 'Not checked',
     deploymentHint: getBackendDeploymentHint(runtime),
   };

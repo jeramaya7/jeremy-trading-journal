@@ -8,6 +8,7 @@ import {
   encryptTokenPayload,
   exchangeAuthorizationCode,
   getCtraderConfig,
+  getVerifiedSignedStatePayload,
   normalizeTokenResponse,
   verifySignedState,
 } from '../src/server.js';
@@ -60,6 +61,14 @@ test('OAuth state is signed, environment-bound, and expires', () => {
   assert.equal(verifySignedState(state, 'live', config.encryptionSecret, 1_100), false);
   assert.equal(verifySignedState(state, 'demo', 'wrong-secret', 1_100), false);
   assert.equal(verifySignedState(state, 'demo', config.encryptionSecret, 1_000 + 10 * 60 * 1000 + 1), false);
+});
+
+test('OAuth state can carry a frontend return URL for post-authorization status checks', () => {
+  const config = getCtraderConfig(validEnv);
+  const state = createSignedState(config, 1_000, { returnTo: 'https://jeramaya7.github.io/jeremy-trading-journal/?ctrader=connected' });
+  const payload = getVerifiedSignedStatePayload(state, 'demo', config.encryptionSecret, 1_100);
+
+  assert.equal(payload.returnTo, 'https://jeramaya7.github.io/jeremy-trading-journal/?ctrader=connected');
 });
 
 test('token exchange calls cTrader token endpoint with authorization code grant', async () => {

@@ -143,7 +143,8 @@ h2 {
 }
 
 .primary-button,
-.secondary-button {
+.secondary-button,
+.connect-button {
   min-height: 48px;
   padding: 0.85rem 1.1rem;
 }
@@ -157,6 +158,13 @@ h2 {
 
 .secondary-button {
   background: #172033;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.connect-button {
+  background: linear-gradient(135deg, #0f9f6e, #276ef1);
+  box-shadow: 0 14px 28px rgba(39, 110, 241, 0.22);
   color: #ffffff;
   white-space: nowrap;
 }
@@ -548,6 +556,7 @@ h2 {
 
   .hero-actions,
   .secondary-button,
+  .connect-button,
   .upload-button,
   .auto-sync-toggle {
     width: 100%;
