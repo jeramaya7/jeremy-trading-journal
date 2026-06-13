@@ -16,6 +16,16 @@ test('cTrader sync button calls the journal preview API', () => {
   assertIncludes(source, 'Sync cTrader', 'The button copy uses the one-click synchronization language.');
 });
 
+test('cTrader connect button starts OAuth on the Render backend and checks status after return', () => {
+  assertIncludes(source, 'id="connectCTrader"', 'The hero actions render a visible Connect cTrader button.');
+  assertIncludes(source, 'Connect cTrader', 'The button copy clearly starts cTrader connection.');
+  assertIncludes(source, "document.querySelector('#connectCTrader').addEventListener('click', startCTraderOAuthFlow);", 'The connect button is wired to the OAuth handler.');
+  assertIncludes(source, 'buildCTraderOAuthUrl(CTRADER_ENDPOINTS.authStart)', 'The OAuth handler uses the Render auth start URL builder.');
+  assertIncludes(source, "authStartUrl.searchParams.set('returnTo', getCTraderOAuthReturnUrl());", 'The OAuth handler asks the backend to return to the frontend after authorization.');
+  assertIncludes(source, "currentUrl.searchParams.get('ctrader') !== 'connected'", 'The frontend detects the OAuth return flag.');
+  assertIncludes(source, 'Authorization complete. Checking cTrader connection status...', 'The frontend displays status after authorization.');
+});
+
 test('cTrader preview trades are converted into saved journal entries', () => {
   assertIncludes(syncSource, 'function convertCTraderPreviewTradeToJournalEntry(previewTrade, options = {})', 'Preview trades are converted before saving.');
   assertIncludes(syncSource, "setup: previewTrade.setup === 'cTrader import preview' ? 'cTrader import'", 'Preview-only setup copy is replaced with journal entry copy.');
@@ -32,7 +42,6 @@ test('cTrader sync skips duplicates by source trade IDs and reports imported/ski
   assertIncludes(source, 'const syncPlan = buildCTraderSyncPlan(previewTrades, trades);', 'Duplicate source trades are filtered out before saving.');
   assertIncludes(source, 'New trades imported: ${syncPlan.importedCount}. Trades skipped: ${syncPlan.skippedCount}.', 'The UI displays new imported and skipped cTrader trade counts.');
 });
-
 
 test('cTrader Auto Sync runs on startup and exposes settings metadata', () => {
   assertIncludes(source, "const AUTO_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-auto-sync:v1';", 'Auto Sync preference is persisted separately from trades.');
