@@ -681,3 +681,8 @@ h2 {
 .backend-diagnostics .diagnostic-error {
   color: #b91c1c;
 }
+.connect-button {
+  color: #ffffff !important;
+  font-size: 1rem;
+  font-weight: 900;
+}
