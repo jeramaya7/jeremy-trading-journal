@@ -5,6 +5,7 @@ const STORAGE_KEY = 'jeremy-trading-journal:v1';
 const AUTO_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-auto-sync:v1';
 const LAST_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-last-sync:v1';
 const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+const CTRADER_AUTH_START_URL = 'https://jeremy-trading-journal.onrender.com/auth/ctrader/start';
 
 const starterTrades = [
   {
@@ -355,6 +356,7 @@ function render() {
           <p class="sync-meta">Last cTrader sync: <strong>${escapeHtml(formatSyncTime(cTraderLastSyncAt))}</strong></p>
           ${renderCTraderBackendDiagnostics()}
           ${cTraderSyncStatus ? `<p class="import-status ${escapeHtml(cTraderSyncStatus.tone)}" role="status">${escapeHtml(cTraderSyncStatus.message)}</p>` : ''}
+          ${renderCTraderConnectionAction()}
         </div>
       </section>
 
@@ -625,6 +627,23 @@ function describeCTraderConnectionStatus(status) {
   }
 
   return status.error || 'Backend reached, but cTrader OAuth is not connected yet.';
+}
+
+function isCTraderConnected() {
+  return cTraderBackendDiagnostics.tone === 'success'
+    && cTraderBackendDiagnostics.connectionStatus.startsWith('Connected to cTrader');
+}
+
+function renderCTraderConnectionAction() {
+  if (isCTraderConnected()) {
+    return '<p class="ctrader-connected" role="status">✅ cTrader Connected</p>';
+  }
+
+  return `
+    <a class="connect-button" id="connectCTrader" href="${CTRADER_AUTH_START_URL}">
+      ${icon('trend')} Connect cTrader
+    </a>
+  `;
 }
 
 function changeCTraderAutoSyncSetting(event) {
