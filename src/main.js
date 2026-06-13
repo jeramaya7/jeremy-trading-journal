@@ -359,8 +359,6 @@ ${cTraderSyncStatus ? `<p class="import-status ${escapeHtml(cTraderSyncStatus.to
             <input type="file" accept="application/json" id="importTrades" />
           </label>
           <p class="sync-meta">Last cTrader sync: <strong>${escapeHtml(formatSyncTime(cTraderLastSyncAt))}</strong></p>
-          ${renderCTraderBackendDiagnostics()}
-          ${cTraderSyncStatus ? `<p class="import-status ${escapeHtml(cTraderSyncStatus.tone)}" role="status">${escapeHtml(cTraderSyncStatus.message)}</p>` : ''}
         </div>
       </section>
 
