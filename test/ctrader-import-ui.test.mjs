@@ -16,6 +16,14 @@ test('cTrader sync button calls the journal preview API', () => {
   assertIncludes(source, 'Sync cTrader', 'The button copy uses the one-click synchronization language.');
 });
 
+test('cTrader connect action appears below diagnostics and links directly to Render OAuth', () => {
+  assertIncludes(source, 'renderCTraderConnectionAction()', 'The cTrader connection action renders next to the diagnostics/status panel.');
+  assertIncludes(source, "const CTRADER_AUTH_START_URL = 'https://jeremy-trading-journal.onrender.com/auth/ctrader/start';", 'The connect button points to the exact Render OAuth start URL.');
+  assertIncludes(source, 'id="connectCTrader" href="${CTRADER_AUTH_START_URL}"', 'The Connect cTrader action is a visible direct OAuth link.');
+  assertIncludes(source, '✅ cTrader Connected', 'The UI shows the requested connected copy when the backend status is connected.');
+  assertIncludes(source, "cTraderBackendDiagnostics.connectionStatus.startsWith('Connected to cTrader')", 'The connected copy is based on backend connection status.');
+});
+
 test('cTrader preview trades are converted into saved journal entries', () => {
   assertIncludes(syncSource, 'function convertCTraderPreviewTradeToJournalEntry(previewTrade, options = {})', 'Preview trades are converted before saving.');
   assertIncludes(syncSource, "setup: previewTrade.setup === 'cTrader import preview' ? 'cTrader import'", 'Preview-only setup copy is replaced with journal entry copy.');
@@ -32,7 +40,6 @@ test('cTrader sync skips duplicates by source trade IDs and reports imported/ski
   assertIncludes(source, 'const syncPlan = buildCTraderSyncPlan(previewTrades, trades);', 'Duplicate source trades are filtered out before saving.');
   assertIncludes(source, 'New trades imported: ${syncPlan.importedCount}. Trades skipped: ${syncPlan.skippedCount}.', 'The UI displays new imported and skipped cTrader trade counts.');
 });
-
 
 test('cTrader Auto Sync runs on startup and exposes settings metadata', () => {
   assertIncludes(source, "const AUTO_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-auto-sync:v1';", 'Auto Sync preference is persisted separately from trades.');
