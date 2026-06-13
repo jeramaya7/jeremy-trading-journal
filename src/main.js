@@ -613,14 +613,6 @@ function renderCTraderBackendDiagnostics() {
         <dd>${escapeHtml(cTraderBackendDiagnostics.statusUrl)}</dd>
       </div>
       <div>
-        <dt>OAuth start URL</dt>
-        <dd>${escapeHtml(cTraderBackendDiagnostics.authStartUrl)}</dd>
-      </div>
-      <div>
-        <dt>OAuth callback URL</dt>
-        <dd>${escapeHtml(cTraderBackendDiagnostics.authCallbackUrl)}</dd>
-      </div>
-      <div>
         <dt>Connection status</dt>
         <dd class="diagnostic-${escapeHtml(cTraderBackendDiagnostics.tone)}">${escapeHtml(cTraderBackendDiagnostics.connectionStatus)}</dd>
       </div>

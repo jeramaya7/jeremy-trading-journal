@@ -17,7 +17,7 @@ test('cTrader sync button calls the journal preview API', () => {
 });
 
 test('cTrader connect action appears below diagnostics and links directly to Render OAuth', () => {
-  assertIncludes(source, 'renderCTraderConnectionAction()', 'The cTrader connection action renders next to the diagnostics/status panel.');
+  assertIncludes(source, 'renderCTraderBackendDiagnostics()}\n          ${renderCTraderConnectionAction()}', 'The cTrader connection action renders below the diagnostics/status panel.');
   assertIncludes(source, "const CTRADER_AUTH_START_URL = 'https://jeremy-trading-journal.onrender.com/auth/ctrader/start';", 'The connect button points to the exact Render OAuth start URL.');
   assertIncludes(source, 'id="connectCTrader" href="${CTRADER_AUTH_START_URL}"', 'The Connect cTrader action is a visible direct OAuth link.');
   assertIncludes(source, '✅ cTrader Connected', 'The UI shows the requested connected copy when the backend status is connected.');

@@ -116,46 +116,34 @@ export function buildCtraderAuthorizeUrl(config, state) {
   return authorizationUrl;
 }
 
-export function createSignedState(config, now = Date.now(), options = {}) {
+export function createSignedState(config, now = Date.now()) {
   const payload = {
     nonce: base64Url(randomBytes(24)),
     environment: config.environment,
     expiresAt: now + STATE_TTL_MS,
   };
-
-  if (options.returnTo) {
-    payload.returnTo = options.returnTo;
-  }
   const encodedPayload = base64Url(JSON.stringify(payload));
   const signature = signState(encodedPayload, config.encryptionSecret);
   return `${encodedPayload}.${signature}`;
 }
 
-export function getVerifiedSignedStatePayload(state, expectedEnvironment, secret, now = Date.now()) {
+export function verifySignedState(state, expectedEnvironment, secret, now = Date.now()) {
   const [encodedPayload, signature] = String(state || '').split('.');
   if (!encodedPayload || !signature) {
-    return null;
+    return false;
   }
 
   const expectedSignature = signState(encodedPayload, secret);
   if (!timingSafeStringEqual(signature, expectedSignature)) {
-    return null;
+    return false;
   }
 
   try {
     const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'));
-    if (payload.environment !== expectedEnvironment || Number(payload.expiresAt) <= now) {
-      return null;
-    }
-
-    return payload;
+    return payload.environment === expectedEnvironment && Number(payload.expiresAt) > now;
   } catch {
-    return null;
+    return false;
   }
-}
-
-export function verifySignedState(state, expectedEnvironment, secret, now = Date.now()) {
-  return getVerifiedSignedStatePayload(state, expectedEnvironment, secret, now) !== null;
 }
 
 export async function exchangeAuthorizationCode(config, code, fetchImpl = fetch) {
@@ -433,19 +421,6 @@ async function getCtraderJournalPreview(response, url, options = {}) {
   }
 }
 
-function normalizeOAuthReturnUrl(value) {
-  if (!value) {
-    return '';
-  }
-
-  try {
-    const url = new URL(value);
-    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : '';
-  } catch {
-    return '';
-  }
-}
-
 async function startCtraderAuth(request, response) {
   const config = getCtraderConfig();
   if (!config.ok) {
@@ -453,9 +428,7 @@ async function startCtraderAuth(request, response) {
     return;
   }
 
-  const requestUrl = new URL(request.url || '/', getRequestOrigin(request));
-  const returnTo = normalizeOAuthReturnUrl(requestUrl.searchParams.get('returnTo'));
-  const state = createSignedState(config, Date.now(), { returnTo });
+  const state = createSignedState(config);
   response.writeHead(302, {
     Location: buildCtraderAuthorizeUrl(config, state).toString(),
     'Set-Cookie': serializeCookie(STATE_COOKIE_NAME, state, {
@@ -490,10 +463,7 @@ async function completeCtraderAuth(request, response, url, options = {}) {
     return;
   }
 
-  const statePayload = state && state === stateCookie
-    ? getVerifiedSignedStatePayload(state, config.environment, config.encryptionSecret)
-    : null;
-  if (!statePayload) {
+  if (!state || state !== stateCookie || !verifySignedState(state, config.environment, config.encryptionSecret)) {
     sendJson(response, 400, { error: 'Invalid or expired cTrader OAuth state' });
     return;
   }
@@ -501,26 +471,15 @@ async function completeCtraderAuth(request, response, url, options = {}) {
   try {
     const tokens = await exchangeAuthorizationCode(config, code);
     const tokenRecord = await storeEncryptedTokens(config, tokens, options);
-    const clearStateCookie = serializeCookie(STATE_COOKIE_NAME, '', {
-      httpOnly: true,
-      maxAge: 0,
-      sameSite: 'Lax',
-      secure: isSecureRequest(request),
-      path: '/auth/ctrader',
-    });
-
-    if (statePayload.returnTo) {
-      response.writeHead(302, {
-        Location: statePayload.returnTo,
-        'Set-Cookie': clearStateCookie,
-      });
-      response.end();
-      return;
-    }
-
     response.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
-      'Set-Cookie': clearStateCookie,
+      'Set-Cookie': serializeCookie(STATE_COOKIE_NAME, '', {
+        httpOnly: true,
+        maxAge: 0,
+        sameSite: 'Lax',
+        secure: isSecureRequest(request),
+        path: '/auth/ctrader',
+      }),
     });
     response.end(`<!doctype html>
 <html lang="en">
