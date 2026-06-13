@@ -1,5 +1,5 @@
 import { buildCTraderSyncPlan } from './ctrader-sync.js';
-import { CTRADER_ENDPOINTS, fetchBackendJson, getBackendDiagnostics } from './backend-api.js';
+import { CTRADER_ENDPOINTS, buildCTraderOAuthUrl, fetchBackendJson, getBackendDiagnostics } from './backend-api.js';
 
 const STORAGE_KEY = 'jeremy-trading-journal:v1';
 const AUTO_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-auto-sync:v1';
@@ -73,6 +73,7 @@ let isCTraderAutoSyncEnabled = loadCTraderAutoSyncSetting();
 let cTraderLastSyncAt = loadCTraderLastSyncTime();
 let cTraderAutoSyncTimer = null;
 let cTraderBackendDiagnostics = getCTraderBackendDiagnostics();
+let hasHandledCTraderOAuthReturn = false;
 
 const app = document.querySelector('#root');
 
@@ -613,6 +614,14 @@ function renderCTraderBackendDiagnostics() {
         <dd>${escapeHtml(cTraderBackendDiagnostics.statusUrl)}</dd>
       </div>
       <div>
+        <dt>OAuth start URL</dt>
+        <dd>${escapeHtml(cTraderBackendDiagnostics.authStartUrl)}</dd>
+      </div>
+      <div>
+        <dt>OAuth callback URL</dt>
+        <dd>${escapeHtml(cTraderBackendDiagnostics.authCallbackUrl)}</dd>
+      </div>
+      <div>
         <dt>Connection status</dt>
         <dd class="diagnostic-${escapeHtml(cTraderBackendDiagnostics.tone)}">${escapeHtml(cTraderBackendDiagnostics.connectionStatus)}</dd>
       </div>
@@ -644,6 +653,61 @@ function renderCTraderConnectionAction() {
       ${icon('trend')} Connect cTrader
     </a>
   `;
+}
+
+function getCTraderOAuthReturnUrl() {
+  const returnUrl = new URL(window.location.href);
+  returnUrl.searchParams.set('ctrader', 'connected');
+  returnUrl.searchParams.delete('error');
+  returnUrl.hash = '';
+  return returnUrl.toString();
+}
+
+function startCTraderOAuthFlow() {
+  const authStartUrl = new URL(buildCTraderOAuthUrl(CTRADER_ENDPOINTS.authStart));
+  authStartUrl.searchParams.set('returnTo', getCTraderOAuthReturnUrl());
+  cTraderSyncStatus = { tone: 'pending', message: 'Opening cTrader OAuth on the Render backend...' };
+  setCTraderBackendDiagnostics({ connectionStatus: 'Starting cTrader OAuth flow...', tone: 'pending' });
+  render();
+  window.location.assign(authStartUrl.toString());
+}
+
+function clearCTraderOAuthReturnQuery() {
+  const currentUrl = new URL(window.location.href);
+  currentUrl.searchParams.delete('ctrader');
+  if (window.history?.replaceState) {
+    window.history.replaceState({}, document.title, currentUrl.toString());
+  }
+}
+
+async function handleCTraderOAuthReturn() {
+  if (hasHandledCTraderOAuthReturn) {
+    return false;
+  }
+
+  const currentUrl = new URL(window.location.href);
+  if (currentUrl.searchParams.get('ctrader') !== 'connected') {
+    return false;
+  }
+
+  hasHandledCTraderOAuthReturn = true;
+  clearCTraderOAuthReturnQuery();
+  cTraderSyncStatus = { tone: 'pending', message: 'Authorization complete. Checking cTrader connection status...' };
+  render();
+
+  try {
+    await checkCTraderConnection();
+    cTraderSyncStatus = { tone: 'success', message: 'cTrader is connected. You can now Sync cTrader or leave Auto Sync on.' };
+  } catch (error) {
+    cTraderSyncStatus = {
+      tone: 'error',
+      message: error.message || 'Authorization finished, but cTrader connection status could not be confirmed.',
+    };
+  } finally {
+    render();
+  }
+
+  return true;
 }
 
 function changeCTraderAutoSyncSetting(event) {
@@ -792,4 +856,8 @@ function importTrades(event) {
 
 render();
 scheduleCTraderAutoSync();
-syncCTraderOnStartup();
+handleCTraderOAuthReturn().then((handledOAuthReturn) => {
+  if (!handledOAuthReturn) {
+    syncCTraderOnStartup();
+  }
+});

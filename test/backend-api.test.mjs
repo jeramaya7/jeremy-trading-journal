@@ -6,6 +6,7 @@ import {
   DEFAULT_BACKEND_BASE_URL,
   BackendUnavailableError,
   buildBackendUrl,
+  buildCTraderOAuthUrl,
   fetchBackendJson,
   getBackendDeploymentHint,
   getBackendDiagnostics,
@@ -46,6 +47,24 @@ test('backend base URL defaults to the live Render backend and can be overridden
     buildBackendUrl(CTRADER_ENDPOINTS.journalPreview, configuredRuntime),
     'https://journal-backend.example.com/api/ctrader/journal-preview',
   );
+});
+
+test('cTrader OAuth URLs always use the live Render backend', () => {
+  assert.equal(
+    buildCTraderOAuthUrl(CTRADER_ENDPOINTS.authStart),
+    'https://jeremy-trading-journal.onrender.com/auth/ctrader/start',
+  );
+  assert.equal(
+    buildCTraderOAuthUrl(CTRADER_ENDPOINTS.authCallback),
+    'https://jeremy-trading-journal.onrender.com/auth/ctrader/callback',
+  );
+
+  const diagnostics = getBackendDiagnostics(runtime({
+    JEREMY_TRADING_JOURNAL_BACKEND_URL: 'https://journal-backend.example.com/',
+  }));
+
+  assert.equal(diagnostics.authStartUrl, 'https://jeremy-trading-journal.onrender.com/auth/ctrader/start');
+  assert.equal(diagnostics.authCallbackUrl, 'https://jeremy-trading-journal.onrender.com/auth/ctrader/callback');
 });
 
 test('GitHub Pages uses the live Render backend instead of relative HTML fallback paths', () => {
