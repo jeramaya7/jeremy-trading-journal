@@ -39,7 +39,7 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
   const pnlConversionFee = toFiniteNumber(closePositionDetail.pnlConversionFee, 0);
   const entry = toFiniteNumber(closePositionDetail.entryPrice ?? openingDeal?.executionPrice);
   const exit = toFiniteNumber(deal.executionPrice ?? closePositionDetail.exitPrice);
-  const volume = toFiniteNumber(
+  const rawVolume = toFiniteNumber(
     closePositionDetail.closedVolume
       ?? closePositionDetail.volume
       ?? deal.filledVolume
@@ -47,6 +47,15 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
       ?? openingDeal?.filledVolume
       ?? openingDeal?.volume,
   );
+  const symbol = getCtraderDealSymbol(deal, openingDeal);
+  const volume = mapCtraderVolumeToJournalSize(rawVolume, symbol);
+  logCtraderVolumeMapping(options, {
+    dealId: deal.dealId ?? null,
+    positionId: deal.positionId ?? null,
+    symbol,
+    rawVolume,
+    journalSize: volume,
+  });
 
   return {
     id: `ctrader-${deal.dealId ?? deal.positionId ?? cryptoSafeId(options)}`,
@@ -54,7 +63,7 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
     accountId: options.accountId ?? null,
     sourceDealId: deal.dealId ?? null,
     sourcePositionId: deal.positionId ?? null,
-    symbol: getCtraderDealSymbol(deal, openingDeal),
+    symbol,
     direction,
     entry,
     exit,
@@ -70,6 +79,60 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
     tags: 'ctrader, import-preview',
     notes: 'Preview only. Not saved to the journal.',
   };
+}
+
+export function mapCtraderVolumeToJournalSize(rawVolume, symbol) {
+  const parsedVolume = toFiniteNumber(rawVolume);
+  if (parsedVolume === null) {
+    return null;
+  }
+
+  const quantity = parsedVolume / 100;
+  const lotSize = getCtraderSymbolLotSize(symbol);
+  return roundJournalSize(quantity / lotSize);
+}
+
+function getCtraderSymbolLotSize(symbol) {
+  const normalizedSymbol = normalizeSymbol(symbol);
+
+  if (normalizedSymbol.startsWith('XAU')) {
+    return 100;
+  }
+  if (normalizedSymbol.startsWith('XAG')) {
+    return 5000;
+  }
+  if (normalizedSymbol.includes('BTC')) {
+    return 1;
+  }
+  if (isForexSymbol(normalizedSymbol)) {
+    return 100000;
+  }
+
+  return 1;
+}
+
+function normalizeSymbol(symbol) {
+  return String(symbol || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+function isForexSymbol(symbol) {
+  return /^[A-Z]{6}$/.test(symbol)
+    && !symbol.startsWith('XAU')
+    && !symbol.startsWith('XAG')
+    && !symbol.includes('BTC');
+}
+
+function roundJournalSize(value) {
+  return Number(value.toFixed(8));
+}
+
+function logCtraderVolumeMapping(options, mapping) {
+  const logger = options.logger || console;
+  if (typeof logger.info !== 'function') {
+    return;
+  }
+
+  logger.info('[cTrader journal mapper] Volume mapped to journal size', mapping);
 }
 
 function isClosingDeal(deal) {
