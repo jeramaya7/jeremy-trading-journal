@@ -21,7 +21,10 @@ export function mapCtraderDealsToJournalTrades(rawDeals, options = {}) {
     .map((deal) => mapCtraderClosingDealToJournalTrade(
       deal,
       openingDealsByPosition.get(String(deal.positionId)),
-      options,
+      {
+        ...options,
+        symbolMetadata: getCtraderSymbolMetadataForDeal(deal, openingDealsByPosition.get(String(deal.positionId)), options),
+      },
     ));
 }
 
@@ -48,12 +51,18 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
       ?? openingDeal?.volume,
   );
   const symbol = getCtraderDealSymbol(deal, openingDeal);
-  const volume = mapCtraderVolumeToJournalSize(rawVolume, symbol);
+  const symbolMetadata = options.symbolMetadata || getCtraderSymbolMetadataForDeal(deal, openingDeal, options);
+  const volume = mapCtraderVolumeToJournalSize(rawVolume, symbolMetadata);
   logCtraderVolumeMapping(options, {
     dealId: deal.dealId ?? null,
     positionId: deal.positionId ?? null,
     symbol,
+    symbolId: deal.symbolId ?? openingDeal?.symbolId ?? null,
     rawVolume,
+    volumeInUnits: getCtraderVolumeInUnits(rawVolume),
+    volumeInUnitsStep: getCtraderVolumeInUnits(symbolMetadata?.stepVolume ?? symbolMetadata?.volumeInUnitsStep),
+    minVolume: getCtraderVolumeInUnits(symbolMetadata?.minVolume),
+    lotSize: getCtraderVolumeInUnits(symbolMetadata?.lotSize),
     journalSize: volume,
   });
 
@@ -81,45 +90,29 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
   };
 }
 
-export function mapCtraderVolumeToJournalSize(rawVolume, symbol) {
+export function mapCtraderVolumeToJournalSize(rawVolume, symbolMetadata) {
   const parsedVolume = toFiniteNumber(rawVolume);
   if (parsedVolume === null) {
     return null;
   }
 
-  const quantity = parsedVolume / 100;
-  const lotSize = getCtraderSymbolLotSize(symbol);
-  return roundJournalSize(quantity / lotSize);
+  const lotSizeInCents = toFiniteNumber(symbolMetadata?.lotSize);
+  if (lotSizeInCents === null || lotSizeInCents <= 0) {
+    return null;
+  }
+
+  return roundJournalSize(parsedVolume / lotSizeInCents);
 }
 
-function getCtraderSymbolLotSize(symbol) {
-  const normalizedSymbol = normalizeSymbol(symbol);
-
-  if (normalizedSymbol.startsWith('XAU')) {
-    return 100;
-  }
-  if (normalizedSymbol.startsWith('XAG')) {
-    return 5000;
-  }
-  if (normalizedSymbol.includes('BTC')) {
-    return 1;
-  }
-  if (isForexSymbol(normalizedSymbol)) {
-    return 100000;
-  }
-
-  return 1;
+export function getCtraderVolumeInUnits(volumeInCents) {
+  const parsedVolume = toFiniteNumber(volumeInCents);
+  return parsedVolume === null ? null : parsedVolume / 100;
 }
 
-function normalizeSymbol(symbol) {
-  return String(symbol || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-}
-
-function isForexSymbol(symbol) {
-  return /^[A-Z]{6}$/.test(symbol)
-    && !symbol.startsWith('XAU')
-    && !symbol.startsWith('XAG')
-    && !symbol.includes('BTC');
+function getCtraderSymbolMetadataForDeal(deal, openingDeal = null, options = {}) {
+  const symbolId = deal?.symbolId ?? openingDeal?.symbolId;
+  const metadataById = options.symbolMetadataById || {};
+  return metadataById[String(symbolId)] || options.symbolMetadata || null;
 }
 
 function roundJournalSize(value) {

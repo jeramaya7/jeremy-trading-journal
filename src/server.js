@@ -344,6 +344,11 @@ export async function fetchRecentCtraderDeals(config, tokens, requestOptions = {
       toTimestamp: requestOptions.toTimestamp,
       maxRows: requestOptions.maxRows,
     });
+    const symbolMetadataById = await fetchCtraderSymbolMetadataForDeals(
+      client,
+      accountAuth.authorizedAccountId,
+      rawDeals?.deal,
+    );
 
     const dealCount = Array.isArray(rawDeals?.deal) ? rawDeals.deal.length : 0;
     const latestDealId = getLatestCtraderDealId(rawDeals?.deal);
@@ -368,6 +373,7 @@ export async function fetchRecentCtraderDeals(config, tokens, requestOptions = {
         maxRows: requestOptions.maxRows,
       },
       rawDeals,
+      symbolMetadataById,
       dealCount,
       latestDealId,
     };
@@ -376,6 +382,26 @@ export async function fetchRecentCtraderDeals(config, tokens, requestOptions = {
       client.close();
     }
   }
+}
+
+async function fetchCtraderSymbolMetadataForDeals(client, accountId, deals) {
+  if (typeof client.getSymbolById !== 'function') {
+    return {};
+  }
+
+  const symbolIds = [...new Set((Array.isArray(deals) ? deals : [])
+    .map((deal) => deal?.symbolId)
+    .filter((symbolId) => symbolId !== undefined && symbolId !== null && symbolId !== ''))];
+  const symbolMetadataById = {};
+
+  for (const symbolId of symbolIds) {
+    const symbol = await client.getSymbolById(accountId, symbolId);
+    if (symbol) {
+      symbolMetadataById[String(symbolId)] = symbol;
+    }
+  }
+
+  return symbolMetadataById;
 }
 
 export async function fetchCtraderAccounts(config, tokens, requestOptions = {}, options = {}) {
@@ -477,6 +503,7 @@ export async function storeRawCtraderDeals(dealsResult, options = {}) {
     request: dealsResult.request,
     dealCount: dealsResult.dealCount,
     latestDealId: dealsResult.latestDealId,
+    symbolMetadataById: dealsResult.symbolMetadataById || {},
     rawDeals: dealsResult.rawDeals,
   };
   const rawDealsStorePath = getRawDealsStorePath(options);
@@ -535,6 +562,7 @@ async function getCtraderDeals(response, url, options = {}) {
       dealCount: dealsResult.dealCount,
       latestDealId: dealsResult.latestDealId,
       storedAt: stored.fetchedAt,
+      symbolMetadataById: dealsResult.symbolMetadataById || {},
       rawDeals: dealsResult.rawDeals,
     });
   } catch (error) {
@@ -576,6 +604,7 @@ async function getCtraderJournalPreview(response, url, options = {}) {
     const dealsResult = await fetchRecentCtraderDeals(config, tokens, requestOptions, options);
     const trades = mapCtraderDealsToJournalTrades(dealsResult.rawDeals, {
       accountId: dealsResult.accountId,
+      symbolMetadataById: dealsResult.symbolMetadataById || {},
     });
     console.info('[cTrader journal-preview] Import preview summary', {
       accountId: dealsResult.accountId,
