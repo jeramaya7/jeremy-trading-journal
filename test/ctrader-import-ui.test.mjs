@@ -12,7 +12,7 @@ function assertIncludes(text, expected, message) {
 test('cTrader sync button calls the journal preview API', () => {
   assertIncludes(source, 'id="syncCTrader"', 'The hero actions render a Sync cTrader button.');
   assertIncludes(source, "document.querySelector('#syncCTrader').addEventListener('click', () => syncCTrader({ source: 'manual' }));", 'The cTrader sync button is wired to the sync handler.');
-  assertIncludes(source, 'fetchBackendJson(CTRADER_ENDPOINTS.journalPreview)', 'The sync handler automatically fetches newly closed cTrader journal preview trades from the API.');
+  assertIncludes(source, 'fetchBackendJson(syncRequestPath)', 'The sync handler fetches newly closed cTrader journal preview trades with a dynamic request path.');
   assertIncludes(source, 'Sync cTrader', 'The button copy uses the one-click synchronization language.');
 });
 
@@ -55,7 +55,7 @@ test('cTrader Auto Sync runs on startup and exposes settings metadata', () => {
 });
 
 test('cTrader Auto Sync keeps syncing while the app is open', () => {
-  assertIncludes(source, 'const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000;', 'Auto Sync uses a defined repeat interval.');
+  assertIncludes(source, 'const AUTO_SYNC_INTERVAL_MS = 60 * 1000;', 'Auto Sync polls within 60 seconds.');
   assertIncludes(source, 'let cTraderAutoSyncTimer = null;', 'The app tracks the active Auto Sync timer.');
   assertIncludes(source, 'function scheduleCTraderAutoSync()', 'Auto Sync can schedule recurring sync checks.');
   assertIncludes(source, 'clearInterval(cTraderAutoSyncTimer);', 'Changing Auto Sync clears the previous timer to avoid duplicate polling.');

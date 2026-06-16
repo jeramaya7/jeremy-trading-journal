@@ -4,7 +4,7 @@ import { CTRADER_ENDPOINTS, buildCTraderOAuthUrl, fetchBackendJson, getBackendDi
 const STORAGE_KEY = 'jeremy-trading-journal:v1';
 const AUTO_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-auto-sync:v1';
 const LAST_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-last-sync:v1';
-const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+const AUTO_SYNC_INTERVAL_MS = 60 * 1000;
 
 const starterTrades = [
   {
@@ -733,7 +733,8 @@ async function syncCTrader(options = {}) {
   render();
 
   try {
-    const { response, body: preview } = await fetchBackendJson(CTRADER_ENDPOINTS.journalPreview);
+    const syncRequestPath = buildCTraderSyncRequestPath(trades);
+    const { response, body: preview } = await fetchBackendJson(syncRequestPath);
     if (!response.ok) {
       throw new Error(preview.error || 'cTrader sync failed');
     }
@@ -742,6 +743,7 @@ async function syncCTrader(options = {}) {
 
     const previewTrades = Array.isArray(preview.trades) ? preview.trades : [];
     const syncPlan = buildCTraderSyncPlan(previewTrades, trades);
+    logCTraderSyncDiagnostics({ preview, syncPlan, existingTrades: trades });
 
     if (syncPlan.importedTrades.length) {
       persistTrades([...syncPlan.importedTrades, ...trades]);
@@ -763,6 +765,61 @@ async function syncCTrader(options = {}) {
     isSyncingCTrader = false;
     render();
   }
+}
+
+function buildCTraderSyncRequestPath(existingTrades) {
+  const params = new URLSearchParams();
+  const latestImportedTrade = getLatestImportedCTraderTrade(existingTrades);
+
+  if (latestImportedTrade?.accountId) {
+    params.set('accountId', String(latestImportedTrade.accountId));
+  }
+
+  const latestCloseTime = Date.parse(latestImportedTrade?.closeTime || latestImportedTrade?.date || '');
+  if (Number.isFinite(latestCloseTime)) {
+    params.set('fromTimestamp', String(Math.max(0, latestCloseTime - 24 * 60 * 60 * 1000)));
+  }
+
+  params.set('maxRows', '1000');
+
+  return `${CTRADER_ENDPOINTS.journalPreview}?${params.toString()}`;
+}
+
+function getLatestImportedCTraderTrade(existingTrades) {
+  return [...existingTrades]
+    .filter((trade) => trade?.provider === 'ctrader')
+    .sort((left, right) => {
+      const leftTime = Date.parse(left.closeTime || left.date || '') || 0;
+      const rightTime = Date.parse(right.closeTime || right.date || '') || 0;
+      return rightTime - leftTime;
+    })[0] || null;
+}
+
+function getLatestCTraderDealId(tradeList) {
+  return tradeList
+    .map((trade) => Number(trade?.sourceDealId ?? trade?.sourceTradeId))
+    .filter(Number.isFinite)
+    .sort((left, right) => right - left)[0] ?? null;
+}
+
+function logCTraderSyncDiagnostics({ preview, syncPlan, existingTrades }) {
+  const previewTrades = Array.isArray(preview?.trades) ? preview.trades : [];
+  const latestStoredDealId = getLatestCTraderDealId(existingTrades.filter((trade) => trade?.provider === 'ctrader'));
+  const latestReturnedDealId = getLatestCTraderDealId(previewTrades);
+
+  console.info('[cTrader sync]', {
+    accountId: preview?.accountId ?? null,
+    request: preview?.request ?? null,
+    dealsReturned: preview?.dealCount ?? previewTrades.length,
+    latestDealIdFound: latestReturnedDealId,
+    latestDealIdStoredLocally: latestStoredDealId,
+    tradesImported: syncPlan.importedCount,
+    tradesSkipped: syncPlan.skippedCount,
+    skippedReasons: syncPlan.skippedTrades.map(({ trade, reason }) => ({
+      sourceDealId: trade?.sourceDealId ?? trade?.sourceTradeId ?? null,
+      reason,
+    })),
+  });
 }
 
 function scheduleCTraderAutoSync() {
