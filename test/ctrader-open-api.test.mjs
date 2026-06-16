@@ -194,6 +194,32 @@ test('runs app auth, account list, and account authorization in sequence', async
 });
 
 
+
+test('fetches cTrader symbol metadata by symbol ID', async () => {
+  const client = createClient();
+  const symbolPromise = client.getSymbolById(12345, 392);
+  const socket = FakeWebSocket.instances[0];
+  socket.open();
+  await flushMicrotasks();
+
+  const sentMessage = socket.sentMessages[0];
+  assert.equal(sentMessage.payloadType, CTRADER_PAYLOAD_TYPES.PROTO_OA_SYMBOL_BY_ID_REQ);
+  assert.deepEqual(sentMessage.payload, {
+    ctidTraderAccountId: 12345,
+    symbolId: [392],
+  });
+
+  socket.receive({
+    clientMsgId: sentMessage.clientMsgId,
+    payloadType: CTRADER_PAYLOAD_TYPES.PROTO_OA_SYMBOL_BY_ID_RES,
+    payload: {
+      symbol: [{ symbolId: 392, lotSize: 10000000, stepVolume: 1000, minVolume: 1000 }],
+    },
+  });
+
+  assert.deepEqual(await symbolPromise, { symbolId: 392, lotSize: 10000000, stepVolume: 1000, minVolume: 1000 });
+});
+
 test('fetches historical cTrader deals for an authorized account', async () => {
   const client = createClient();
   const dealsPromise = client.getDealList(12345, {

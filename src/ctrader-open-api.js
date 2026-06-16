@@ -10,6 +10,10 @@ export const CTRADER_PAYLOAD_TYPES = {
   PROTO_OA_APPLICATION_AUTH_RES: 2101,
   PROTO_OA_ACCOUNT_AUTH_REQ: 2102,
   PROTO_OA_ACCOUNT_AUTH_RES: 2103,
+  PROTO_OA_SYMBOLS_LIST_REQ: 2114,
+  PROTO_OA_SYMBOLS_LIST_RES: 2115,
+  PROTO_OA_SYMBOL_BY_ID_REQ: 2116,
+  PROTO_OA_SYMBOL_BY_ID_RES: 2117,
   PROTO_OA_DEAL_LIST_REQ: 2133,
   PROTO_OA_DEAL_LIST_RES: 2134,
   PROTO_OA_ERROR_RES: 2142,
@@ -145,6 +149,26 @@ export class CTraderOpenApiJsonClient {
     );
 
     return response.payload?.ctidTraderAccount || [];
+  }
+
+  async getSymbolById(ctidTraderAccountId, symbolId) {
+    if (!ctidTraderAccountId) {
+      throw new Error('cTrader account ID is required to fetch symbol metadata');
+    }
+    if (symbolId === undefined || symbolId === null || symbolId === '') {
+      throw new Error('cTrader symbol ID is required to fetch symbol metadata');
+    }
+
+    const response = await this.sendRequest(
+      CTRADER_PAYLOAD_TYPES.PROTO_OA_SYMBOL_BY_ID_REQ,
+      {
+        ctidTraderAccountId,
+        symbolId: [Number(symbolId)],
+      },
+      CTRADER_PAYLOAD_TYPES.PROTO_OA_SYMBOL_BY_ID_RES,
+    );
+
+    return response.payload?.symbol?.[0] || response.payload?.archivedSymbol?.[0] || null;
   }
 
   async getDealList(ctidTraderAccountId, { fromTimestamp, toTimestamp, maxRows } = {}) {
