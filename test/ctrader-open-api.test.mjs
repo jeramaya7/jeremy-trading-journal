@@ -256,3 +256,34 @@ test('parses cTrader Open API JSON message strings', () => {
   });
   assert.throws(() => parseOpenApiJsonMessage('{"payload":{}}'), /Invalid/);
 });
+
+test('authenticateAndAuthorizeAccount defaults to first live account when no account is requested', async () => {
+  const calls = [];
+  const client = new CTraderOpenApiJsonClient({
+    environment: 'demo',
+    clientId: 'client-id',
+    clientSecret: 'client-secret',
+    accessToken: 'access-token',
+    WebSocketImpl: class {},
+  });
+
+  client.connect = async () => calls.push(['connect']);
+  client.authenticateApplication = async () => calls.push(['authenticateApplication']);
+  client.getAccountList = async () => {
+    calls.push(['getAccountList']);
+    return [
+      { ctidTraderAccountId: 45954881, accountNumber: 5188953, isLive: false },
+      { ctidTraderAccountId: 1318619, accountNumber: 1318619, isLive: true },
+      { ctidTraderAccountId: 1334186, accountNumber: 1334186, isLive: true },
+    ];
+  };
+  client.authorizeAccount = async (accountId, accessToken) => {
+    calls.push(['authorizeAccount', accountId, accessToken]);
+    return { payload: { ctidTraderAccountId: accountId } };
+  };
+
+  const result = await client.authenticateAndAuthorizeAccount(undefined, 'access-token');
+
+  assert.equal(result.authorizedAccountId, 1318619);
+  assert.deepEqual(calls.at(-1), ['authorizeAccount', 1318619, 'access-token']);
+});
