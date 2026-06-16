@@ -74,7 +74,7 @@ test('maps completed cTrader deals into journal preview trade objects', () => {
         tradeSide: 'BUY',
         executionPrice: 1.1,
         executionTimestamp: 1_690_000_000_000,
-        filledVolume: 100000,
+        filledVolume: 10000000,
       },
       {
         dealId: 101,
@@ -83,7 +83,7 @@ test('maps completed cTrader deals into journal preview trade objects', () => {
         tradeSide: 'SELL',
         executionPrice: 1.105,
         executionTimestamp: 1_700_000_000_000,
-        filledVolume: 100000,
+        filledVolume: 10000000,
         closePositionDetail: {
           entryPrice: 1.1,
           grossProfit: 500,
@@ -99,7 +99,7 @@ test('maps completed cTrader deals into journal preview trade objects', () => {
         tradeSide: 'BUY',
         executionPrice: 1.25,
         executionTimestamp: 1_701_000_000_000,
-        filledVolume: 50000,
+        filledVolume: 5000000,
         closePositionDetail: {
           entryPrice: 1.255,
           grossProfit: 250,
@@ -121,8 +121,8 @@ test('maps completed cTrader deals into journal preview trade objects', () => {
       direction: 'Long',
       entry: 1.1,
       exit: 1.105,
-      size: 100000,
-      volume: 100000,
+      size: 1,
+      volume: 1,
       openTime: '2023-07-22T04:26:40.000Z',
       closeTime: '2023-11-14T22:13:20.000Z',
       date: '2023-11-14',
@@ -143,8 +143,8 @@ test('maps completed cTrader deals into journal preview trade objects', () => {
       direction: 'Short',
       entry: 1.255,
       exit: 1.25,
-      size: 50000,
-      volume: 50000,
+      size: 0.5,
+      volume: 0.5,
       openTime: null,
       closeTime: '2023-11-26T12:00:00.000Z',
       date: '2023-11-26',
@@ -162,11 +162,12 @@ test('maps an individual cTrader closing deal into the journal trade schema', ()
   const trade = mapCtraderClosingDealToJournalTrade({
     dealId: 777,
     positionId: 888,
+    symbolName: 'EURUSD',
     symbolId: 1,
     tradeSide: 2,
     executionPrice: '1.0850',
     executionTimestamp: 1_700_100_000_000,
-    volume: '25000',
+    volume: '2500000',
     closePositionDetail: {
       entryTimestamp: 1_700_000_000_000,
       entryPrice: '1.0800',
@@ -174,7 +175,7 @@ test('maps an individual cTrader closing deal into the journal trade schema', ()
       commission: '-3.25',
       swap: '1.00',
       pnlConversionFee: '-0.75',
-      closedVolume: '25000',
+      closedVolume: '2500000',
     },
   }, null, { accountId: 24680 });
 
@@ -184,12 +185,12 @@ test('maps an individual cTrader closing deal into the journal trade schema', ()
     accountId: 24680,
     sourceDealId: 777,
     sourcePositionId: 888,
-    symbol: '1',
+    symbol: 'EURUSD',
     direction: 'Long',
     entry: 1.08,
     exit: 1.085,
-    size: 25000,
-    volume: 25000,
+    size: 0.25,
+    volume: 0.25,
     openTime: '2023-11-14T22:13:20.000Z',
     closeTime: '2023-11-16T02:00:00.000Z',
     date: '2023-11-16',
@@ -201,6 +202,51 @@ test('maps an individual cTrader closing deal into the journal trade schema', ()
     notes: 'Preview only. Not saved to the journal.',
   });
 });
+
+test('maps cTrader cent-volume into symbol-specific lot sizes and logs the mapping', () => {
+  const logs = [];
+  const logger = { info: (...args) => logs.push(args) };
+
+  const goldTrade = mapCtraderClosingDealToJournalTrade({
+    dealId: 801,
+    positionId: 901,
+    symbolName: 'XAUUSD',
+    tradeSide: 'SELL',
+    executionTimestamp: 1_700_100_000_000,
+    closePositionDetail: {
+      entryPrice: 2030,
+      exitPrice: 2025,
+      closedVolume: 100,
+    },
+  }, null, { logger });
+
+  const bitcoinTrade = mapCtraderClosingDealToJournalTrade({
+    dealId: 802,
+    positionId: 902,
+    symbolName: 'BTCUSD',
+    tradeSide: 'SELL',
+    executionTimestamp: 1_700_100_000_000,
+    closePositionDetail: {
+      entryPrice: 65000,
+      exitPrice: 65500,
+      closedVolume: 1,
+    },
+  }, null, { logger });
+
+  assert.equal(goldTrade.size, 0.01);
+  assert.equal(goldTrade.volume, 0.01);
+  assert.equal(bitcoinTrade.size, 0.01);
+  assert.equal(bitcoinTrade.volume, 0.01);
+  assert.deepEqual(logs.map(([, mapping]) => ({
+    symbol: mapping.symbol,
+    rawVolume: mapping.rawVolume,
+    journalSize: mapping.journalSize,
+  })), [
+    { symbol: 'XAUUSD', rawVolume: 100, journalSize: 0.01 },
+    { symbol: 'BTCUSD', rawVolume: 1, journalSize: 0.01 },
+  ]);
+});
+
 
 test('GET /api/ctrader/deals authorizes account, fetches raw deals, stores raw response, and returns JSON', async () => {
   const dataDir = await mkdtemp(join(tmpdir(), 'ctrader-deals-test-'));
@@ -339,7 +385,7 @@ test('GET /api/ctrader/journal-preview returns mapped trades without saving jour
             tradeSide: 'SELL',
             executionPrice: 151.1,
             executionTimestamp: 1_699_000_000_000,
-            filledVolume: 1000,
+            filledVolume: 10000000,
           },
           {
             dealId: 201,
@@ -348,7 +394,7 @@ test('GET /api/ctrader/journal-preview returns mapped trades without saving jour
             tradeSide: 'BUY',
             executionPrice: 150.2,
             executionTimestamp: 1_700_000_000_000,
-            filledVolume: 1000,
+            filledVolume: 10000000,
             closePositionDetail: {
               entryPrice: 151.1,
               grossProfit: 90,
@@ -408,8 +454,8 @@ test('GET /api/ctrader/journal-preview returns mapped trades without saving jour
         direction: 'Short',
         entry: 151.1,
         exit: 150.2,
-        size: 1000,
-        volume: 1000,
+        size: 1,
+        volume: 1,
         openTime: '2023-11-03T08:26:40.000Z',
         closeTime: '2023-11-14T22:13:20.000Z',
         date: '2023-11-14',
