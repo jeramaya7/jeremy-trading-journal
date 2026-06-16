@@ -50,8 +50,8 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
       ?? openingDeal?.filledVolume
       ?? openingDeal?.volume,
   );
-  const symbol = getCtraderDealSymbol(deal, openingDeal);
   const symbolMetadata = options.symbolMetadata || getCtraderSymbolMetadataForDeal(deal, openingDeal, options);
+  const symbol = getCtraderDealSymbol(deal, openingDeal, symbolMetadata);
   const volume = mapCtraderVolumeToJournalSize(rawVolume, symbolMetadata);
   logCtraderVolumeMapping(options, {
     dealId: deal.dealId ?? null,
@@ -62,8 +62,10 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
     volumeInUnits: getCtraderVolumeInUnits(rawVolume),
     volumeInUnitsStep: getCtraderVolumeInUnits(symbolMetadata?.stepVolume ?? symbolMetadata?.volumeInUnitsStep),
     minVolume: getCtraderVolumeInUnits(symbolMetadata?.minVolume),
-    lotSize: getCtraderVolumeInUnits(symbolMetadata?.lotSize),
-    journalSize: volume,
+    maxVolume: getCtraderVolumeInUnits(symbolMetadata?.maxVolume),
+    lotSize: toFiniteNumber(symbolMetadata?.lotSize),
+    convertedLotSize: getCtraderLotSizeInUnits(symbolMetadata),
+    finalStoredSize: volume,
   });
 
   return {
@@ -96,17 +98,22 @@ export function mapCtraderVolumeToJournalSize(rawVolume, symbolMetadata) {
     return null;
   }
 
-  const lotSizeInCents = toFiniteNumber(symbolMetadata?.lotSize);
-  if (lotSizeInCents === null || lotSizeInCents <= 0) {
+  const lotSizeInUnits = getCtraderLotSizeInUnits(symbolMetadata);
+  if (lotSizeInUnits === null || lotSizeInUnits <= 0) {
     return null;
   }
 
-  return roundJournalSize(parsedVolume / lotSizeInCents);
+  return roundJournalSize(getCtraderVolumeInUnits(parsedVolume) / lotSizeInUnits);
 }
 
 export function getCtraderVolumeInUnits(volumeInCents) {
   const parsedVolume = toFiniteNumber(volumeInCents);
   return parsedVolume === null ? null : parsedVolume / 100;
+}
+
+export function getCtraderLotSizeInUnits(symbolMetadata) {
+  const parsedLotSize = toFiniteNumber(symbolMetadata?.lotSize);
+  return parsedLotSize === null ? null : parsedLotSize;
 }
 
 function getCtraderSymbolMetadataForDeal(deal, openingDeal = null, options = {}) {
@@ -175,11 +182,13 @@ function normalizeTradeSide(tradeSide) {
   return null;
 }
 
-function getCtraderDealSymbol(deal, openingDeal = null) {
+function getCtraderDealSymbol(deal, openingDeal = null, symbolMetadata = null) {
   return deal.symbolName
     || deal.symbol
     || openingDeal?.symbolName
     || openingDeal?.symbol
+    || symbolMetadata?.symbolName
+    || symbolMetadata?.symbol
     || (deal.symbolId !== undefined ? String(deal.symbolId) : null)
     || (openingDeal?.symbolId !== undefined ? String(openingDeal.symbolId) : null)
     || 'Unknown';
