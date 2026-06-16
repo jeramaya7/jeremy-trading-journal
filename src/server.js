@@ -64,6 +64,11 @@ export function createAppServer(options = {}) {
       return;
     }
 
+    if (request.method === 'GET' && url.pathname === '/api/ctrader/accounts') {
+      await getCtraderAccounts(response, url, options);
+      return;
+    }
+
     if (request.method === 'GET') {
       await serveStaticFile(response, url.pathname);
       return;
@@ -312,6 +317,13 @@ export async function fetchRecentCtraderDeals(config, tokens, requestOptions = {
       requestOptions.ctidTraderAccountId,
       tokens.accessToken,
     );
+    logAuthorizedCtraderAccounts(accountAuth.accounts);
+    console.info('[cTrader sync] Selected account for sync', {
+      accountId: accountAuth.authorizedAccountId,
+      requestedAccountId: requestOptions.ctidTraderAccountId ?? null,
+      selectedBy: requestOptions.ctidTraderAccountId ? 'request' : 'first-authorized-account',
+      accountNumber: getCtraderAccountNumber(findCtraderAccount(accountAuth.accounts, accountAuth.authorizedAccountId)),
+    });
     console.info('[cTrader deals] Querying account', { accountId: accountAuth.authorizedAccountId, requestedAccountId: requestOptions.ctidTraderAccountId ?? null });
     const rawDeals = await client.getDealList(accountAuth.authorizedAccountId, {
       fromTimestamp: requestOptions.fromTimestamp,
@@ -344,6 +356,76 @@ export async function fetchRecentCtraderDeals(config, tokens, requestOptions = {
       rawDeals,
       dealCount,
       latestDealId,
+    };
+  } finally {
+    if (typeof client.close === 'function') {
+      client.close();
+    }
+  }
+}
+
+export async function fetchCtraderAccountDealSummaries(config, tokens, requestOptions = {}, options = {}) {
+  const OpenApiClient = options.OpenApiClient || CTraderOpenApiJsonClient;
+  const client = options.openApiClient || new OpenApiClient({
+    environment: config.environment,
+    clientId: config.clientId,
+    clientSecret: config.clientSecret,
+    accessToken: tokens.accessToken,
+  });
+
+  try {
+    await client.connect();
+    await client.authenticateApplication();
+    const accounts = await client.getAccountList(tokens.accessToken);
+    logAuthorizedCtraderAccounts(accounts);
+
+    const accountSummaries = [];
+    for (const account of accounts) {
+      const accountId = account?.ctidTraderAccountId;
+      if (!accountId) {
+        continue;
+      }
+
+      const accountAuth = await client.authorizeAccount(accountId, tokens.accessToken);
+      const authorizedAccountId = accountAuth.payload?.ctidTraderAccountId || accountId;
+      const rawDeals = await client.getDealList(authorizedAccountId, {
+        fromTimestamp: requestOptions.fromTimestamp,
+        toTimestamp: requestOptions.toTimestamp,
+        maxRows: requestOptions.maxRows,
+      });
+      const deals = Array.isArray(rawDeals?.deal) ? rawDeals.deal : [];
+      accountSummaries.push({
+        ctidTraderAccountId: authorizedAccountId,
+        accountNumber: getCtraderAccountNumber(account),
+        isLive: account?.isLive ?? null,
+        brokerName: account?.brokerName ?? null,
+        depositCurrency: account?.depositCurrency ?? null,
+        dealCount: deals.length,
+        latestDealId: getLatestCtraderDealId(deals),
+        latestDealTimestamp: getLatestCtraderDealTimestamp(deals),
+      });
+    }
+
+    console.info('[cTrader accounts] Latest deal summary by authorized account', {
+      accountCount: accountSummaries.length,
+      accounts: accountSummaries.map((account) => ({
+        accountId: account.ctidTraderAccountId,
+        accountNumber: account.accountNumber,
+        dealCount: account.dealCount,
+        latestDealId: account.latestDealId,
+      })),
+    });
+
+    return {
+      provider: 'ctrader',
+      environment: config.environment,
+      request: {
+        fromTimestamp: requestOptions.fromTimestamp,
+        toTimestamp: requestOptions.toTimestamp,
+        maxRows: requestOptions.maxRows,
+      },
+      accountCount: accountSummaries.length,
+      accounts: accountSummaries,
     };
   } finally {
     if (typeof client.close === 'function') {
@@ -420,6 +502,23 @@ async function getCtraderDeals(response, url, options = {}) {
       storedAt: stored.fetchedAt,
       rawDeals: dealsResult.rawDeals,
     });
+  } catch (error) {
+    sendJson(response, 502, { error: error.message });
+  }
+}
+
+async function getCtraderAccounts(response, url, options = {}) {
+  const config = getCtraderConfig(options.env);
+  if (!config.ok) {
+    sendConfigurationError(response, config);
+    return;
+  }
+
+  try {
+    const tokens = await loadStoredCtraderTokens(config, options);
+    const requestOptions = buildCtraderDealsRequest(url, options.now?.() ?? Date.now());
+    const accountsResult = await fetchCtraderAccountDealSummaries(config, tokens, requestOptions, options);
+    sendJson(response, 200, accountsResult);
   } catch (error) {
     sendJson(response, 502, { error: error.message });
   }
@@ -617,6 +716,45 @@ function getLatestCtraderDealId(deals) {
     .map((deal) => Number(deal?.dealId))
     .filter(Number.isFinite)
     .sort((left, right) => right - left)[0] ?? null;
+}
+
+function getLatestCtraderDealTimestamp(deals) {
+  if (!Array.isArray(deals)) {
+    return null;
+  }
+
+  return deals
+    .map((deal) => Number(deal?.executionTimestamp))
+    .filter(Number.isFinite)
+    .sort((left, right) => right - left)[0] ?? null;
+}
+
+function logAuthorizedCtraderAccounts(accounts) {
+  console.info('[cTrader accounts] Authorized accounts returned by cTrader', {
+    accountCount: Array.isArray(accounts) ? accounts.length : 0,
+    accounts: Array.isArray(accounts)
+      ? accounts.map((account) => ({
+        accountId: account?.ctidTraderAccountId ?? null,
+        accountNumber: getCtraderAccountNumber(account),
+        isLive: account?.isLive ?? null,
+        brokerName: account?.brokerName ?? null,
+      }))
+      : [],
+  });
+}
+
+function findCtraderAccount(accounts, ctidTraderAccountId) {
+  return Array.isArray(accounts)
+    ? accounts.find((account) => String(account?.ctidTraderAccountId) === String(ctidTraderAccountId))
+    : null;
+}
+
+function getCtraderAccountNumber(account) {
+  return account?.accountNumber
+    ?? account?.traderLogin
+    ?? account?.login
+    ?? account?.accountId
+    ?? null;
 }
 
 function getDataDir(options = {}) {
