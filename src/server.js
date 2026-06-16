@@ -318,11 +318,13 @@ export async function fetchRecentCtraderDeals(config, tokens, requestOptions = {
       tokens.accessToken,
     );
     logAuthorizedCtraderAccounts(accountAuth.accounts);
+    const selectedAccount = findCtraderAccount(accountAuth.accounts, accountAuth.authorizedAccountId);
     console.info('[cTrader sync] Selected account for sync', {
       accountId: accountAuth.authorizedAccountId,
       requestedAccountId: requestOptions.ctidTraderAccountId ?? null,
-      selectedBy: requestOptions.ctidTraderAccountId ? 'request' : 'first-authorized-account',
-      accountNumber: getCtraderAccountNumber(findCtraderAccount(accountAuth.accounts, accountAuth.authorizedAccountId)),
+      selectedBy: requestOptions.ctidTraderAccountId ? 'request' : 'first-live-authorized-account',
+      accountNumber: getCtraderAccountNumber(selectedAccount),
+      isLive: selectedAccount?.isLive ?? null,
     });
     console.info('[cTrader deals] Querying account', { accountId: accountAuth.authorizedAccountId, requestedAccountId: requestOptions.ctidTraderAccountId ?? null });
     const rawDeals = await client.getDealList(accountAuth.authorizedAccountId, {

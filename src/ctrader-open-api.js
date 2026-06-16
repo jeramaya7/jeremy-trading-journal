@@ -184,7 +184,8 @@ export class CTraderOpenApiJsonClient {
     await this.connect();
     await this.authenticateApplication();
     const accounts = await this.getAccountList(accessToken);
-    const accountId = ctidTraderAccountId || accounts[0]?.ctidTraderAccountId;
+    const defaultAccount = accounts.find((account) => account?.isLive === true) || accounts[0];
+    const accountId = ctidTraderAccountId || defaultAccount?.ctidTraderAccountId;
     if (!accountId) {
       throw new Error('No cTrader accounts were returned for this access token');
     }

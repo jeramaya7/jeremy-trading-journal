@@ -4,6 +4,7 @@ import { CTRADER_ENDPOINTS, buildCTraderOAuthUrl, fetchBackendJson, getBackendDi
 const STORAGE_KEY = 'jeremy-trading-journal:v1';
 const AUTO_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-auto-sync:v1';
 const LAST_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-last-sync:v1';
+const SELECTED_CTRADER_ACCOUNT_STORAGE_KEY = 'jeremy-trading-journal:ctrader-selected-account:v1';
 const AUTO_SYNC_INTERVAL_MS = 60 * 1000;
 
 const starterTrades = [
@@ -72,6 +73,9 @@ let isCTraderAutoSyncEnabled = loadCTraderAutoSyncSetting();
 let cTraderLastSyncAt = loadCTraderLastSyncTime();
 let cTraderAutoSyncTimer = null;
 let cTraderBackendDiagnostics = getCTraderBackendDiagnostics();
+let cTraderAccounts = [];
+let selectedCTraderAccountId = loadSelectedCTraderAccountId();
+let isLoadingCTraderAccounts = false;
 let hasHandledCTraderOAuthReturn = false;
 
 const app = document.querySelector('#root');
@@ -111,6 +115,20 @@ function loadCTraderLastSyncTime() {
 function persistCTraderLastSyncTime(syncTime) {
   cTraderLastSyncAt = syncTime;
   window.localStorage.setItem(LAST_SYNC_STORAGE_KEY, syncTime);
+}
+
+function loadSelectedCTraderAccountId() {
+  const savedAccountId = window.localStorage.getItem(SELECTED_CTRADER_ACCOUNT_STORAGE_KEY);
+  return savedAccountId ? String(savedAccountId) : '';
+}
+
+function persistSelectedCTraderAccountId(accountId) {
+  selectedCTraderAccountId = accountId ? String(accountId) : '';
+  if (selectedCTraderAccountId) {
+    window.localStorage.setItem(SELECTED_CTRADER_ACCOUNT_STORAGE_KEY, selectedCTraderAccountId);
+  } else {
+    window.localStorage.removeItem(SELECTED_CTRADER_ACCOUNT_STORAGE_KEY);
+  }
 }
 
 function currency(value) {
@@ -346,6 +364,7 @@ function render() {
             <span>Auto Sync ${isCTraderAutoSyncEnabled ? 'ON' : 'OFF'}</span>
           </label>
           ${renderCTraderBackendDiagnostics()}
+          ${renderCTraderAccountSelector()}
 ${cTraderSyncStatus ? `<p class="import-status ${escapeHtml(cTraderSyncStatus.tone)}" role="status">${escapeHtml(cTraderSyncStatus.message)}</p>` : ''}
 <button class="connect-button" type="button" id="connectCTrader" ${isCheckingCTraderConnection ? 'disabled' : ''}>
  Connect cTrader
@@ -440,6 +459,8 @@ function bindEvents() {
     document.querySelector('#searchInput').focus();
   });
   document.querySelector('#autoSyncCTrader').addEventListener('change', changeCTraderAutoSyncSetting);
+  document.querySelector('#cTraderAccountSelect')?.addEventListener('change', changeCTraderAccountSelection);
+  document.querySelector('#refreshCTraderAccounts')?.addEventListener('click', () => loadCTraderAccounts({ force: true }));
   document.querySelector('#connectCTrader').addEventListener('click', startCTraderOAuthFlow);
   document.querySelector('#syncCTrader').addEventListener('click', () => syncCTrader({ source: 'manual' }));
   document.querySelector('#exportTrades').addEventListener('click', exportTrades);
@@ -633,11 +654,93 @@ function renderCTraderBackendDiagnostics() {
 
 function describeCTraderConnectionStatus(status) {
   if (status.connected) {
-    const account = status.accountId ? ` Account: ${status.accountId}.` : '';
-    return `Connected to cTrader.${account}`;
+    return `Connected to cTrader.${getSelectedCTraderAccountStatusLabel()}`;
   }
 
   return status.error || 'Backend reached, but cTrader OAuth is not connected yet.';
+}
+
+function getCTraderAccountId(account) {
+  return account?.ctidTraderAccountId ?? account?.accountId ?? null;
+}
+
+function getCTraderAccountNumber(account) {
+  return account?.accountNumber ?? account?.accountNo ?? account?.login ?? null;
+}
+
+function getCTraderAccountEnvironmentLabel(account) {
+  if (account?.isLive === true) {
+    return 'LIVE';
+  }
+  if (account?.isLive === false) {
+    return 'DEMO';
+  }
+  return 'UNKNOWN';
+}
+
+function formatCTraderAccountLabel(account) {
+  if (!account) {
+    return selectedCTraderAccountId ? `Selected account ${selectedCTraderAccountId}` : 'No account selected';
+  }
+
+  const accountId = getCTraderAccountId(account);
+  const accountNumber = getCTraderAccountNumber(account);
+  const environment = getCTraderAccountEnvironmentLabel(account);
+  const numberLabel = accountNumber ? `#${accountNumber}` : `ID ${accountId}`;
+  return `${environment} ${numberLabel} (ID ${accountId})`;
+}
+
+function getSelectedCTraderAccount() {
+  return cTraderAccounts.find((account) => String(getCTraderAccountId(account)) === String(selectedCTraderAccountId)) || null;
+}
+
+function getSelectedCTraderAccountStatusLabel() {
+  const selectedAccount = getSelectedCTraderAccount();
+  if (selectedAccount) {
+    return ` Selected: ${formatCTraderAccountLabel(selectedAccount)}.`;
+  }
+  if (selectedCTraderAccountId) {
+    return ` Selected account ID: ${selectedCTraderAccountId}.`;
+  }
+  return ' No account selected.';
+}
+
+function chooseDefaultCTraderAccount(accounts) {
+  if (!Array.isArray(accounts) || !accounts.length) {
+    return null;
+  }
+
+  return accounts.find((account) => account?.isLive === true) || accounts[0];
+}
+
+function applyCTraderAccounts(accounts) {
+  cTraderAccounts = Array.isArray(accounts) ? accounts : [];
+  const selectedExists = cTraderAccounts.some((account) => String(getCTraderAccountId(account)) === String(selectedCTraderAccountId));
+  if (!selectedExists) {
+    const defaultAccount = chooseDefaultCTraderAccount(cTraderAccounts);
+    persistSelectedCTraderAccountId(getCTraderAccountId(defaultAccount) || '');
+  }
+}
+
+function renderCTraderAccountSelector() {
+  const options = cTraderAccounts.map((account) => {
+    const accountId = String(getCTraderAccountId(account));
+    return `<option value="${escapeHtml(accountId)}" ${accountId === String(selectedCTraderAccountId) ? 'selected' : ''}>${escapeHtml(formatCTraderAccountLabel(account))}</option>`;
+  }).join('');
+  const selectedLabel = escapeHtml(getSelectedCTraderAccountStatusLabel().trim());
+
+  return `
+    <div class="ctrader-account-selector">
+      <label class="field" for="cTraderAccountSelect">
+        <span>cTrader account</span>
+        <select id="cTraderAccountSelect" ${isLoadingCTraderAccounts || !cTraderAccounts.length ? 'disabled' : ''}>
+          ${cTraderAccounts.length ? options : '<option value="">Connect cTrader to load accounts</option>'}
+        </select>
+      </label>
+      <button class="secondary-button" type="button" id="refreshCTraderAccounts" ${isLoadingCTraderAccounts ? 'disabled' : ''}>${isLoadingCTraderAccounts ? 'Loading accounts...' : 'Refresh accounts'}</button>
+      <p class="selected-account-meta">${selectedLabel}</p>
+    </div>
+  `;
 }
 
 function getCTraderOAuthReturnUrl() {
@@ -682,6 +785,7 @@ async function handleCTraderOAuthReturn() {
 
   try {
     await checkCTraderConnection();
+    await loadCTraderAccounts({ force: true });
     cTraderSyncStatus = { tone: 'success', message: 'cTrader is connected. You can now Sync cTrader or leave Auto Sync on.' };
   } catch (error) {
     cTraderSyncStatus = {
@@ -708,6 +812,37 @@ function changeCTraderAutoSyncSetting(event) {
   }
 }
 
+async function loadCTraderAccounts(options = {}) {
+  if (isLoadingCTraderAccounts) {
+    return cTraderAccounts;
+  }
+  if (cTraderAccounts.length && !options.force) {
+    return cTraderAccounts;
+  }
+
+  isLoadingCTraderAccounts = true;
+  render();
+  try {
+    const { response, body } = await fetchBackendJson(`${CTRADER_ENDPOINTS.accounts}?maxRows=1`);
+    if (!response.ok) {
+      throw new Error(body.error || 'Unable to load cTrader accounts.');
+    }
+    applyCTraderAccounts(body.accounts);
+    setCTraderBackendDiagnostics({ connectionStatus: describeCTraderConnectionStatus({ connected: true }), tone: 'success' });
+    return cTraderAccounts;
+  } finally {
+    isLoadingCTraderAccounts = false;
+    render();
+  }
+}
+
+function changeCTraderAccountSelection(event) {
+  persistSelectedCTraderAccountId(event.target.value);
+  cTraderSyncStatus = { tone: 'success', message: `Selected cTrader account: ${formatCTraderAccountLabel(getSelectedCTraderAccount())}.` };
+  setCTraderBackendDiagnostics({ connectionStatus: describeCTraderConnectionStatus({ connected: true }), tone: 'success' });
+  render();
+}
+
 async function checkCTraderConnection() {
   setCTraderBackendDiagnostics({ connectionStatus: 'Checking backend status...', tone: 'pending' });
   const { response, body: status, url } = await fetchBackendJson(CTRADER_ENDPOINTS.status);
@@ -719,6 +854,7 @@ async function checkCTraderConnection() {
   }
 
   setCTraderBackendDiagnostics({ connectionStatus: describeCTraderConnectionStatus(status), tone: 'success' });
+  await loadCTraderAccounts();
   return status;
 }
 
@@ -733,6 +869,10 @@ async function syncCTrader(options = {}) {
   render();
 
   try {
+    await loadCTraderAccounts();
+    if (!selectedCTraderAccountId) {
+      throw new Error('Select a cTrader account before syncing.');
+    }
     const syncRequestPath = buildCTraderSyncRequestPath(trades);
     const { response, body: preview } = await fetchBackendJson(syncRequestPath);
     if (!response.ok) {
@@ -771,8 +911,8 @@ function buildCTraderSyncRequestPath(existingTrades) {
   const params = new URLSearchParams();
   const latestImportedTrade = getLatestImportedCTraderTrade(existingTrades);
 
-  if (latestImportedTrade?.accountId) {
-    params.set('accountId', String(latestImportedTrade.accountId));
+  if (selectedCTraderAccountId) {
+    params.set('accountId', String(selectedCTraderAccountId));
   }
 
   const latestCloseTime = Date.parse(latestImportedTrade?.closeTime || latestImportedTrade?.date || '');
@@ -788,6 +928,7 @@ function buildCTraderSyncRequestPath(existingTrades) {
 function getLatestImportedCTraderTrade(existingTrades) {
   return [...existingTrades]
     .filter((trade) => trade?.provider === 'ctrader')
+    .filter((trade) => !selectedCTraderAccountId || String(trade?.accountId) === String(selectedCTraderAccountId))
     .sort((left, right) => {
       const leftTime = Date.parse(left.closeTime || left.date || '') || 0;
       const rightTime = Date.parse(right.closeTime || right.date || '') || 0;
@@ -809,6 +950,11 @@ function logCTraderSyncDiagnostics({ preview, syncPlan, existingTrades }) {
 
   console.info('[cTrader sync]', {
     accountId: preview?.accountId ?? null,
+    selectedAccount: getSelectedCTraderAccount() ? {
+      accountId: getCTraderAccountId(getSelectedCTraderAccount()),
+      accountNumber: getCTraderAccountNumber(getSelectedCTraderAccount()),
+      isLive: getSelectedCTraderAccount()?.isLive ?? null,
+    } : { accountId: selectedCTraderAccountId || null },
     request: preview?.request ?? null,
     dealsReturned: preview?.dealCount ?? previewTrades.length,
     latestDealIdFound: latestReturnedDealId,

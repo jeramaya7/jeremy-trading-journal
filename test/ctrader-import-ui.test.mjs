@@ -70,3 +70,17 @@ test('cTrader backend diagnostics show backend URL and connection status', () =>
   assertIncludes(source, 'Connection status', 'The diagnostics display the current backend/cTrader connection state.');
   assertIncludes(source, 'describeCTraderConnectionStatus(status)', 'The connection status is derived from the backend status response.');
 });
+
+test('cTrader UI lets users select an account and syncs only that saved account', () => {
+  assertIncludes(source, "const SELECTED_CTRADER_ACCOUNT_STORAGE_KEY = 'jeremy-trading-journal:ctrader-selected-account:v1';", 'The selected cTrader account is persisted in local storage.');
+  assertIncludes(source, 'renderCTraderAccountSelector()', 'The hero renders a cTrader account selector.');
+  assertIncludes(source, 'id="cTraderAccountSelect"', 'The selector has a stable DOM id.');
+  assertIncludes(source, 'formatCTraderAccountLabel(account)', 'Account options show a formatted account label.');
+  assertIncludes(source, "return `${environment} ${numberLabel} (ID ${accountId})`;", 'Account labels include live/demo, account number, and account ID.');
+  assertIncludes(source, "accounts.find((account) => account?.isLive === true) || accounts[0]", 'The frontend defaults to the first live cTrader account.');
+  assertIncludes(source, "params.set('accountId', String(selectedCTraderAccountId));", 'The sync request passes the selected account ID to the backend.');
+  assertIncludes(source, "String(trade?.accountId) === String(selectedCTraderAccountId)", 'The incremental sync cursor is scoped to the selected account.');
+  assertIncludes(source, 'getSelectedCTraderAccountStatusLabel()', 'The selected account appears beside cTrader connection status.');
+  assertIncludes(source, 'selectedAccount: getSelectedCTraderAccount() ?', 'Sync diagnostics keep logging the selected account metadata.');
+  assertIncludes(source, 'dealsReturned: preview?.dealCount ?? previewTrades.length', 'Sync diagnostics keep logging deals returned.');
+});
