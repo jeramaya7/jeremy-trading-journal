@@ -335,6 +335,8 @@ export async function fetchRecentCtraderDeals(config, tokens, requestOptions = {
       selectedBy: requestOptions.ctidTraderAccountId ? 'request' : 'first-live-authorized-account',
       accountNumber: getCtraderAccountNumber(selectedAccount),
       isLive: selectedAccount?.isLive ?? null,
+      accountEnvironment: accountAuth.accountEnvironment || config.environment,
+      configuredEnvironment: config.environment,
     });
     console.info('[cTrader deals] Querying account', { accountId: accountAuth.authorizedAccountId, requestedAccountId: requestOptions.ctidTraderAccountId ?? null });
     const rawDeals = await client.getDealList(accountAuth.authorizedAccountId, {
@@ -521,6 +523,7 @@ async function getCtraderDeals(response, url, options = {}) {
   try {
     const tokens = await loadStoredCtraderTokens(config, options);
     const requestOptions = buildCtraderDealsRequest(url, options.now?.() ?? Date.now());
+    console.info('[cTrader deals] Incoming backend request', getCtraderRequestLogContext(url, requestOptions));
     const dealsResult = await fetchRecentCtraderDeals(config, tokens, requestOptions, options);
     const stored = await storeRawCtraderDeals(dealsResult, options);
     sendJson(response, 200, {
@@ -535,6 +538,7 @@ async function getCtraderDeals(response, url, options = {}) {
       rawDeals: dealsResult.rawDeals,
     });
   } catch (error) {
+    logCtraderRouteError('/api/ctrader/deals', url, error);
     sendJson(response, 502, { error: error.message });
   }
 }
@@ -549,9 +553,11 @@ async function getCtraderAccounts(response, url, options = {}) {
   try {
     const tokens = await loadStoredCtraderTokens(config, options);
     const requestOptions = buildCtraderAccountsRequest(url, options.now?.() ?? Date.now());
+    console.info('[cTrader accounts] Incoming backend request', getCtraderRequestLogContext(url, requestOptions));
     const accountsResult = await fetchCtraderAccounts(config, tokens, requestOptions, options);
     sendJson(response, 200, accountsResult);
   } catch (error) {
+    logCtraderRouteError('/api/ctrader/accounts', url, error);
     sendJson(response, 502, { error: error.message });
   }
 }
@@ -566,6 +572,7 @@ async function getCtraderJournalPreview(response, url, options = {}) {
   try {
     const tokens = await loadStoredCtraderTokens(config, options);
     const requestOptions = buildCtraderDealsRequest(url, options.now?.() ?? Date.now());
+    console.info('[cTrader journal-preview] Incoming backend request', getCtraderRequestLogContext(url, requestOptions));
     const dealsResult = await fetchRecentCtraderDeals(config, tokens, requestOptions, options);
     const trades = mapCtraderDealsToJournalTrades(dealsResult.rawDeals, {
       accountId: dealsResult.accountId,
@@ -588,8 +595,29 @@ async function getCtraderJournalPreview(response, url, options = {}) {
       trades,
     });
   } catch (error) {
+    logCtraderRouteError('/api/ctrader/journal-preview', url, error);
     sendJson(response, 502, { error: error.message });
   }
+}
+
+function getCtraderRequestLogContext(url, requestOptions = {}) {
+  return {
+    requestUrl: url.toString(),
+    requestParameters: Object.fromEntries(url.searchParams.entries()),
+    selectedAccountId: requestOptions.ctidTraderAccountId ?? null,
+    requestOptions,
+  };
+}
+
+function logCtraderRouteError(route, url, error) {
+  console.error('[cTrader backend] Request failed', {
+    route,
+    requestUrl: url.toString(),
+    requestParameters: Object.fromEntries(url.searchParams.entries()),
+    selectedAccountId: url.searchParams.get('ctidTraderAccountId') || url.searchParams.get('accountId') || null,
+    errorMessage: error?.message || String(error),
+    stack: error?.stack || null,
+  });
 }
 
 function normalizeOAuthReturnUrl(value) {

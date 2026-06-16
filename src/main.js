@@ -874,9 +874,16 @@ async function syncCTrader(options = {}) {
       throw new Error('Select a cTrader account before syncing.');
     }
     const syncRequestPath = buildCTraderSyncRequestPath(trades);
-    const { response, body: preview } = await fetchBackendJson(syncRequestPath);
+    console.info('[cTrader sync] Frontend request starting', {
+      requestPath: syncRequestPath,
+      selectedAccountId: selectedCTraderAccountId,
+      selectedAccount: getSelectedCTraderAccount(),
+    });
+    const { response, body: preview, url } = await fetchBackendJson(syncRequestPath);
     if (!response.ok) {
-      throw new Error(preview.error || 'cTrader sync failed');
+      const error = new Error(preview.error || 'cTrader sync failed');
+      error.url = url;
+      throw error;
     }
 
     setCTraderBackendDiagnostics({ connectionStatus: 'Backend reachable; cTrader journal preview loaded.', tone: 'success' });
@@ -896,6 +903,13 @@ async function syncCTrader(options = {}) {
       message: `${isAutoSync ? 'Auto Sync complete.' : 'Sync complete.'} New trades imported: ${syncPlan.importedCount}. Trades skipped: ${syncPlan.skippedCount}.`,
     };
   } catch (error) {
+    console.error('[cTrader sync] Frontend request failed', {
+      requestUrl: error.url || null,
+      requestParameters: error.url ? Object.fromEntries(new URL(error.url).searchParams.entries()) : null,
+      selectedAccountId: selectedCTraderAccountId || null,
+      errorMessage: error.message || String(error),
+      stack: error.stack || null,
+    });
     setCTraderBackendDiagnostics({ connectionStatus: error.url ? `Backend error at ${error.url}` : 'Backend check failed', tone: 'error' });
     cTraderSyncStatus = {
       tone: 'error',

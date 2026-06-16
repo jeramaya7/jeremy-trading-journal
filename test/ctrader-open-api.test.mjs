@@ -287,3 +287,40 @@ test('authenticateAndAuthorizeAccount defaults to first live account when no acc
   assert.equal(result.authorizedAccountId, 1318619);
   assert.deepEqual(calls.at(-1), ['authorizeAccount', 1318619, 'access-token']);
 });
+
+test('authenticateAndAuthorizeAccount routes selected live accounts to the live endpoint before account authorization', async () => {
+  const calls = [];
+  const client = new CTraderOpenApiJsonClient({
+    environment: 'demo',
+    clientId: 'client-id',
+    clientSecret: 'client-secret',
+    accessToken: 'access-token',
+    WebSocketImpl: class {},
+  });
+
+  client.connect = async () => calls.push(['connect', client.environment, client.endpoint]);
+  client.authenticateApplication = async () => calls.push(['authenticateApplication', client.environment]);
+  client.getAccountList = async () => {
+    calls.push(['getAccountList']);
+    return [
+      { ctidTraderAccountId: 45954881, accountNumber: 5188953, isLive: false },
+      { ctidTraderAccountId: 45954931, accountNumber: 1318619, isLive: true },
+    ];
+  };
+  client.authorizeAccount = async (accountId, accessToken) => {
+    calls.push(['authorizeAccount', accountId, accessToken, client.environment, client.endpoint]);
+    return { payload: { ctidTraderAccountId: accountId } };
+  };
+
+  const result = await client.authenticateAndAuthorizeAccount(45954931, 'access-token');
+
+  assert.equal(result.authorizedAccountId, 45954931);
+  assert.equal(result.accountEnvironment, 'live');
+  assert.deepEqual(calls.at(-1), [
+    'authorizeAccount',
+    45954931,
+    'access-token',
+    'live',
+    'wss://live.ctraderapi.com:5036',
+  ]);
+});
