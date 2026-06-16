@@ -303,6 +303,16 @@ export function buildCtraderDealsRequest(url, now = Date.now()) {
   };
 }
 
+export function buildCtraderAccountsRequest(url, now = Date.now()) {
+  const request = buildCtraderDealsRequest(url, now);
+  const includeDealSummaries = ['1', 'true', 'yes'].includes(String(url.searchParams.get('includeDealSummaries') || '').toLowerCase());
+
+  return {
+    ...request,
+    includeDealSummaries,
+  };
+}
+
 export async function fetchRecentCtraderDeals(config, tokens, requestOptions = {}, options = {}) {
   const OpenApiClient = options.OpenApiClient || CTraderOpenApiJsonClient;
   const client = options.openApiClient || new OpenApiClient({
@@ -366,7 +376,7 @@ export async function fetchRecentCtraderDeals(config, tokens, requestOptions = {
   }
 }
 
-export async function fetchCtraderAccountDealSummaries(config, tokens, requestOptions = {}, options = {}) {
+export async function fetchCtraderAccounts(config, tokens, requestOptions = {}, options = {}) {
   const OpenApiClient = options.OpenApiClient || CTraderOpenApiJsonClient;
   const client = options.openApiClient || new OpenApiClient({
     environment: config.environment,
@@ -381,40 +391,59 @@ export async function fetchCtraderAccountDealSummaries(config, tokens, requestOp
     const accounts = await client.getAccountList(tokens.accessToken);
     logAuthorizedCtraderAccounts(accounts);
 
-    const accountSummaries = [];
+    const normalizedAccounts = [];
     for (const account of accounts) {
       const accountId = account?.ctidTraderAccountId;
       if (!accountId) {
         continue;
       }
 
-      const accountAuth = await client.authorizeAccount(accountId, tokens.accessToken);
-      const authorizedAccountId = accountAuth.payload?.ctidTraderAccountId || accountId;
-      const rawDeals = await client.getDealList(authorizedAccountId, {
-        fromTimestamp: requestOptions.fromTimestamp,
-        toTimestamp: requestOptions.toTimestamp,
-        maxRows: requestOptions.maxRows,
-      });
-      const deals = Array.isArray(rawDeals?.deal) ? rawDeals.deal : [];
-      accountSummaries.push({
-        ctidTraderAccountId: authorizedAccountId,
+      const accountSummary = {
+        ctidTraderAccountId: accountId,
         accountNumber: getCtraderAccountNumber(account),
         isLive: account?.isLive ?? null,
         brokerName: account?.brokerName ?? null,
         depositCurrency: account?.depositCurrency ?? null,
-        dealCount: deals.length,
-        latestDealId: getLatestCtraderDealId(deals),
-        latestDealTimestamp: getLatestCtraderDealTimestamp(deals),
-      });
+      };
+
+      if (requestOptions.includeDealSummaries) {
+        try {
+          const accountAuth = await client.authorizeAccount(accountId, tokens.accessToken);
+          const authorizedAccountId = accountAuth.payload?.ctidTraderAccountId || accountId;
+          const rawDeals = await client.getDealList(authorizedAccountId, {
+            fromTimestamp: requestOptions.fromTimestamp,
+            toTimestamp: requestOptions.toTimestamp,
+            maxRows: requestOptions.maxRows,
+          });
+          const deals = Array.isArray(rawDeals?.deal) ? rawDeals.deal : [];
+          accountSummary.ctidTraderAccountId = authorizedAccountId;
+          accountSummary.dealCount = deals.length;
+          accountSummary.latestDealId = getLatestCtraderDealId(deals);
+          accountSummary.latestDealTimestamp = getLatestCtraderDealTimestamp(deals);
+        } catch (error) {
+          accountSummary.dealCount = null;
+          accountSummary.latestDealId = null;
+          accountSummary.latestDealTimestamp = null;
+          accountSummary.dealSummaryError = error.message || 'Unable to load latest deals for this account.';
+          console.warn('[cTrader accounts] Account deal summary failed; returning account without deal summary', {
+            accountId,
+            error: accountSummary.dealSummaryError,
+          });
+        }
+      }
+
+      normalizedAccounts.push(accountSummary);
     }
 
-    console.info('[cTrader accounts] Latest deal summary by authorized account', {
-      accountCount: accountSummaries.length,
-      accounts: accountSummaries.map((account) => ({
+    console.info('[cTrader accounts] Authorized account summary', {
+      accountCount: normalizedAccounts.length,
+      includeDealSummaries: Boolean(requestOptions.includeDealSummaries),
+      accounts: normalizedAccounts.map((account) => ({
         accountId: account.ctidTraderAccountId,
         accountNumber: account.accountNumber,
-        dealCount: account.dealCount,
-        latestDealId: account.latestDealId,
+        isLive: account.isLive,
+        dealCount: account.dealCount ?? null,
+        latestDealId: account.latestDealId ?? null,
       })),
     });
 
@@ -425,9 +454,10 @@ export async function fetchCtraderAccountDealSummaries(config, tokens, requestOp
         fromTimestamp: requestOptions.fromTimestamp,
         toTimestamp: requestOptions.toTimestamp,
         maxRows: requestOptions.maxRows,
+        includeDealSummaries: Boolean(requestOptions.includeDealSummaries),
       },
-      accountCount: accountSummaries.length,
-      accounts: accountSummaries,
+      accountCount: normalizedAccounts.length,
+      accounts: normalizedAccounts,
     };
   } finally {
     if (typeof client.close === 'function') {
@@ -518,8 +548,8 @@ async function getCtraderAccounts(response, url, options = {}) {
 
   try {
     const tokens = await loadStoredCtraderTokens(config, options);
-    const requestOptions = buildCtraderDealsRequest(url, options.now?.() ?? Date.now());
-    const accountsResult = await fetchCtraderAccountDealSummaries(config, tokens, requestOptions, options);
+    const requestOptions = buildCtraderAccountsRequest(url, options.now?.() ?? Date.now());
+    const accountsResult = await fetchCtraderAccounts(config, tokens, requestOptions, options);
     sendJson(response, 200, accountsResult);
   } catch (error) {
     sendJson(response, 502, { error: error.message });

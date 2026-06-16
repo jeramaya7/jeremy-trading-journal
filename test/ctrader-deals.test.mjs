@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import {
+  buildCtraderAccountsRequest,
   buildCtraderDealsRequest,
   createAppServer,
   decryptTokenPayload,
@@ -47,6 +48,19 @@ test('builds default recent cTrader deals request query', () => {
     fromTimestamp: 1_697_408_000_000,
     toTimestamp: 1_700_000_000_000,
     maxRows: 100,
+  });
+});
+
+test('builds cTrader accounts request without deal summaries by default', () => {
+  const url = new URL('http://localhost/api/ctrader/accounts?maxRows=1');
+  const request = buildCtraderAccountsRequest(url, 1_700_000_000_000);
+
+  assert.deepEqual(request, {
+    ctidTraderAccountId: undefined,
+    fromTimestamp: 1_697_408_000_000,
+    toTimestamp: 1_700_000_000_000,
+    maxRows: 1,
+    includeDealSummaries: false,
   });
 });
 
@@ -420,7 +434,93 @@ test('GET /api/ctrader/journal-preview returns mapped trades without saving jour
   }
 });
 
-test('GET /api/ctrader/accounts returns all authorized accounts with latest deal IDs', async () => {
+test('GET /api/ctrader/accounts loads accounts without routing deal requests by default', async () => {
+  const dataDir = await mkdtemp(join(tmpdir(), 'ctrader-accounts-list-test-'));
+  const calls = [];
+
+  class FakeOpenApiClient {
+    constructor(options) {
+      calls.push(['constructor', options]);
+    }
+
+    async connect() {
+      calls.push(['connect']);
+    }
+
+    async authenticateApplication() {
+      calls.push(['authenticateApplication']);
+    }
+
+    async getAccountList(accessToken) {
+      calls.push(['getAccountList', accessToken]);
+      return [
+        { ctidTraderAccountId: 111, accountNumber: 900111, isLive: false, brokerName: 'Broker A' },
+        { ctidTraderAccountId: 222, accountNumber: 900222, isLive: true, brokerName: 'Broker B' },
+      ];
+    }
+
+    async authorizeAccount() {
+      throw new Error('Cannot route request');
+    }
+
+    async getDealList() {
+      throw new Error('Cannot route request');
+    }
+
+    close() {
+      calls.push(['close']);
+    }
+  }
+
+  const config = {
+    ok: true,
+    clientId: validEnv.CTRADER_CLIENT_ID,
+    clientSecret: validEnv.CTRADER_CLIENT_SECRET,
+    redirectUri: validEnv.CTRADER_REDIRECT_URI,
+    environment: validEnv.CTRADER_ENVIRONMENT,
+    encryptionSecret: validEnv.CTRADER_TOKEN_ENCRYPTION_KEY,
+  };
+  await storeEncryptedTokens(config, {
+    accessToken: 'stored-access-token',
+    refreshToken: 'stored-refresh-token',
+    tokenType: 'Bearer',
+    expiresIn: 3600,
+  }, { dataDir });
+
+  const server = createAppServer({
+    dataDir,
+    env: validEnv,
+    OpenApiClient: FakeOpenApiClient,
+    now: () => 1_700_000_000_000,
+  });
+
+  await new Promise((resolve) => server.listen(0, resolve));
+  try {
+    const { port } = server.address();
+    const response = await fetch(`http://127.0.0.1:${port}/api/ctrader/accounts?maxRows=1`);
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.accountCount, 2);
+    assert.deepEqual(body.accounts.map((account) => ({
+      ctidTraderAccountId: account.ctidTraderAccountId,
+      accountNumber: account.accountNumber,
+      isLive: account.isLive,
+      brokerName: account.brokerName,
+    })), [
+      { ctidTraderAccountId: 111, accountNumber: 900111, isLive: false, brokerName: 'Broker A' },
+      { ctidTraderAccountId: 222, accountNumber: 900222, isLive: true, brokerName: 'Broker B' },
+    ]);
+    assert.equal(body.request.includeDealSummaries, false);
+    assert.deepEqual(calls.filter(([name]) => name === 'authorizeAccount'), []);
+    assert.deepEqual(calls.filter(([name]) => name === 'getDealList'), []);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('GET /api/ctrader/accounts returns authorized accounts with latest deal IDs when requested', async () => {
   const dataDir = await mkdtemp(join(tmpdir(), 'ctrader-accounts-test-'));
   const calls = [];
 
@@ -493,7 +593,7 @@ test('GET /api/ctrader/accounts returns all authorized accounts with latest deal
   await new Promise((resolve) => server.listen(0, resolve));
   try {
     const { port } = server.address();
-    const response = await fetch(`http://127.0.0.1:${port}/api/ctrader/accounts?maxRows=5`);
+    const response = await fetch(`http://127.0.0.1:${port}/api/ctrader/accounts?maxRows=5&includeDealSummaries=true`);
     const body = await response.json();
 
     assert.equal(response.status, 200);
