@@ -312,10 +312,24 @@ export async function fetchRecentCtraderDeals(config, tokens, requestOptions = {
       requestOptions.ctidTraderAccountId,
       tokens.accessToken,
     );
+    console.info('[cTrader deals] Querying account', { accountId: accountAuth.authorizedAccountId, requestedAccountId: requestOptions.ctidTraderAccountId ?? null });
     const rawDeals = await client.getDealList(accountAuth.authorizedAccountId, {
       fromTimestamp: requestOptions.fromTimestamp,
       toTimestamp: requestOptions.toTimestamp,
       maxRows: requestOptions.maxRows,
+    });
+
+    const dealCount = Array.isArray(rawDeals?.deal) ? rawDeals.deal.length : 0;
+    const latestDealId = getLatestCtraderDealId(rawDeals?.deal);
+    console.info('[cTrader deals] Response summary', {
+      accountId: accountAuth.authorizedAccountId,
+      dealCount,
+      latestDealId,
+      request: {
+        fromTimestamp: requestOptions.fromTimestamp,
+        toTimestamp: requestOptions.toTimestamp,
+        maxRows: requestOptions.maxRows,
+      },
     });
 
     return {
@@ -328,6 +342,8 @@ export async function fetchRecentCtraderDeals(config, tokens, requestOptions = {
         maxRows: requestOptions.maxRows,
       },
       rawDeals,
+      dealCount,
+      latestDealId,
     };
   } finally {
     if (typeof client.close === 'function') {
@@ -343,6 +359,8 @@ export async function storeRawCtraderDeals(dealsResult, options = {}) {
     accountId: dealsResult.accountId,
     fetchedAt: new Date(options.now?.() ?? Date.now()).toISOString(),
     request: dealsResult.request,
+    dealCount: dealsResult.dealCount,
+    latestDealId: dealsResult.latestDealId,
     rawDeals: dealsResult.rawDeals,
   };
   const rawDealsStorePath = getRawDealsStorePath(options);
@@ -397,6 +415,8 @@ async function getCtraderDeals(response, url, options = {}) {
       accountId: dealsResult.accountId,
       accounts: dealsResult.accounts,
       request: dealsResult.request,
+      dealCount: dealsResult.dealCount,
+      latestDealId: dealsResult.latestDealId,
       storedAt: stored.fetchedAt,
       rawDeals: dealsResult.rawDeals,
     });
@@ -419,12 +439,20 @@ async function getCtraderJournalPreview(response, url, options = {}) {
     const trades = mapCtraderDealsToJournalTrades(dealsResult.rawDeals, {
       accountId: dealsResult.accountId,
     });
+    console.info('[cTrader journal-preview] Import preview summary', {
+      accountId: dealsResult.accountId,
+      dealsReturned: dealsResult.dealCount,
+      latestDealId: dealsResult.latestDealId,
+      tradesMapped: trades.length,
+    });
 
     sendJson(response, 200, {
       provider: 'ctrader',
       environment: dealsResult.environment,
       accountId: dealsResult.accountId,
       request: dealsResult.request,
+      dealCount: dealsResult.dealCount,
+      latestDealId: dealsResult.latestDealId,
       tradeCount: trades.length,
       trades,
     });
@@ -578,6 +606,17 @@ function sendConfigurationError(response, config) {
     expected: ['demo', 'live'],
     received: config.invalidEnvironment,
   });
+}
+
+function getLatestCtraderDealId(deals) {
+  if (!Array.isArray(deals)) {
+    return null;
+  }
+
+  return deals
+    .map((deal) => Number(deal?.dealId))
+    .filter(Number.isFinite)
+    .sort((left, right) => right - left)[0] ?? null;
 }
 
 function getDataDir(options = {}) {
