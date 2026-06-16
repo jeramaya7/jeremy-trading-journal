@@ -58,6 +58,7 @@ export class CTraderOpenApiJsonClient {
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     this.accessToken = accessToken;
+    this.environment = String(environment || '').toLowerCase();
     this.endpoint = endpoint;
     this.timeoutMs = timeoutMs;
     this.WebSocketImpl = WebSocketImpl;
@@ -110,6 +111,15 @@ export class CTraderOpenApiJsonClient {
     }
     this.socket = null;
     this.rejectPendingRequests(new Error('cTrader Open API client closed'));
+  }
+
+  async reconnectToEnvironment(environment) {
+    const normalizedEnvironment = String(environment || '').toLowerCase();
+    this.close();
+    this.environment = normalizedEnvironment;
+    this.endpoint = getCtraderJsonEndpoint(normalizedEnvironment);
+    await this.connect();
+    await this.authenticateApplication();
   }
 
   async authenticateApplication() {
@@ -190,11 +200,18 @@ export class CTraderOpenApiJsonClient {
       throw new Error('No cTrader accounts were returned for this access token');
     }
 
+    const selectedAccount = accounts.find((account) => String(account?.ctidTraderAccountId) === String(accountId));
+    const accountEnvironment = selectedAccount?.isLive === true ? 'live' : selectedAccount?.isLive === false ? 'demo' : this.environment;
+    if (accountEnvironment && accountEnvironment !== this.environment) {
+      await this.reconnectToEnvironment(accountEnvironment);
+    }
+
     const accountAuth = await this.authorizeAccount(accountId, accessToken);
     return {
       accounts,
       authorizedAccountId: accountAuth.payload?.ctidTraderAccountId || accountId,
       accountAuth,
+      accountEnvironment,
     };
   }
 
