@@ -24,6 +24,7 @@ function runtime(overrides = {}) {
 test('cTrader production endpoint registry covers status, sync, raw deals, and OAuth routes', () => {
   assert.deepEqual(CTRADER_ENDPOINTS, {
     status: '/api/ctrader/status',
+    accounts: '/api/ctrader/accounts',
     journalPreview: '/api/ctrader/journal-preview',
     deals: '/api/ctrader/deals',
     authStart: '/auth/ctrader/start',

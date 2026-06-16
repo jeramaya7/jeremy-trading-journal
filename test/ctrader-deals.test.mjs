@@ -420,6 +420,103 @@ test('GET /api/ctrader/journal-preview returns mapped trades without saving jour
   }
 });
 
+test('GET /api/ctrader/accounts returns all authorized accounts with latest deal IDs', async () => {
+  const dataDir = await mkdtemp(join(tmpdir(), 'ctrader-accounts-test-'));
+  const calls = [];
+
+  class FakeOpenApiClient {
+    constructor(options) {
+      calls.push(['constructor', options]);
+    }
+
+    async connect() {
+      calls.push(['connect']);
+    }
+
+    async authenticateApplication() {
+      calls.push(['authenticateApplication']);
+    }
+
+    async getAccountList(accessToken) {
+      calls.push(['getAccountList', accessToken]);
+      return [
+        { ctidTraderAccountId: 111, accountNumber: 900111, isLive: false, brokerName: 'Broker A' },
+        { ctidTraderAccountId: 222, accountNumber: 900222, isLive: false, brokerName: 'Broker B' },
+      ];
+    }
+
+    async authorizeAccount(ctidTraderAccountId, accessToken) {
+      calls.push(['authorizeAccount', ctidTraderAccountId, accessToken]);
+      return { payload: { ctidTraderAccountId } };
+    }
+
+    async getDealList(ctidTraderAccountId, request) {
+      calls.push(['getDealList', ctidTraderAccountId, request]);
+      return {
+        ctidTraderAccountId,
+        deal: ctidTraderAccountId === 111
+          ? [{ dealId: 10, executionTimestamp: 1_699_000_000_000 }]
+          : [
+            { dealId: 20, executionTimestamp: 1_699_500_000_000 },
+            { dealId: 25, executionTimestamp: 1_700_000_000_000 },
+          ],
+      };
+    }
+
+    close() {
+      calls.push(['close']);
+    }
+  }
+
+  const config = {
+    ok: true,
+    clientId: validEnv.CTRADER_CLIENT_ID,
+    clientSecret: validEnv.CTRADER_CLIENT_SECRET,
+    redirectUri: validEnv.CTRADER_REDIRECT_URI,
+    environment: validEnv.CTRADER_ENVIRONMENT,
+    encryptionSecret: validEnv.CTRADER_TOKEN_ENCRYPTION_KEY,
+  };
+  await storeEncryptedTokens(config, {
+    accessToken: 'stored-access-token',
+    refreshToken: 'stored-refresh-token',
+    tokenType: 'Bearer',
+    expiresIn: 3600,
+  }, { dataDir });
+
+  const server = createAppServer({
+    dataDir,
+    env: validEnv,
+    OpenApiClient: FakeOpenApiClient,
+    now: () => 1_700_000_000_000,
+  });
+
+  await new Promise((resolve) => server.listen(0, resolve));
+  try {
+    const { port } = server.address();
+    const response = await fetch(`http://127.0.0.1:${port}/api/ctrader/accounts?maxRows=5`);
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.provider, 'ctrader');
+    assert.equal(body.environment, 'demo');
+    assert.equal(body.accountCount, 2);
+    assert.deepEqual(body.accounts.map((account) => ({
+      ctidTraderAccountId: account.ctidTraderAccountId,
+      accountNumber: account.accountNumber,
+      dealCount: account.dealCount,
+      latestDealId: account.latestDealId,
+    })), [
+      { ctidTraderAccountId: 111, accountNumber: 900111, dealCount: 1, latestDealId: 10 },
+      { ctidTraderAccountId: 222, accountNumber: 900222, dealCount: 2, latestDealId: 25 },
+    ]);
+    assert.deepEqual(calls.filter(([name]) => name === 'authorizeAccount').map(([, accountId]) => accountId), [111, 222]);
+    assert.deepEqual(calls.filter(([name]) => name === 'getDealList').map(([, accountId]) => accountId), [111, 222]);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
 
 test('GET /api/ctrader/status reports stored cTrader connection state', async () => {
   const dataDir = await mkdtemp(join(tmpdir(), 'ctrader-status-test-'));
