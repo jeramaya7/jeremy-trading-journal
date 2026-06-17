@@ -3,11 +3,12 @@ export function buildCTraderSyncPlan(previewTrades, existingTrades, options = {}
   const journalTrades = Array.isArray(previewTrades)
     ? previewTrades.map((previewTrade) => convertCTraderPreviewTradeToJournalEntry(previewTrade, options))
     : [];
+  const deletedSourceKeys = normalizeDeletedCTraderSourceKeys(options.deletedSourceKeys);
   const importedTrades = [];
   const skippedTrades = [];
 
   for (const trade of journalTrades) {
-    const skipReason = getCTraderTradeSkipReason(trade, existingTrades, seenSourceKeys);
+    const skipReason = getCTraderTradeSkipReason(trade, existingTrades, seenSourceKeys, deletedSourceKeys);
     if (skipReason) {
       skippedTrades.push({ trade, reason: skipReason });
       continue;
@@ -67,8 +68,8 @@ export function normalizeImportedTags(tags) {
   return normalizedTags.join(', ');
 }
 
-export function shouldImportCTraderTrade(candidateTrade, existingTrades, seenSourceKeys) {
-  return getCTraderTradeSkipReason(candidateTrade, existingTrades, seenSourceKeys) === null;
+export function shouldImportCTraderTrade(candidateTrade, existingTrades, seenSourceKeys, deletedSourceKeys) {
+  return getCTraderTradeSkipReason(candidateTrade, existingTrades, seenSourceKeys, normalizeDeletedCTraderSourceKeys(deletedSourceKeys)) === null;
 }
 
 export function hasSourceTradeAlreadyBeenImported(candidateTrade, existingTrades) {
@@ -89,6 +90,28 @@ export function getImportedTradeSourceKey(trade) {
   return sourceTradeId === null ? null : `ctrader:${sourceTradeId}`;
 }
 
+export function normalizeDeletedCTraderSourceKeys(deletedSourceKeys) {
+  if (!deletedSourceKeys) {
+    return new Set();
+  }
+
+  const sourceKeys = deletedSourceKeys instanceof Set ? deletedSourceKeys : new Set(deletedSourceKeys);
+  return new Set(
+    [...sourceKeys]
+      .map((sourceKey) => normalizeCTraderDeletedSourceKey(sourceKey))
+      .filter(Boolean),
+  );
+}
+
+export function normalizeCTraderDeletedSourceKey(sourceKey) {
+  if (sourceKey === null || sourceKey === undefined || sourceKey === '') {
+    return null;
+  }
+
+  const stringSourceKey = String(sourceKey);
+  return stringSourceKey.startsWith('ctrader:') ? stringSourceKey : `ctrader:${stringSourceKey}`;
+}
+
 export function getCTraderSourceTradeId(trade) {
   const sourceTradeId = trade?.sourceTradeId ?? trade?.sourceDealId;
   if (sourceTradeId === null || sourceTradeId === undefined || sourceTradeId === '') {
@@ -98,10 +121,13 @@ export function getCTraderSourceTradeId(trade) {
   return String(sourceTradeId);
 }
 
-function getCTraderTradeSkipReason(candidateTrade, existingTrades, seenSourceKeys) {
+function getCTraderTradeSkipReason(candidateTrade, existingTrades, seenSourceKeys = new Set(), deletedSourceKeys = new Set()) {
   const candidateKey = getImportedTradeSourceKey(candidateTrade);
   if (!candidateKey) {
     return null;
+  }
+  if (deletedSourceKeys.has(candidateKey)) {
+    return 'deleted from journal';
   }
   if (seenSourceKeys.has(candidateKey)) {
     return 'duplicate in cTrader response';

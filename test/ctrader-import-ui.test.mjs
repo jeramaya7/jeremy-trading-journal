@@ -47,7 +47,8 @@ test('cTrader sync skips duplicates by source trade IDs and reports imported/ski
   assertIncludes(syncSource, 'export function hasSourceTradeAlreadyBeenImported(candidateTrade, existingTrades)', 'Duplicate detection checks imported trades against existing journal entries.');
   assertIncludes(syncSource, 'return sourceTradeId === null ? null : `ctrader:${sourceTradeId}`;', 'Duplicate detection keys cTrader trades by source trade ID.');
   assertIncludes(syncSource, 'const seenSourceKeys = new Set();', 'The sync tracks source trade IDs seen in the current preview response.');
-  assertIncludes(source, 'const syncPlan = buildCTraderSyncPlan(previewTrades, trades);', 'Duplicate source trades are filtered out before saving.');
+  assertIncludes(source, 'const syncPlan = buildCTraderSyncPlan(previewTrades, trades, {', 'Duplicate and deleted source trades are filtered out before saving.');
+  assertIncludes(source, 'deletedSourceKeys: loadDeletedCTraderSourceKeys(),', 'Deleted cTrader source keys are passed into the sync planner.');
   assertIncludes(source, 'New trades imported: ${syncPlan.importedCount}. Trades skipped: ${syncPlan.skippedCount}.', 'The UI displays new imported and skipped cTrader trade counts.');
 });
 
@@ -58,7 +59,8 @@ test('cTrader imports can be bulk deleted without removing manual trades', () =>
   assertIncludes(source, "document.querySelector('#deleteAllCTraderImports').addEventListener('click', deleteAllCTraderImports);", 'The delete button is wired to its handler.');
   assertIncludes(source, "window.confirm('Delete all imported cTrader trades?')", 'The handler asks for the requested confirmation before deleting.');
   assertIncludes(source, "trades.filter((trade) => trade?.provider !== 'ctrader')", 'Only provider-marked cTrader imports are removed so manual trades remain.');
-  assertIncludes(source, 'You can re-sync to import clean cTrader data.', 'The status explains users can re-sync clean cTrader data after deletion.');
+  assertIncludes(source, 'rememberDeletedCTraderSourceKeys(deletedTrades);', 'Bulk deleting cTrader imports saves their source keys.');
+  assertIncludes(source, 'They will not be re-imported on future syncs.', 'The status explains deleted cTrader imports stay deleted.');
 });
 
 test('cTrader Auto Sync runs on startup and exposes settings metadata', () => {
@@ -101,4 +103,14 @@ test('cTrader UI lets users select an account and syncs only that saved account'
   assertIncludes(source, 'getSelectedCTraderAccountStatusLabel()', 'The selected account appears beside cTrader connection status.');
   assertIncludes(source, 'selectedAccount: getSelectedCTraderAccount() ?', 'Sync diagnostics keep logging the selected account metadata.');
   assertIncludes(source, 'dealsReturned: preview?.dealCount ?? previewTrades.length', 'Sync diagnostics keep logging deals returned.');
+});
+
+
+test('cTrader deleted source keys are persisted and used during sync', () => {
+  assertIncludes(source, "const DELETED_CTRADER_SOURCE_KEYS_STORAGE_KEY = 'deletedCTraderSourceKeys';", 'Deleted cTrader source keys use the requested localStorage key.');
+  assertIncludes(source, 'function loadDeletedCTraderSourceKeys()', 'Deleted cTrader source keys can be loaded before syncing.');
+  assertIncludes(source, 'function rememberDeletedCTraderSourceKey(trade)', 'Single cTrader trade deletion persists its source key.');
+  assertIncludes(source, 'const deletedTrade = trades.find((trade) => trade.id === button.dataset.deleteTrade);', 'Delete handlers identify the removed trade before filtering it out.');
+  assertIncludes(source, 'rememberDeletedCTraderSourceKey(deletedTrade);', 'Delete handlers remember cTrader source keys before removing the trade.');
+  assertIncludes(source, 'window.localStorage.setItem(DELETED_CTRADER_SOURCE_KEYS_STORAGE_KEY, JSON.stringify([...sourceKeys].sort()))', 'Deleted source keys are saved to localStorage.');
 });

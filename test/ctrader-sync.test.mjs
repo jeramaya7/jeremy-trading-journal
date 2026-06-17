@@ -5,6 +5,7 @@ import {
   buildCTraderSyncPlan,
   convertCTraderPreviewTradeToJournalEntry,
   getImportedTradeSourceKey,
+  normalizeCTraderDeletedSourceKey,
   hasSourceTradeAlreadyBeenImported,
   shouldImportCTraderTrade,
 } from '../src/ctrader-sync.js';
@@ -96,4 +97,30 @@ test('existing duplicate protection still keys cTrader trades by source trade ID
   assert.equal(getImportedTradeSourceKey(candidateTrade), 'ctrader:777');
   assert.equal(hasSourceTradeAlreadyBeenImported(candidateTrade, existingTrades), true);
   assert.equal(shouldImportCTraderTrade(candidateTrade, existingTrades, seenSourceKeys), false);
+});
+
+
+test('cTrader sync does not re-import trades deleted from the journal', () => {
+  const firstSyncPlan = buildCTraderSyncPlan([closedPreviewTrade], [], {
+    now: () => Date.parse('2026-06-12T15:00:00.000Z'),
+  });
+  assert.equal(firstSyncPlan.importedCount, 1);
+
+  const importedTrade = firstSyncPlan.importedTrades[0];
+  const deletedSourceKeys = new Set([getImportedTradeSourceKey(importedTrade)]);
+  const journalAfterDelete = [];
+
+  const secondSyncPlan = buildCTraderSyncPlan([closedPreviewTrade], journalAfterDelete, {
+    deletedSourceKeys,
+    now: () => Date.parse('2026-06-12T15:05:00.000Z'),
+  });
+
+  assert.equal(secondSyncPlan.importedCount, 0);
+  assert.equal(secondSyncPlan.skippedCount, 1);
+  assert.deepEqual(secondSyncPlan.skippedTrades.map(({ reason }) => reason), ['deleted from journal']);
+});
+
+test('deleted cTrader source keys are normalized for legacy source trade IDs', () => {
+  assert.equal(normalizeCTraderDeletedSourceKey('501'), 'ctrader:501');
+  assert.equal(normalizeCTraderDeletedSourceKey('ctrader:501'), 'ctrader:501');
 });
