@@ -314,6 +314,7 @@ function tradeCard(trade) {
   const rMultiple = calculateRMultiple(trade);
   const tone = pnl >= 0 ? 'positive' : 'negative';
   const rTone = rMultiple === null || rMultiple >= 0 ? 'positive' : 'negative';
+  const emotionDetail = isCTraderImportedTrade(trade) ? '' : `<span>Emotion: ${escapeHtml(trade.emotion)}</span>`;
   return `
     <article class="trade-card">
       <div class="trade-card-header">
@@ -331,7 +332,7 @@ function tradeCard(trade) {
         <span>Risk $: ${riskDollars === null ? '—' : currency(riskDollars)}</span>
         <span>Risk %: ${formatPercent(riskPercent)}</span>
         <span class="${rTone}">R: ${formatRMultiple(rMultiple)}</span>
-        <span>Emotion: ${escapeHtml(trade.emotion)}</span>
+        ${emotionDetail}
       </div>
       ${trade.tags ? `<p class="tags">${escapeHtml(trade.tags)}</p>` : ''}
       ${trade.notes ? `<p class="notes">${escapeHtml(trade.notes)}</p>` : ''}
@@ -341,6 +342,10 @@ function tradeCard(trade) {
       </button>
     </article>
   `;
+}
+
+function isCTraderImportedTrade(trade) {
+  return trade?.provider === 'ctrader' || String(trade?.tags || '').toLowerCase().includes('ctrader');
 }
 
 function render() {
