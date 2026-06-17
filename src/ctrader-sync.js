@@ -30,6 +30,58 @@ export function buildCTraderSyncPlan(previewTrades, existingTrades, options = {}
   };
 }
 
+export function applyCTraderImportedTradeUpdates(existingTrades, skippedTrades) {
+  const sourceUpdates = new Map();
+  for (const skippedTrade of Array.isArray(skippedTrades) ? skippedTrades : []) {
+    if (skippedTrade?.reason !== 'already in journal') {
+      continue;
+    }
+
+    const sourceKey = getImportedTradeSourceKey(skippedTrade.trade);
+    const readableSymbol = getReadableImportedSymbol(
+      skippedTrade.trade?.brokerSymbol,
+      skippedTrade.trade?.symbolName,
+      skippedTrade.trade?.displaySymbol,
+      skippedTrade.trade?.symbol,
+    );
+    if (!sourceKey || !readableSymbol) {
+      continue;
+    }
+
+    sourceUpdates.set(sourceKey, {
+      symbol: readableSymbol,
+      brokerSymbol: readableSymbol,
+      sourceSymbolId: skippedTrade.trade?.sourceSymbolId,
+    });
+  }
+
+  let updatedCount = 0;
+  const trades = (Array.isArray(existingTrades) ? existingTrades : []).map((trade) => {
+    const update = sourceUpdates.get(getImportedTradeSourceKey(trade));
+    if (!update) {
+      return trade;
+    }
+
+    const nextTrade = {
+      ...trade,
+      symbol: update.symbol,
+      brokerSymbol: update.brokerSymbol,
+      ...(update.sourceSymbolId !== undefined ? { sourceSymbolId: update.sourceSymbolId } : {}),
+    };
+    const didChange = nextTrade.symbol !== trade.symbol
+      || nextTrade.brokerSymbol !== trade.brokerSymbol
+      || nextTrade.sourceSymbolId !== trade.sourceSymbolId;
+    if (didChange) {
+      updatedCount += 1;
+      return nextTrade;
+    }
+
+    return trade;
+  });
+
+  return { trades, updatedCount };
+}
+
 export function convertCTraderPreviewTradeToJournalEntry(previewTrade, options = {}) {
   const sourceTradeId = getCTraderSourceTradeId(previewTrade);
   const sourceLabel = sourceTradeId === null ? 'unknown source trade' : `source trade ${sourceTradeId}`;

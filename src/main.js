@@ -1,4 +1,4 @@
-import { buildCTraderSyncPlan, getImportedTradeSourceKey } from './ctrader-sync.js';
+import { applyCTraderImportedTradeUpdates, buildCTraderSyncPlan, getImportedTradeSourceKey } from './ctrader-sync.js';
 import { CTRADER_ENDPOINTS, buildCTraderOAuthUrl, fetchBackendJson, getBackendDiagnostics } from './backend-api.js';
 
 const STORAGE_KEY = 'jeremy-trading-journal:v1';
@@ -995,15 +995,16 @@ async function syncCTrader(options = {}) {
     });
     logCTraderSyncDiagnostics({ preview, syncPlan, existingTrades: trades });
 
-    if (syncPlan.importedTrades.length) {
-      persistTrades([...syncPlan.importedTrades, ...trades]);
+    const updatedExistingTrades = applyCTraderImportedTradeUpdates(trades, syncPlan.skippedTrades);
+    if (syncPlan.importedTrades.length || updatedExistingTrades.updatedCount > 0) {
+      persistTrades([...syncPlan.importedTrades, ...updatedExistingTrades.trades]);
     }
 
     const syncedAt = new Date().toISOString();
     persistCTraderLastSyncTime(syncedAt);
     cTraderSyncStatus = {
       tone: 'success',
-      message: `${isAutoSync ? 'Auto Sync complete.' : 'Sync complete.'} New trades imported: ${syncPlan.importedCount}. Trades skipped: ${syncPlan.skippedCount}.`,
+      message: `${isAutoSync ? 'Auto Sync complete.' : 'Sync complete.'} New trades imported: ${syncPlan.importedCount}. Trades skipped: ${syncPlan.skippedCount}. Imported trades updated: ${updatedExistingTrades.updatedCount}.`,
     };
   } catch (error) {
     console.error('[cTrader sync] Frontend request failed', {

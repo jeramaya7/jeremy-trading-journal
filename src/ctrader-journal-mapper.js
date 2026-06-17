@@ -1,5 +1,7 @@
 import { randomBytes } from 'node:crypto';
 
+export const CTRADER_JOURNAL_MAPPER_TRACE_VERSION = 'symbol-metadata-by-id-v2';
+
 export function mapCtraderDealsToJournalTrades(rawDeals, options = {}) {
   const deals = Array.isArray(rawDeals?.deal) ? rawDeals.deal : [];
   const openingDealsByPosition = new Map();

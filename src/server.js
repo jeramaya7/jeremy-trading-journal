@@ -6,9 +6,9 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { CTraderOpenApiJsonClient } from './ctrader-open-api.js';
-import { mapCtraderDealsToJournalTrades } from './ctrader-journal-mapper.js';
+import { CTRADER_JOURNAL_MAPPER_TRACE_VERSION, mapCtraderDealsToJournalTrades } from './ctrader-journal-mapper.js';
 
-export { mapCtraderDealsToJournalTrades } from './ctrader-journal-mapper.js';
+export { CTRADER_JOURNAL_MAPPER_TRACE_VERSION, mapCtraderDealsToJournalTrades } from './ctrader-journal-mapper.js';
 
 const PORT = Number(process.env.PORT) || 5173;
 const ROOT_DIR = join(fileURLToPath(new URL('..', import.meta.url)));
@@ -691,15 +691,27 @@ async function getCtraderJournalPreview(response, url, options = {}) {
     const requestOptions = buildCtraderDealsRequest(url, options.now?.() ?? Date.now());
     console.info('[cTrader journal-preview] Incoming backend request', getCtraderRequestLogContext(url, requestOptions));
     const dealsResult = await fetchRecentCtraderDeals(config, tokens, requestOptions, options);
+    const symbolMetadataById = dealsResult.symbolMetadataById || {};
+    console.info('[cTrader journal-preview] Mapper trace', {
+      mapperTraceVersion: CTRADER_JOURNAL_MAPPER_TRACE_VERSION,
+      symbolMetadataIds: Object.keys(symbolMetadataById),
+      hasSymbolMetadataForXauusd41: Boolean(symbolMetadataById['41']),
+    });
     const trades = mapCtraderDealsToJournalTrades(dealsResult.rawDeals, {
       accountId: dealsResult.accountId,
-      symbolMetadataById: dealsResult.symbolMetadataById || {},
+      symbolMetadataById,
     });
     console.info('[cTrader journal-preview] Import preview summary', {
       accountId: dealsResult.accountId,
       dealsReturned: dealsResult.dealCount,
       latestDealId: dealsResult.latestDealId,
       tradesMapped: trades.length,
+      tradeSymbols: trades.map((trade) => ({
+        sourceDealId: trade.sourceDealId,
+        sourceSymbolId: trade.sourceSymbolId ?? null,
+        symbol: trade.symbol,
+        brokerSymbol: trade.brokerSymbol ?? null,
+      })),
     });
 
     sendJson(response, 200, {
