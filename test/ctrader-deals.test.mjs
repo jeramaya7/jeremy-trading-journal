@@ -16,6 +16,7 @@ import {
   mapCtraderClosingDealToJournalTrade,
   mapCtraderDealsToJournalTrades,
 } from '../src/ctrader-journal-mapper.js';
+import { convertCTraderPreviewTradeToJournalEntry } from '../src/ctrader-sync.js';
 
 const validEnv = {
   CTRADER_CLIENT_ID: 'client-id',
@@ -110,9 +111,7 @@ test('maps completed cTrader deals into journal preview trade objects', () => {
     ],
   }, {
     accountId: 12345,
-    symbolMetadataById: {
-      undefined: { lotSize: 10000000 },
-    },
+    symbolMetadata: { lotSize: 10000000 },
   });
 
   assert.deepEqual(trades, [
@@ -131,8 +130,8 @@ test('maps completed cTrader deals into journal preview trade objects', () => {
       openTime: '2023-07-22T04:26:40.000Z',
       closeTime: '2023-11-14T22:13:20.000Z',
       date: '2023-11-14',
-      netProfitLoss: 491,
-      fees: 9,
+      netProfitLoss: 4.92,
+      fees: 0.08,
       setup: 'cTrader import preview',
       emotion: '',
       tags: 'ctrader, import-preview',
@@ -153,8 +152,8 @@ test('maps completed cTrader deals into journal preview trade objects', () => {
       openTime: null,
       closeTime: '2023-11-26T12:00:00.000Z',
       date: '2023-11-26',
-      netProfitLoss: 245,
-      fees: 5,
+      netProfitLoss: 2.45,
+      fees: 0.05,
       setup: 'cTrader import preview',
       emotion: '',
       tags: 'ctrader, import-preview',
@@ -199,8 +198,8 @@ test('maps an individual cTrader closing deal into the journal trade schema', ()
     openTime: '2023-11-14T22:13:20.000Z',
     closeTime: '2023-11-16T02:00:00.000Z',
     date: '2023-11-16',
-    netProfitLoss: 120.5,
-    fees: 5,
+    netProfitLoss: 1.21,
+    fees: 0.05,
     setup: 'cTrader import preview',
     emotion: '',
     tags: 'ctrader, import-preview',
@@ -243,7 +242,7 @@ test('maps cTrader cent-volume into symbol-specific lot sizes and logs the mappi
   assert.equal(goldTrade.size, 0.01);
   assert.equal(goldTrade.volume, 0.01);
   assert.equal(goldTrade.symbol, 'XAUUSD');
-  assert.equal(goldTrade.netProfitLoss, 45.75);
+  assert.equal(goldTrade.netProfitLoss, 0.45);
   assert.equal(bitcoinTrade.size, 0.01);
   assert.equal(bitcoinTrade.volume, 0.01);
   assert.deepEqual(logs.map(([, mapping]) => ({
@@ -255,6 +254,92 @@ test('maps cTrader cent-volume into symbol-specific lot sizes and logs the mappi
     { symbol: 'XAUUSD', rawVolume: 100, convertedLotSize: 100, finalStoredSize: 0.01 },
     { symbol: 'BTCUSD', rawVolume: 1, convertedLotSize: 1, finalStoredSize: 0.01 },
   ]);
+});
+
+test('maps numeric cTrader symbol ID 41 to XAUUSD from symbol metadata', () => {
+  const [trade] = mapCtraderDealsToJournalTrades({
+    deal: [
+      {
+        dealId: 901,
+        positionId: 1901,
+        symbol: '41',
+        tradeSide: 'BUY',
+        executionPrice: 2030,
+        executionTimestamp: 1_699_000_000_000,
+        filledVolume: 100,
+      },
+      {
+        dealId: 902,
+        positionId: 1901,
+        symbol: '41',
+        tradeSide: 'SELL',
+        executionPrice: 2035,
+        executionTimestamp: 1_700_000_000_000,
+        filledVolume: 100,
+        closePositionDetail: {
+          symbolId: 41,
+          entryPrice: 2030,
+          grossProfit: 500,
+          closedVolume: 100,
+        },
+      },
+    ],
+  }, {
+    symbolMetadataById: {
+      41: { symbolId: 41, symbolName: 'XAUUSD', lotSize: 10000 },
+    },
+  });
+
+  assert.equal(trade.symbol, 'XAUUSD');
+});
+
+test('maps numeric cTrader symbol ID 10026 to BTCUSD from symbol metadata', () => {
+  const trade = mapCtraderClosingDealToJournalTrade({
+    dealId: 903,
+    positionId: 1903,
+    symbol: '10026',
+    tradeSide: 'SELL',
+    executionPrice: 65000,
+    executionTimestamp: 1_700_000_000_000,
+    closePositionDetail: {
+      entryPrice: 65500,
+      closedVolume: 1,
+      netProfitLoss: 50000,
+    },
+  }, null, {
+    symbolMetadataById: {
+      10026: { symbolId: 10026, symbolName: 'BTCUSD', lotSize: 100 },
+    },
+  });
+
+  assert.equal(trade.symbol, 'BTCUSD');
+});
+
+test('imported cTrader card data keeps broker symbol name instead of numeric ID', () => {
+  const previewTrade = mapCtraderClosingDealToJournalTrade({
+    dealId: 904,
+    positionId: 1904,
+    symbol: '10026',
+    tradeSide: 'SELL',
+    executionPrice: 65000,
+    executionTimestamp: 1_700_000_000_000,
+    closePositionDetail: {
+      entryPrice: 65500,
+      closedVolume: 1,
+      netProfitLoss: 50000,
+    },
+  }, null, {
+    symbolMetadataById: {
+      10026: { symbolId: 10026, symbolName: 'BTCUSD', lotSize: 100 },
+    },
+  });
+
+  const importedTrade = convertCTraderPreviewTradeToJournalEntry(previewTrade, {
+    now: () => 1_700_000_001_000,
+  });
+
+  assert.equal(importedTrade.symbol, 'BTCUSD');
+  assert.notEqual(importedTrade.symbol, '10026');
 });
 
 
@@ -472,7 +557,7 @@ test('GET /api/ctrader/journal-preview returns mapped trades without saving jour
         accountId: 98765,
         sourceDealId: 201,
         sourcePositionId: 300,
-        symbol: 'USDJPY',
+        symbol: 'EURUSD',
         direction: 'Short',
         entry: 151.1,
         exit: 150.2,
@@ -481,8 +566,8 @@ test('GET /api/ctrader/journal-preview returns mapped trades without saving jour
         openTime: '2023-11-03T08:26:40.000Z',
         closeTime: '2023-11-14T22:13:20.000Z',
         date: '2023-11-14',
-        netProfitLoss: 87.5,
-        fees: 2.5,
+        netProfitLoss: 0.87,
+        fees: 0.03,
         setup: 'cTrader import preview',
         emotion: '',
         tags: 'ctrader, import-preview',
@@ -497,6 +582,121 @@ test('GET /api/ctrader/journal-preview returns mapped trades without saving jour
       'getSymbolById',
       'close',
     ]);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    await rm(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('GET /api/ctrader/journal-preview resolves numeric cTrader symbols from metadata', async () => {
+  const dataDir = await mkdtemp(join(tmpdir(), 'ctrader-symbol-preview-test-'));
+  const calls = [];
+
+  class FakeOpenApiClient {
+    constructor(options) {
+      calls.push(['constructor', options]);
+    }
+
+    async authenticateAndAuthorizeAccount(ctidTraderAccountId, accessToken) {
+      calls.push(['authenticateAndAuthorizeAccount', ctidTraderAccountId, accessToken]);
+      return {
+        authorizedAccountId: ctidTraderAccountId,
+        accounts: [{ ctidTraderAccountId, isLive: false }],
+      };
+    }
+
+    async getDealList(ctidTraderAccountId, request) {
+      calls.push(['getDealList', ctidTraderAccountId, request]);
+      return {
+        ctidTraderAccountId,
+        deal: [
+          {
+            dealId: 300,
+            positionId: 400,
+            symbol: '41',
+            tradeSide: 'BUY',
+            executionPrice: 2030,
+            executionTimestamp: 1_699_000_000_000,
+            filledVolume: 100,
+          },
+          {
+            dealId: 301,
+            positionId: 400,
+            symbol: '41',
+            tradeSide: 'SELL',
+            executionPrice: 2035,
+            executionTimestamp: 1_700_000_000_000,
+            closePositionDetail: {
+              symbolId: 41,
+              entryPrice: 2030,
+              closedVolume: 100,
+              grossProfit: 500,
+            },
+          },
+          {
+            dealId: 302,
+            positionId: 401,
+            symbol: '10026',
+            tradeSide: 'BUY',
+            executionPrice: 65000,
+            executionTimestamp: 1_700_000_000_000,
+            closePositionDetail: {
+              entryPrice: 65500,
+              closedVolume: 1,
+              netProfitLoss: -50000,
+            },
+          },
+        ],
+      };
+    }
+
+    async getSymbolById(ctidTraderAccountId, symbolId) {
+      calls.push(['getSymbolById', ctidTraderAccountId, symbolId]);
+      const namesById = { 41: 'XAUUSD', 10026: 'BTCUSD' };
+      return { symbolId, symbolName: namesById[symbolId], lotSize: symbolId === 41 ? 10000 : 100 };
+    }
+
+    close() {
+      calls.push(['close']);
+    }
+  }
+
+  const config = {
+    ok: true,
+    clientId: validEnv.CTRADER_CLIENT_ID,
+    clientSecret: validEnv.CTRADER_CLIENT_SECRET,
+    redirectUri: validEnv.CTRADER_REDIRECT_URI,
+    environment: validEnv.CTRADER_ENVIRONMENT,
+    encryptionSecret: validEnv.CTRADER_TOKEN_ENCRYPTION_KEY,
+  };
+  await storeEncryptedTokens(config, {
+    accessToken: 'stored-access-token',
+    refreshToken: 'stored-refresh-token',
+    tokenType: 'Bearer',
+    expiresIn: 3600,
+  }, { dataDir });
+
+  const server = createAppServer({
+    dataDir,
+    env: validEnv,
+    OpenApiClient: FakeOpenApiClient,
+    now: () => 1_700_000_000_000,
+  });
+
+  await new Promise((resolve) => server.listen(0, resolve));
+  try {
+    const { port } = server.address();
+    const response = await fetch(`http://127.0.0.1:${port}/api/ctrader/journal-preview?accountId=98765&maxRows=10`);
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(body.trades.map((trade) => trade.symbol), ['XAUUSD', 'BTCUSD']);
+    assert.deepEqual(
+      calls
+        .filter(([name]) => name === 'getSymbolById')
+        .map(([, accountId, symbolId]) => [accountId, symbolId]),
+      [[98765, '41'], [98765, '10026']],
+    );
   } finally {
     await new Promise((resolve) => server.close(resolve));
     await rm(dataDir, { recursive: true, force: true });
