@@ -377,6 +377,9 @@ ${cTraderSyncStatus ? `<p class="import-status ${escapeHtml(cTraderSyncStatus.to
           <button class="secondary-button" type="button" id="syncCTrader" ${isSyncingCTrader || isCheckingCTraderConnection ? 'disabled' : ''}>
             ${icon('refresh')} ${isSyncingCTrader ? 'Syncing cTrader...' : 'Sync cTrader'}
           </button>
+          <button class="secondary-button" type="button" id="deleteAllCTraderImports">
+            ${icon('trash')} Delete All cTrader Imports
+          </button>
           <button class="secondary-button" type="button" id="exportTrades">${icon('download')} Export JSON</button>
           <label class="secondary-button upload-button">
             ${icon('upload')} Import JSON
@@ -468,6 +471,7 @@ function bindEvents() {
   document.querySelector('#refreshCTraderAccounts')?.addEventListener('click', () => loadCTraderAccounts({ force: true }));
   document.querySelector('#connectCTrader').addEventListener('click', startCTraderOAuthFlow);
   document.querySelector('#syncCTrader').addEventListener('click', () => syncCTrader({ source: 'manual' }));
+  document.querySelector('#deleteAllCTraderImports').addEventListener('click', deleteAllCTraderImports);
   document.querySelector('#exportTrades').addEventListener('click', exportTrades);
   document.querySelector('#importTrades').addEventListener('change', importTrades);
 
@@ -479,6 +483,21 @@ function bindEvents() {
       persistTrades(trades.filter((trade) => trade.id !== button.dataset.deleteTrade));
     });
   });
+}
+
+function deleteAllCTraderImports() {
+  if (!window.confirm('Delete all imported cTrader trades?')) {
+    return;
+  }
+
+  const remainingTrades = trades.filter((trade) => trade?.provider !== 'ctrader');
+  const deletedCount = trades.length - remainingTrades.length;
+
+  cTraderSyncStatus = {
+    tone: 'success',
+    message: `Deleted ${deletedCount} imported cTrader ${deletedCount === 1 ? 'trade' : 'trades'}. You can re-sync to import clean cTrader data.`,
+  };
+  persistTrades(remainingTrades);
 }
 
 async function submitTrade(event) {
