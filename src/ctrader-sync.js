@@ -38,18 +38,31 @@ export function convertCTraderPreviewTradeToJournalEntry(previewTrade, options =
   const notes = previewNotes && !previewNotes.toLowerCase().includes('preview only')
     ? `${importedNotes} ${previewNotes}`
     : importedNotes;
+  const brokerSymbol = getReadableImportedSymbol(
+    previewTrade.brokerSymbol,
+    previewTrade.symbolName,
+    previewTrade.symbol,
+  );
 
   return {
     ...previewTrade,
     id: sourceTradeId === null ? createFallbackId(options) : `ctrader-${sourceTradeId}`,
     provider: 'ctrader',
     sourceTradeId,
+    brokerSymbol,
+    symbol: brokerSymbol || previewTrade.symbol,
     setup: previewTrade.setup === 'cTrader import preview' ? 'cTrader import' : (previewTrade.setup || 'cTrader import'),
     emotion: previewTrade.emotion || 'Imported',
     tags: normalizeImportedTags(previewTrade.tags),
     notes,
     importedAt: getImportedAt(options),
   };
+}
+
+function getReadableImportedSymbol(...values) {
+  return values
+    .map((value) => (value === undefined || value === null ? '' : String(value).trim()))
+    .find((value) => value && !/^\d+$/.test(value)) || null;
 }
 
 export function normalizeImportedTags(tags) {

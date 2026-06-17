@@ -342,6 +342,51 @@ test('imported cTrader card data keeps broker symbol name instead of numeric ID'
   assert.notEqual(importedTrade.symbol, '10026');
 });
 
+test('imported XAUUSD trade stores card-ready broker symbol instead of numeric cTrader ID', () => {
+  const [previewTrade] = mapCtraderDealsToJournalTrades({
+    deal: [
+      {
+        dealId: 905,
+        positionId: 1905,
+        symbol: '41',
+        tradeSide: 'BUY',
+        executionPrice: 2030,
+        executionTimestamp: 1_699_000_000_000,
+        filledVolume: 100,
+      },
+      {
+        dealId: 906,
+        positionId: 1905,
+        symbol: '41',
+        tradeSide: 'SELL',
+        executionPrice: 2035,
+        executionTimestamp: 1_700_000_000_000,
+        closePositionDetail: {
+          symbolId: 41,
+          entryPrice: 2030,
+          grossProfit: 500,
+          closedVolume: 100,
+        },
+      },
+    ],
+  }, {
+    symbolMetadataById: {
+      41: { symbolId: 41, symbolName: 'XAUUSD', lotSize: 10000 },
+    },
+  });
+
+  const importedTrade = convertCTraderPreviewTradeToJournalEntry(previewTrade, {
+    now: () => 1_700_000_001_000,
+  });
+  const journalCardSymbolMarkup = `<p class="trade-symbol">${importedTrade.brokerSymbol || importedTrade.symbol}</p>`;
+
+  assert.equal(importedTrade.sourceSymbolId, 41);
+  assert.equal(importedTrade.symbol, 'XAUUSD');
+  assert.equal(importedTrade.brokerSymbol, 'XAUUSD');
+  assert.match(journalCardSymbolMarkup, /XAUUSD/);
+  assert.doesNotMatch(journalCardSymbolMarkup, />41</);
+});
+
 
 test('GET /api/ctrader/deals authorizes account, fetches raw deals, stores raw response, and returns JSON', async () => {
   const dataDir = await mkdtemp(join(tmpdir(), 'ctrader-deals-test-'));

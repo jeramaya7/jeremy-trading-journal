@@ -52,13 +52,15 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
   );
   const symbolMetadata = options.symbolMetadata || getCtraderSymbolMetadataForDeal(deal, openingDeal, options);
   const symbol = getCtraderDealSymbol(deal, openingDeal, symbolMetadata);
+  const symbolId = getCtraderDealSymbolId(deal, openingDeal);
+  const hasNumericSourceSymbol = isNumericIdentifier(deal?.symbol) || isNumericIdentifier(openingDeal?.symbol);
   const volume = mapCtraderVolumeToJournalSize(rawVolume, symbolMetadata);
   const netProfitLoss = getNetProfitLoss(closePositionDetail);
   logCtraderVolumeMapping(options, {
     dealId: deal.dealId ?? null,
     positionId: deal.positionId ?? null,
     symbol,
-    symbolId: getCtraderDealSymbolId(deal, openingDeal),
+    symbolId,
     rawVolume,
     volumeInUnits: getCtraderVolumeInUnits(rawVolume),
     volumeInUnitsStep: getCtraderVolumeInUnits(symbolMetadata?.stepVolume ?? symbolMetadata?.volumeInUnitsStep),
@@ -76,6 +78,8 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
     accountId: options.accountId ?? null,
     sourceDealId: deal.dealId ?? null,
     sourcePositionId: deal.positionId ?? null,
+    ...(hasNumericSourceSymbol && symbolId !== null ? { sourceSymbolId: symbolId } : {}),
+    ...(hasNumericSourceSymbol && symbol ? { brokerSymbol: symbol } : {}),
     symbol,
     direction,
     entry,
