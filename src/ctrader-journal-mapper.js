@@ -58,7 +58,7 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
     dealId: deal.dealId ?? null,
     positionId: deal.positionId ?? null,
     symbol,
-    symbolId: deal.symbolId ?? openingDeal?.symbolId ?? null,
+    symbolId: getCtraderDealSymbolId(deal, openingDeal),
     rawVolume,
     volumeInUnits: getCtraderVolumeInUnits(rawVolume),
     volumeInUnitsStep: getCtraderVolumeInUnits(symbolMetadata?.stepVolume ?? symbolMetadata?.volumeInUnitsStep),
@@ -134,9 +134,23 @@ export function mapCtraderMoneyToCurrency(value, fallback = null) {
 }
 
 function getCtraderSymbolMetadataForDeal(deal, openingDeal = null, options = {}) {
-  const symbolId = deal?.symbolId ?? openingDeal?.symbolId;
   const metadataById = options.symbolMetadataById || {};
+  const symbolId = getCtraderDealSymbolId(deal, openingDeal);
   return metadataById[String(symbolId)] || options.symbolMetadata || null;
+}
+
+function getCtraderDealSymbolId(deal, openingDeal = null) {
+  return firstDefined(
+    deal?.symbolId,
+    deal?.closePositionDetail?.symbolId,
+    isNumericIdentifier(deal?.symbol) ? deal.symbol : null,
+    openingDeal?.symbolId,
+    isNumericIdentifier(openingDeal?.symbol) ? openingDeal.symbol : null,
+  );
+}
+
+function firstDefined(...values) {
+  return values.find((value) => value !== undefined && value !== null && value !== '') ?? null;
 }
 
 function roundJournalSize(value) {
@@ -204,17 +218,35 @@ function normalizeTradeSide(tradeSide) {
 }
 
 function getCtraderDealSymbol(deal, openingDeal = null, symbolMetadata = null) {
-  return deal.symbolName
-    || deal.symbol
-    || openingDeal?.symbolName
-    || openingDeal?.symbol
-    || symbolMetadata?.symbolName
-    || symbolMetadata?.symbol
-    || symbolMetadata?.name
-    || symbolMetadata?.displayName
-    || (deal.symbolId !== undefined ? String(deal.symbolId) : null)
-    || (openingDeal?.symbolId !== undefined ? String(openingDeal.symbolId) : null)
-    || 'Unknown';
+  const readableSymbol = firstReadableSymbol(
+    symbolMetadata?.symbolName,
+    symbolMetadata?.symbol,
+    symbolMetadata?.name,
+    symbolMetadata?.displayName,
+    deal.symbolName,
+    deal.symbol,
+    openingDeal?.symbolName,
+    openingDeal?.symbol,
+  );
+  if (readableSymbol) {
+    return readableSymbol;
+  }
+
+  const symbolId = getCtraderDealSymbolId(deal, openingDeal);
+  return symbolId !== null ? String(symbolId) : 'Unknown';
+}
+
+function firstReadableSymbol(...values) {
+  return values
+    .map((value) => (value === undefined || value === null ? '' : String(value).trim()))
+    .find((value) => value && !isNumericIdentifier(value)) || null;
+}
+
+function isNumericIdentifier(value) {
+  if (value === undefined || value === null || value === '') {
+    return false;
+  }
+  return /^\d+$/.test(String(value).trim());
 }
 
 function getNetProfitLoss(closePositionDetail) {
