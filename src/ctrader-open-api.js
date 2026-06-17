@@ -168,7 +168,9 @@ export class CTraderOpenApiJsonClient {
       CTRADER_PAYLOAD_TYPES.PROTO_OA_SYMBOL_BY_ID_RES,
     );
 
-    return response.payload?.symbol?.[0] || response.payload?.archivedSymbol?.[0] || null;
+    return firstOpenApiSymbol(response.payload?.symbol)
+      || firstOpenApiSymbol(response.payload?.archivedSymbol)
+      || null;
   }
 
   async getDealList(ctidTraderAccountId, { fromTimestamp, toTimestamp, maxRows } = {}) {
@@ -300,6 +302,18 @@ export class CTraderOpenApiJsonClient {
       this.pendingRequests.delete(clientMsgId);
     }
   }
+}
+
+function firstOpenApiSymbol(symbolPayload) {
+  if (Array.isArray(symbolPayload)) {
+    return symbolPayload[0] || null;
+  }
+
+  if (symbolPayload && typeof symbolPayload === 'object') {
+    return symbolPayload;
+  }
+
+  return null;
 }
 
 export function parseOpenApiJsonMessage(data) {
