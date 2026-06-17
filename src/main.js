@@ -360,6 +360,7 @@ function screenshotPreview(trade) {
 }
 
 function tradeCard(trade) {
+  const displaySymbol = getTradeDisplaySymbol(trade);
   const pnl = calculatePnl(trade);
   const stopLoss = toOptionalNumber(trade.stopLoss);
   const riskDollars = calculateRiskDollars(trade);
@@ -372,7 +373,7 @@ function tradeCard(trade) {
     <article class="trade-card">
       <div class="trade-card-header">
         <div>
-          <p class="trade-symbol">${escapeHtml(trade.symbol)}</p>
+          <p class="trade-symbol">${escapeHtml(displaySymbol)}</p>
           <p class="trade-meta">${escapeHtml(trade.date)} • ${escapeHtml(trade.direction)} • ${escapeHtml(trade.setup)}</p>
         </div>
         <strong class="${tone}">${currency(pnl)}</strong>
@@ -395,6 +396,25 @@ function tradeCard(trade) {
       </button>
     </article>
   `;
+}
+
+function getTradeDisplaySymbol(trade) {
+  if (!isCTraderImportedTrade(trade)) {
+    return trade.symbol;
+  }
+
+  return firstReadableTradeSymbol(
+    trade.brokerSymbol,
+    trade.symbolName,
+    trade.displaySymbol,
+    trade.symbol,
+  ) || trade.symbol;
+}
+
+function firstReadableTradeSymbol(...values) {
+  return values
+    .map((value) => (value === undefined || value === null ? '' : String(value).trim()))
+    .find((value) => value && !/^\d+$/.test(value)) || null;
 }
 
 function isCTraderImportedTrade(trade) {
