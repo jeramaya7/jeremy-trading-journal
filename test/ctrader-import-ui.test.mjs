@@ -49,6 +49,16 @@ test('cTrader sync skips duplicates by source trade IDs and reports imported/ski
   assertIncludes(source, 'New trades imported: ${syncPlan.importedCount}. Trades skipped: ${syncPlan.skippedCount}.', 'The UI displays new imported and skipped cTrader trade counts.');
 });
 
+
+test('cTrader imports can be bulk deleted without removing manual trades', () => {
+  assertIncludes(source, 'id="deleteAllCTraderImports"', 'The hero actions render a Delete All cTrader Imports button.');
+  assertIncludes(source, 'Delete All cTrader Imports', 'The delete button uses the requested label.');
+  assertIncludes(source, "document.querySelector('#deleteAllCTraderImports').addEventListener('click', deleteAllCTraderImports);", 'The delete button is wired to its handler.');
+  assertIncludes(source, "window.confirm('Delete all imported cTrader trades?')", 'The handler asks for the requested confirmation before deleting.');
+  assertIncludes(source, "trades.filter((trade) => trade?.provider !== 'ctrader')", 'Only provider-marked cTrader imports are removed so manual trades remain.');
+  assertIncludes(source, 'You can re-sync to import clean cTrader data.', 'The status explains users can re-sync clean cTrader data after deletion.');
+});
+
 test('cTrader Auto Sync runs on startup and exposes settings metadata', () => {
   assertIncludes(source, "const AUTO_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-auto-sync:v1';", 'Auto Sync preference is persisted separately from trades.');
   assertIncludes(source, "const LAST_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-last-sync:v1';", 'Last sync time is persisted separately from trades.');
