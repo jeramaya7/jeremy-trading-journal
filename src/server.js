@@ -446,8 +446,28 @@ function logCtraderDealSymbolFields(accountId, deals) {
       closePositionDetailSymbol: deal?.closePositionDetail?.symbol ?? null,
       closePositionDetailSymbolId: deal?.closePositionDetail?.symbolId ?? null,
       closePositionDetailSymbolName: deal?.closePositionDetail?.symbolName ?? null,
+      allSymbolFields: collectCtraderSymbolFields(deal),
     })),
   });
+}
+
+function collectCtraderSymbolFields(value, path = '') {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+
+  const symbolFields = {};
+  for (const [key, fieldValue] of Object.entries(value)) {
+    const fieldPath = path ? `${path}.${key}` : key;
+    if (key.toLowerCase().includes('symbol')) {
+      symbolFields[fieldPath] = fieldValue;
+    }
+    if (fieldValue && typeof fieldValue === 'object' && !Array.isArray(fieldValue)) {
+      Object.assign(symbolFields, collectCtraderSymbolFields(fieldValue, fieldPath));
+    }
+  }
+
+  return symbolFields;
 }
 
 function getCtraderSymbolMetadataLogFields(symbol) {
