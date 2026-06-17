@@ -1,10 +1,11 @@
-import { buildCTraderSyncPlan } from './ctrader-sync.js';
+import { buildCTraderSyncPlan, getImportedTradeSourceKey } from './ctrader-sync.js';
 import { CTRADER_ENDPOINTS, buildCTraderOAuthUrl, fetchBackendJson, getBackendDiagnostics } from './backend-api.js';
 
 const STORAGE_KEY = 'jeremy-trading-journal:v1';
 const AUTO_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-auto-sync:v1';
 const LAST_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-last-sync:v1';
 const SELECTED_CTRADER_ACCOUNT_STORAGE_KEY = 'jeremy-trading-journal:ctrader-selected-account:v1';
+const DELETED_CTRADER_SOURCE_KEYS_STORAGE_KEY = 'deletedCTraderSourceKeys';
 const AUTO_SYNC_INTERVAL_MS = 60 * 1000;
 
 const starterTrades = [
@@ -128,6 +129,53 @@ function persistSelectedCTraderAccountId(accountId) {
     window.localStorage.setItem(SELECTED_CTRADER_ACCOUNT_STORAGE_KEY, selectedCTraderAccountId);
   } else {
     window.localStorage.removeItem(SELECTED_CTRADER_ACCOUNT_STORAGE_KEY);
+  }
+}
+
+function loadDeletedCTraderSourceKeys() {
+  const savedSourceKeys = window.localStorage.getItem(DELETED_CTRADER_SOURCE_KEYS_STORAGE_KEY);
+  if (!savedSourceKeys) {
+    return new Set();
+  }
+
+  try {
+    const parsedSourceKeys = JSON.parse(savedSourceKeys);
+    return new Set(Array.isArray(parsedSourceKeys) ? parsedSourceKeys.map(String) : []);
+  } catch (error) {
+    console.warn('[cTrader sync] Could not read deleted cTrader source keys.', error);
+    return new Set();
+  }
+}
+
+function persistDeletedCTraderSourceKeys(sourceKeys) {
+  window.localStorage.setItem(DELETED_CTRADER_SOURCE_KEYS_STORAGE_KEY, JSON.stringify([...sourceKeys].sort()));
+}
+
+function rememberDeletedCTraderSourceKey(trade) {
+  const sourceKey = getImportedTradeSourceKey(trade);
+  if (!sourceKey) {
+    return;
+  }
+
+  const deletedSourceKeys = loadDeletedCTraderSourceKeys();
+  deletedSourceKeys.add(sourceKey);
+  persistDeletedCTraderSourceKeys(deletedSourceKeys);
+}
+
+function rememberDeletedCTraderSourceKeys(deletedTrades) {
+  const deletedSourceKeys = loadDeletedCTraderSourceKeys();
+  let hasNewSourceKey = false;
+
+  deletedTrades.forEach((trade) => {
+    const sourceKey = getImportedTradeSourceKey(trade);
+    if (sourceKey && !deletedSourceKeys.has(sourceKey)) {
+      deletedSourceKeys.add(sourceKey);
+      hasNewSourceKey = true;
+    }
+  });
+
+  if (hasNewSourceKey) {
+    persistDeletedCTraderSourceKeys(deletedSourceKeys);
   }
 }
 
@@ -485,6 +533,8 @@ function bindEvents() {
 
   document.querySelectorAll('[data-delete-trade]').forEach((button) => {
     button.addEventListener('click', () => {
+      const deletedTrade = trades.find((trade) => trade.id === button.dataset.deleteTrade);
+      rememberDeletedCTraderSourceKey(deletedTrade);
       persistTrades(trades.filter((trade) => trade.id !== button.dataset.deleteTrade));
     });
   });
@@ -495,12 +545,14 @@ function deleteAllCTraderImports() {
     return;
   }
 
+  const deletedTrades = trades.filter((trade) => trade?.provider === 'ctrader');
+  rememberDeletedCTraderSourceKeys(deletedTrades);
   const remainingTrades = trades.filter((trade) => trade?.provider !== 'ctrader');
   const deletedCount = trades.length - remainingTrades.length;
 
   cTraderSyncStatus = {
     tone: 'success',
-    message: `Deleted ${deletedCount} imported cTrader ${deletedCount === 1 ? 'trade' : 'trades'}. You can re-sync to import clean cTrader data.`,
+    message: `Deleted ${deletedCount} imported cTrader ${deletedCount === 1 ? 'trade' : 'trades'}. They will not be re-imported on future syncs.`,
   };
   persistTrades(remainingTrades);
 }
@@ -918,7 +970,9 @@ async function syncCTrader(options = {}) {
     setCTraderBackendDiagnostics({ connectionStatus: 'Backend reachable; cTrader journal preview loaded.', tone: 'success' });
 
     const previewTrades = Array.isArray(preview.trades) ? preview.trades : [];
-    const syncPlan = buildCTraderSyncPlan(previewTrades, trades);
+    const syncPlan = buildCTraderSyncPlan(previewTrades, trades, {
+      deletedSourceKeys: loadDeletedCTraderSourceKeys(),
+    });
     logCTraderSyncDiagnostics({ preview, syncPlan, existingTrades: trades });
 
     if (syncPlan.importedTrades.length) {
