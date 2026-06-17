@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  applyCTraderImportedTradeUpdates,
   buildCTraderSyncPlan,
   convertCTraderPreviewTradeToJournalEntry,
   getImportedTradeSourceKey,
@@ -82,6 +83,40 @@ test('cTrader sync imports only trades not already in the journal', () => {
     'already in journal',
     'duplicate in cTrader response',
   ]);
+});
+
+test('cTrader sync updates stale local cTrader symbols from skipped preview trades', () => {
+  const existingTrades = [
+    {
+      id: 'ctrader-906',
+      provider: 'ctrader',
+      sourceTradeId: '906',
+      sourceSymbolId: 41,
+      symbol: '41',
+    },
+  ];
+  const previewTrades = [
+    {
+      ...closedPreviewTrade,
+      id: 'ctrader-906',
+      sourceDealId: 906,
+      sourceSymbolId: 41,
+      symbol: 'XAUUSD',
+      brokerSymbol: 'XAUUSD',
+    },
+  ];
+
+  const syncPlan = buildCTraderSyncPlan(previewTrades, existingTrades, {
+    now: () => Date.parse('2026-06-12T15:00:00.000Z'),
+  });
+  const updatedExistingTrades = applyCTraderImportedTradeUpdates(existingTrades, syncPlan.skippedTrades);
+
+  assert.equal(syncPlan.importedCount, 0);
+  assert.equal(syncPlan.skippedCount, 1);
+  assert.equal(updatedExistingTrades.updatedCount, 1);
+  assert.equal(updatedExistingTrades.trades[0].symbol, 'XAUUSD');
+  assert.equal(updatedExistingTrades.trades[0].brokerSymbol, 'XAUUSD');
+  assert.equal(updatedExistingTrades.trades[0].sourceSymbolId, 41);
 });
 
 test('existing duplicate protection still keys cTrader trades by source trade ID', () => {

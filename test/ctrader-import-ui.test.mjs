@@ -31,7 +31,8 @@ test('cTrader preview trades are converted into saved journal entries', () => {
   assertIncludes(syncSource, "setup: previewTrade.setup === 'cTrader import preview' ? 'cTrader import'", 'Preview-only setup copy is replaced with journal entry copy.');
   assertIncludes(syncSource, 'tags: normalizeImportedTags(previewTrade.tags)', 'Imported entries normalize preview tags.');
   assertIncludes(syncSource, 'importedAt: getImportedAt(options)', 'Imported entries record when they were saved locally.');
-  assertIncludes(source, 'persistTrades([...syncPlan.importedTrades, ...trades])', 'Imported trades are saved to the existing local journal storage path.');
+  assertIncludes(source, 'persistTrades([...syncPlan.importedTrades, ...updatedExistingTrades.trades])', 'Imported trades are saved to the existing local journal storage path.');
+  assertIncludes(source, 'applyCTraderImportedTradeUpdates(trades, syncPlan.skippedTrades)', 'Skipped duplicate imports refresh stale local cTrader symbols.');
 });
 
 test('cTrader imported trade cards show clean import details without emotion', () => {
