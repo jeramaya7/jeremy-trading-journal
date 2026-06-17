@@ -37,9 +37,9 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
       ?? closePositionDetail.openTimestamp
       ?? openingDeal?.executionTimestamp,
   );
-  const commission = toFiniteNumber(closePositionDetail.commission, 0);
-  const swap = toFiniteNumber(closePositionDetail.swap, 0);
-  const pnlConversionFee = toFiniteNumber(closePositionDetail.pnlConversionFee, 0);
+  const commission = mapCtraderMoneyToCurrency(closePositionDetail.commission, 0);
+  const swap = mapCtraderMoneyToCurrency(closePositionDetail.swap, 0);
+  const pnlConversionFee = mapCtraderMoneyToCurrency(closePositionDetail.pnlConversionFee, 0);
   const entry = toFiniteNumber(closePositionDetail.entryPrice ?? openingDeal?.executionPrice);
   const exit = toFiniteNumber(deal.executionPrice ?? closePositionDetail.exitPrice);
   const rawVolume = toFiniteNumber(
@@ -53,6 +53,7 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
   const symbolMetadata = options.symbolMetadata || getCtraderSymbolMetadataForDeal(deal, openingDeal, options);
   const symbol = getCtraderDealSymbol(deal, openingDeal, symbolMetadata);
   const volume = mapCtraderVolumeToJournalSize(rawVolume, symbolMetadata);
+  const netProfitLoss = getNetProfitLoss(closePositionDetail);
   logCtraderVolumeMapping(options, {
     dealId: deal.dealId ?? null,
     positionId: deal.positionId ?? null,
@@ -66,6 +67,7 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
     lotSize: toFiniteNumber(symbolMetadata?.lotSize),
     convertedLotSize: getCtraderLotSizeInUnits(symbolMetadata),
     finalStoredSize: volume,
+    finalStoredProfitLoss: netProfitLoss,
   });
 
   return {
@@ -83,7 +85,7 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
     openTime,
     closeTime,
     date: closeTime ? closeTime.slice(0, 10) : null,
-    netProfitLoss: getNetProfitLoss(closePositionDetail),
+    netProfitLoss,
     fees: Math.abs(commission) + Math.abs(swap) + Math.abs(pnlConversionFee),
     setup: 'cTrader import preview',
     emotion: '',
@@ -98,9 +100,15 @@ export function mapCtraderVolumeToJournalSize(rawVolume, symbolMetadata) {
     return null;
   }
 
+  // cTrader can return XAUUSD volume already as lots (0.01) or as cent-units (100).
+  // If it is already below 1, keep it as the lot size shown by cTrader.
+  if (parsedVolume > 0 && parsedVolume < 1) {
+    return roundJournalSize(parsedVolume);
+  }
+
   const lotSizeInUnits = getCtraderLotSizeInUnits(symbolMetadata);
   if (lotSizeInUnits === null || lotSizeInUnits <= 0) {
-    return null;
+    return roundJournalSize(parsedVolume);
   }
 
   return roundJournalSize(getCtraderVolumeInUnits(parsedVolume) / lotSizeInUnits);
@@ -116,6 +124,15 @@ export function getCtraderLotSizeInUnits(symbolMetadata) {
   return parsedLotSize === null ? null : getCtraderVolumeInUnits(parsedLotSize);
 }
 
+export function mapCtraderMoneyToCurrency(value, fallback = null) {
+  const parsedValue = toFiniteNumber(value);
+  if (parsedValue === null) {
+    return fallback;
+  }
+
+  return roundCurrency(parsedValue / 100);
+}
+
 function getCtraderSymbolMetadataForDeal(deal, openingDeal = null, options = {}) {
   const symbolId = deal?.symbolId ?? openingDeal?.symbolId;
   const metadataById = options.symbolMetadataById || {};
@@ -124,6 +141,10 @@ function getCtraderSymbolMetadataForDeal(deal, openingDeal = null, options = {})
 
 function roundJournalSize(value) {
   return Number(value.toFixed(8));
+}
+
+function roundCurrency(value) {
+  return Number(value.toFixed(2));
 }
 
 function logCtraderVolumeMapping(options, mapping) {
@@ -189,13 +210,15 @@ function getCtraderDealSymbol(deal, openingDeal = null, symbolMetadata = null) {
     || openingDeal?.symbol
     || symbolMetadata?.symbolName
     || symbolMetadata?.symbol
+    || symbolMetadata?.name
+    || symbolMetadata?.displayName
     || (deal.symbolId !== undefined ? String(deal.symbolId) : null)
     || (openingDeal?.symbolId !== undefined ? String(openingDeal.symbolId) : null)
     || 'Unknown';
 }
 
 function getNetProfitLoss(closePositionDetail) {
-  const explicitNetProfitLoss = toFiniteNumber(
+  const explicitNetProfitLoss = mapCtraderMoneyToCurrency(
     closePositionDetail.netProfitLoss
       ?? closePositionDetail.netProfit
       ?? closePositionDetail.realizedNetProfit,
@@ -204,11 +227,11 @@ function getNetProfitLoss(closePositionDetail) {
     return explicitNetProfitLoss;
   }
 
-  const grossProfit = toFiniteNumber(closePositionDetail.grossProfit, 0);
-  const swap = toFiniteNumber(closePositionDetail.swap, 0);
-  const commission = toFiniteNumber(closePositionDetail.commission, 0);
-  const pnlConversionFee = toFiniteNumber(closePositionDetail.pnlConversionFee, 0);
-  return grossProfit + swap + commission + pnlConversionFee;
+  const grossProfit = mapCtraderMoneyToCurrency(closePositionDetail.grossProfit, 0);
+  const swap = mapCtraderMoneyToCurrency(closePositionDetail.swap, 0);
+  const commission = mapCtraderMoneyToCurrency(closePositionDetail.commission, 0);
+  const pnlConversionFee = mapCtraderMoneyToCurrency(closePositionDetail.pnlConversionFee, 0);
+  return roundCurrency(grossProfit + swap + commission + pnlConversionFee);
 }
 
 function toIsoTimestamp(timestamp) {
@@ -216,11 +239,12 @@ function toIsoTimestamp(timestamp) {
   if (parsed === null) {
     return null;
   }
+
   return new Date(parsed).toISOString();
 }
 
 function toFiniteNumber(value, fallback = null) {
-  if (value === null || value === undefined || value === '') {
+  if (value === undefined || value === null || value === '') {
     return fallback;
   }
   const parsed = Number(value);
@@ -231,9 +255,8 @@ function cryptoSafeId(options = {}) {
   if (typeof options.idFactory === 'function') {
     return options.idFactory();
   }
-  return base64Url(randomBytes(9));
-}
-
-function base64Url(value) {
-  return Buffer.from(value).toString('base64url');
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+  return randomBytes(16).toString('hex');
 }
