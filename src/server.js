@@ -390,7 +390,7 @@ async function fetchCtraderSymbolMetadataForDeals(client, accountId, deals) {
   }
 
   const symbolIds = [...new Set((Array.isArray(deals) ? deals : [])
-    .map((deal) => deal?.symbolId)
+    .flatMap((deal) => [deal?.symbolId, deal?.closePositionDetail?.symbolId])
     .filter((symbolId) => symbolId !== undefined && symbolId !== null && symbolId !== ''))];
   const symbolMetadataById = {};
 

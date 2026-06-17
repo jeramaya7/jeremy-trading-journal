@@ -111,7 +111,7 @@ test('maps completed cTrader deals into journal preview trade objects', () => {
   }, {
     accountId: 12345,
     symbolMetadataById: {
-      undefined: { lotSize: 100000 },
+      undefined: { lotSize: 10000000 },
     },
   });
 
@@ -131,7 +131,7 @@ test('maps completed cTrader deals into journal preview trade objects', () => {
       openTime: '2023-07-22T04:26:40.000Z',
       closeTime: '2023-11-14T22:13:20.000Z',
       date: '2023-11-14',
-      netProfitLoss: 491,
+      netProfitLoss: 4.91,
       fees: 9,
       setup: 'cTrader import preview',
       emotion: '',
@@ -153,7 +153,7 @@ test('maps completed cTrader deals into journal preview trade objects', () => {
       openTime: null,
       closeTime: '2023-11-26T12:00:00.000Z',
       date: '2023-11-26',
-      netProfitLoss: 245,
+      netProfitLoss: 2.45,
       fees: 5,
       setup: 'cTrader import preview',
       emotion: '',
@@ -176,13 +176,13 @@ test('maps an individual cTrader closing deal into the journal trade schema', ()
     closePositionDetail: {
       entryTimestamp: 1_700_000_000_000,
       entryPrice: '1.0800',
-      realizedNetProfit: '120.5',
+      realizedNetProfit: '12050',
       commission: '-3.25',
       swap: '1.00',
       pnlConversionFee: '-0.75',
-      closedVolume: '2500000',
+      closedVolume: '0.25',
     },
-  }, null, { accountId: 24680, symbolMetadata: { lotSize: 100000 } });
+  }, null, { accountId: 24680, symbolMetadata: { lotSize: 10000000 } });
 
   assert.deepEqual(trade, {
     id: 'ctrader-777',
@@ -208,7 +208,7 @@ test('maps an individual cTrader closing deal into the journal trade schema', ()
   });
 });
 
-test('maps cTrader cent-volume into symbol-specific lot sizes and logs the mapping', () => {
+test('maps cTrader volume units into symbol-specific lot sizes and logs the mapping', () => {
   const logs = [];
   const logger = { info: (...args) => logs.push(args) };
 
@@ -221,9 +221,11 @@ test('maps cTrader cent-volume into symbol-specific lot sizes and logs the mappi
     closePositionDetail: {
       entryPrice: 2030,
       exitPrice: 2025,
-      closedVolume: 100,
+      closedVolume: 0.01,
+      grossProfit: -69,
+      commission: 0,
     },
-  }, null, { logger, symbolMetadata: { lotSize: 100, stepVolume: 100, minVolume: 100, maxVolume: 5000000 } });
+  }, null, { logger, symbolMetadata: { lotSize: 10000, stepVolume: 100, minVolume: 100, maxVolume: 5000000 } });
 
   const bitcoinTrade = mapCtraderClosingDealToJournalTrade({
     dealId: 802,
@@ -236,21 +238,43 @@ test('maps cTrader cent-volume into symbol-specific lot sizes and logs the mappi
       exitPrice: 65500,
       closedVolume: 1,
     },
-  }, null, { logger, symbolMetadata: { lotSize: 1, stepVolume: 1, minVolume: 1, maxVolume: 100000 } });
+  }, null, { logger, symbolMetadata: { lotSize: 100, stepVolume: 1, minVolume: 1, maxVolume: 100000 } });
 
   assert.equal(goldTrade.size, 0.01);
   assert.equal(goldTrade.volume, 0.01);
-  assert.equal(bitcoinTrade.size, 0.01);
-  assert.equal(bitcoinTrade.volume, 0.01);
+  assert.equal(goldTrade.symbol, 'XAUUSD');
+  assert.equal(goldTrade.netProfitLoss, -0.69);
+  assert.equal(bitcoinTrade.size, 1);
+  assert.equal(bitcoinTrade.volume, 1);
   assert.deepEqual(logs.map(([, mapping]) => ({
     symbol: mapping.symbol,
     rawVolume: mapping.rawVolume,
     convertedLotSize: mapping.convertedLotSize,
     finalStoredSize: mapping.finalStoredSize,
   })), [
-    { symbol: 'XAUUSD', rawVolume: 100, convertedLotSize: 100, finalStoredSize: 0.01 },
-    { symbol: 'BTCUSD', rawVolume: 1, convertedLotSize: 1, finalStoredSize: 0.01 },
+    { symbol: 'XAUUSD', rawVolume: 0.01, convertedLotSize: 100, finalStoredSize: 0.01 },
+    { symbol: 'BTCUSD', rawVolume: 1, convertedLotSize: 1, finalStoredSize: 1 },
   ]);
+});
+
+test('maps cTrader symbol metadata names instead of storing numeric symbol IDs', () => {
+  const trade = mapCtraderClosingDealToJournalTrade({
+    dealId: 803,
+    positionId: 903,
+    symbol: '41',
+    symbolId: 41,
+    tradeSide: 'BUY',
+    executionTimestamp: 1_700_100_000_000,
+    closePositionDetail: {
+      entryPrice: 2030,
+      exitPrice: 2025,
+      closedVolume: 0.01,
+      grossProfit: -69,
+    },
+  }, null, { symbolMetadataById: { 41: { symbolId: 41, symbolName: 'XAUUSD', lotSize: 10000 } } });
+
+  assert.equal(trade.symbol, 'XAUUSD');
+  assert.notEqual(trade.symbol, '41');
 });
 
 
@@ -290,7 +314,7 @@ test('GET /api/ctrader/deals authorizes account, fetches raw deals, stores raw r
 
     async getSymbolById(ctidTraderAccountId, symbolId) {
       calls.push(['getSymbolById', ctidTraderAccountId, symbolId]);
-      return { symbolId, symbolName: 'EURUSD', lotSize: 100000, stepVolume: 1000, minVolume: 1000 };
+      return { symbolId, symbolName: 'EURUSD', lotSize: 10000000, stepVolume: 1000, minVolume: 1000 };
     }
 
     close() {
@@ -392,7 +416,6 @@ test('GET /api/ctrader/journal-preview returns mapped trades without saving jour
           {
             dealId: 200,
             positionId: 300,
-            symbolName: 'USDJPY',
             symbolId: 392,
             tradeSide: 'SELL',
             executionPrice: 151.1,
@@ -402,7 +425,6 @@ test('GET /api/ctrader/journal-preview returns mapped trades without saving jour
           {
             dealId: 201,
             positionId: 300,
-            symbolName: 'USDJPY',
             symbolId: 392,
             tradeSide: 'BUY',
             executionPrice: 150.2,
@@ -421,7 +443,7 @@ test('GET /api/ctrader/journal-preview returns mapped trades without saving jour
 
     async getSymbolById(ctidTraderAccountId, symbolId) {
       calls.push(['getSymbolById', ctidTraderAccountId, symbolId]);
-      return { symbolId, symbolName: 'EURUSD', lotSize: 100000, stepVolume: 1000, minVolume: 1000 };
+      return { symbolId, symbolName: 'USDJPY', lotSize: 10000000, stepVolume: 1000, minVolume: 1000 };
     }
 
     close() {
@@ -477,7 +499,7 @@ test('GET /api/ctrader/journal-preview returns mapped trades without saving jour
         openTime: '2023-11-03T08:26:40.000Z',
         closeTime: '2023-11-14T22:13:20.000Z',
         date: '2023-11-14',
-        netProfitLoss: 87.5,
+        netProfitLoss: 0.88,
         fees: 2.5,
         setup: 'cTrader import preview',
         emotion: '',

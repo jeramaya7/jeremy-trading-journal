@@ -36,6 +36,8 @@ test('cTrader preview trades are converted into saved journal entries', () => {
 
 test('cTrader imported trade cards show clean import details without emotion', () => {
   assertIncludes(source, '<p class="trade-symbol">${escapeHtml(trade.symbol)}</p>', 'Trade cards display the symbol at the top of the card.');
+  assertIncludes(source, 'const importedNetProfitLoss = toOptionalNumber(trade.netProfitLoss);', 'Imported cTrader P/L uses the cTrader net profit/loss field instead of recalculating from journal size.');
+  assertIncludes(source, 'if (isCTraderImportedTrade(trade) && importedNetProfitLoss !== null) {', 'Only cTrader imported trades prefer the broker-provided P/L value.');
   assertIncludes(source, "const emotionDetail = isCTraderImportedTrade(trade) ? '' : `<span>Emotion: ${escapeHtml(trade.emotion)}</span>`;", 'cTrader imported trade cards omit emotion from the details.');
   assertIncludes(source, "return trade?.provider === 'ctrader' || String(trade?.tags || '').toLowerCase().includes('ctrader');", 'The card cleanup only targets cTrader imports.');
 });
