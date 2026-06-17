@@ -111,7 +111,7 @@ test('maps completed cTrader deals into journal preview trade objects', () => {
   }, {
     accountId: 12345,
     symbolMetadataById: {
-      undefined: { lotSize: 100000 },
+      undefined: { lotSize: 10000000 },
     },
   });
 
@@ -182,7 +182,7 @@ test('maps an individual cTrader closing deal into the journal trade schema', ()
       pnlConversionFee: '-0.75',
       closedVolume: '2500000',
     },
-  }, null, { accountId: 24680, symbolMetadata: { lotSize: 100000 } });
+  }, null, { accountId: 24680, symbolMetadata: { lotSize: 10000000 } });
 
   assert.deepEqual(trade, {
     id: 'ctrader-777',
@@ -222,8 +222,10 @@ test('maps cTrader cent-volume into symbol-specific lot sizes and logs the mappi
       entryPrice: 2030,
       exitPrice: 2025,
       closedVolume: 100,
+      grossProfit: 48.25,
+      commission: -2.5,
     },
-  }, null, { logger, symbolMetadata: { lotSize: 100, stepVolume: 100, minVolume: 100, maxVolume: 5000000 } });
+  }, null, { logger, symbolMetadata: { lotSize: 10000, stepVolume: 100, minVolume: 100, maxVolume: 5000000 } });
 
   const bitcoinTrade = mapCtraderClosingDealToJournalTrade({
     dealId: 802,
@@ -236,10 +238,12 @@ test('maps cTrader cent-volume into symbol-specific lot sizes and logs the mappi
       exitPrice: 65500,
       closedVolume: 1,
     },
-  }, null, { logger, symbolMetadata: { lotSize: 1, stepVolume: 1, minVolume: 1, maxVolume: 100000 } });
+  }, null, { logger, symbolMetadata: { lotSize: 100, stepVolume: 1, minVolume: 1, maxVolume: 100000 } });
 
   assert.equal(goldTrade.size, 0.01);
   assert.equal(goldTrade.volume, 0.01);
+  assert.equal(goldTrade.symbol, 'XAUUSD');
+  assert.equal(goldTrade.netProfitLoss, 45.75);
   assert.equal(bitcoinTrade.size, 0.01);
   assert.equal(bitcoinTrade.volume, 0.01);
   assert.deepEqual(logs.map(([, mapping]) => ({
@@ -290,7 +294,7 @@ test('GET /api/ctrader/deals authorizes account, fetches raw deals, stores raw r
 
     async getSymbolById(ctidTraderAccountId, symbolId) {
       calls.push(['getSymbolById', ctidTraderAccountId, symbolId]);
-      return { symbolId, symbolName: 'EURUSD', lotSize: 100000, stepVolume: 1000, minVolume: 1000 };
+      return { symbolId, symbolName: 'EURUSD', lotSize: 10000000, stepVolume: 1000, minVolume: 1000 };
     }
 
     close() {
@@ -421,7 +425,7 @@ test('GET /api/ctrader/journal-preview returns mapped trades without saving jour
 
     async getSymbolById(ctidTraderAccountId, symbolId) {
       calls.push(['getSymbolById', ctidTraderAccountId, symbolId]);
-      return { symbolId, symbolName: 'EURUSD', lotSize: 100000, stepVolume: 1000, minVolume: 1000 };
+      return { symbolId, symbolName: 'EURUSD', lotSize: 10000000, stepVolume: 1000, minVolume: 1000 };
     }
 
     close() {

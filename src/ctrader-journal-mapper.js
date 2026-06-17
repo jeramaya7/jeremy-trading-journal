@@ -113,7 +113,7 @@ export function getCtraderVolumeInUnits(volumeInCents) {
 
 export function getCtraderLotSizeInUnits(symbolMetadata) {
   const parsedLotSize = toFiniteNumber(symbolMetadata?.lotSize);
-  return parsedLotSize === null ? null : parsedLotSize;
+  return parsedLotSize === null ? null : getCtraderVolumeInUnits(parsedLotSize);
 }
 
 function getCtraderSymbolMetadataForDeal(deal, openingDeal = null, options = {}) {
