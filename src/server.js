@@ -390,8 +390,13 @@ async function fetchCtraderSymbolMetadataForDeals(client, accountId, deals) {
   }
 
   const symbolIds = [...new Set((Array.isArray(deals) ? deals : [])
-    .map((deal) => deal?.symbolId)
-    .filter((symbolId) => symbolId !== undefined && symbolId !== null && symbolId !== ''))];
+    .flatMap((deal) => [
+      deal?.symbolId,
+      deal?.closePositionDetail?.symbolId,
+      isNumericCtraderSymbolIdentifier(deal?.symbol) ? deal.symbol : null,
+    ])
+    .filter((symbolId) => symbolId !== undefined && symbolId !== null && symbolId !== '')
+    .map((symbolId) => String(symbolId)))];
   const symbolMetadataById = {};
 
   for (const symbolId of symbolIds) {
@@ -402,6 +407,13 @@ async function fetchCtraderSymbolMetadataForDeals(client, accountId, deals) {
   }
 
   return symbolMetadataById;
+}
+
+function isNumericCtraderSymbolIdentifier(value) {
+  if (value === undefined || value === null || value === '') {
+    return false;
+  }
+  return /^\d+$/.test(String(value).trim());
 }
 
 export async function fetchCtraderAccounts(config, tokens, requestOptions = {}, options = {}) {
