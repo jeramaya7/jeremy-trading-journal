@@ -53,7 +53,9 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
   const symbolMetadata = options.symbolMetadata || getCtraderSymbolMetadataForDeal(deal, openingDeal, options);
   const symbol = getCtraderDealSymbol(deal, openingDeal, symbolMetadata);
   const symbolId = getCtraderDealSymbolId(deal, openingDeal);
-  const hasNumericSourceSymbol = isNumericIdentifier(deal?.symbol) || isNumericIdentifier(openingDeal?.symbol);
+  const hasNumericSourceSymbol = isNumericIdentifier(deal?.symbol)
+    || isNumericIdentifier(deal?.closePositionDetail?.symbol)
+    || isNumericIdentifier(openingDeal?.symbol);
   const volume = mapCtraderVolumeToJournalSize(rawVolume, symbolMetadata);
   const netProfitLoss = getNetProfitLoss(closePositionDetail);
   logCtraderVolumeMapping(options, {
@@ -147,6 +149,7 @@ function getCtraderDealSymbolId(deal, openingDeal = null) {
   return firstDefined(
     deal?.symbolId,
     deal?.closePositionDetail?.symbolId,
+    isNumericIdentifier(deal?.closePositionDetail?.symbol) ? deal.closePositionDetail.symbol : null,
     isNumericIdentifier(deal?.symbol) ? deal.symbol : null,
     openingDeal?.symbolId,
     isNumericIdentifier(openingDeal?.symbol) ? openingDeal.symbol : null,

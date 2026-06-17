@@ -293,6 +293,30 @@ test('maps numeric cTrader symbol ID 41 to XAUUSD from symbol metadata', () => {
   assert.equal(trade.symbol, 'XAUUSD');
 });
 
+test('maps numeric closePositionDetail symbol 41 to XAUUSD from symbol metadata', () => {
+  const trade = mapCtraderClosingDealToJournalTrade({
+    dealId: 907,
+    positionId: 1907,
+    tradeSide: 'SELL',
+    executionPrice: 2035,
+    executionTimestamp: 1_700_000_000_000,
+    closePositionDetail: {
+      symbol: '41',
+      entryPrice: 2030,
+      closedVolume: 100,
+      grossProfit: 500,
+    },
+  }, null, {
+    symbolMetadataById: {
+      41: { symbolId: 41, symbolName: 'XAUUSD', lotSize: 10000 },
+    },
+  });
+
+  assert.equal(trade.sourceSymbolId, '41');
+  assert.equal(trade.symbol, 'XAUUSD');
+  assert.equal(trade.brokerSymbol, 'XAUUSD');
+});
+
 test('maps numeric cTrader symbol ID 10026 to BTCUSD from symbol metadata', () => {
   const trade = mapCtraderClosingDealToJournalTrade({
     dealId: 903,

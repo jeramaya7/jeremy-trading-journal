@@ -388,3 +388,23 @@ test('authenticateAndAuthorizeAccount routes selected live accounts to the live 
     'wss://live.ctraderapi.com:5036',
   ]);
 });
+
+test('prefers readable archived cTrader symbol metadata over numeric active placeholder', async () => {
+  const client = createClient();
+  const symbolPromise = client.getSymbolById(45954931, 41);
+  const socket = FakeWebSocket.instances[0];
+  socket.open();
+  await flushMicrotasks();
+
+  const sentMessage = socket.sentMessages[0];
+  socket.receive({
+    clientMsgId: sentMessage.clientMsgId,
+    payloadType: CTRADER_PAYLOAD_TYPES.PROTO_OA_SYMBOL_BY_ID_RES,
+    payload: {
+      symbol: [{ symbolId: 41, symbolName: '41', lotSize: 10000 }],
+      archivedSymbol: [{ symbolId: 41, symbolName: 'XAUUSD', lotSize: 10000 }],
+    },
+  });
+
+  assert.deepEqual(await symbolPromise, { symbolId: 41, symbolName: 'XAUUSD', lotSize: 10000 });
+});
