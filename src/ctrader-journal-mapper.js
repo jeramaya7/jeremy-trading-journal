@@ -228,8 +228,12 @@ function getCtraderDealSymbol(deal, openingDeal = null, symbolMetadata = null) {
     symbolMetadata?.name,
     symbolMetadata?.displayName,
     deal.symbolName,
+    deal.closePositionDetail?.symbolName,
+    deal.closePositionDetail?.symbol,
     deal.symbol,
     openingDeal?.symbolName,
+    openingDeal?.closePositionDetail?.symbolName,
+    openingDeal?.closePositionDetail?.symbol,
     openingDeal?.symbol,
   );
   if (readableSymbol) {

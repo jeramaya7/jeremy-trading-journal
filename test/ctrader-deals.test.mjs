@@ -387,6 +387,36 @@ test('imported XAUUSD trade stores card-ready broker symbol instead of numeric c
   assert.doesNotMatch(journalCardSymbolMarkup, />41</);
 });
 
+test('source trade 321731737 uses closePositionDetail symbolName as broker symbol', () => {
+  const previewTrade = mapCtraderClosingDealToJournalTrade({
+    dealId: 321731737,
+    positionId: 321700001,
+    symbol: '41',
+    tradeSide: 'SELL',
+    executionPrice: 2035,
+    executionTimestamp: 1_700_000_000_000,
+    closePositionDetail: {
+      symbolId: 41,
+      symbolName: 'XAUUSD',
+      entryPrice: 2030,
+      grossProfit: 500,
+      closedVolume: 100,
+    },
+  });
+
+  const importedTrade = convertCTraderPreviewTradeToJournalEntry(previewTrade, {
+    now: () => 1_700_000_001_000,
+  });
+
+  assert.equal(previewTrade.sourceSymbolId, 41);
+  assert.equal(previewTrade.symbol, 'XAUUSD');
+  assert.equal(previewTrade.brokerSymbol, 'XAUUSD');
+  assert.equal(importedTrade.sourceTradeId, '321731737');
+  assert.equal(importedTrade.symbol, 'XAUUSD');
+  assert.equal(importedTrade.brokerSymbol, 'XAUUSD');
+  assert.notEqual(importedTrade.symbol, '41');
+});
+
 
 test('GET /api/ctrader/deals authorizes account, fetches raw deals, stores raw response, and returns JSON', async () => {
   const dataDir = await mkdtemp(join(tmpdir(), 'ctrader-deals-test-'));
