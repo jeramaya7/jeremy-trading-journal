@@ -1,6 +1,10 @@
 import { randomBytes } from 'node:crypto';
 
-export const CTRADER_JOURNAL_MAPPER_TRACE_VERSION = 'symbol-metadata-by-id-v2';
+export const CTRADER_JOURNAL_MAPPER_TRACE_VERSION = 'symbol-metadata-by-id-v3-symbol-fallback';
+
+const BROKER_SYMBOL_FALLBACKS_BY_ID = {
+  41: 'XAUUSD',
+};
 
 export function mapCtraderDealsToJournalTrades(rawDeals, options = {}) {
   const deals = Array.isArray(rawDeals?.deal) ? rawDeals.deal : [];
@@ -232,6 +236,8 @@ function getCtraderDealSymbol(deal, openingDeal = null, symbolMetadata = null) {
     symbolMetadata?.symbol,
     symbolMetadata?.name,
     symbolMetadata?.displayName,
+    symbolMetadata?.baseAssetName,
+    symbolMetadata?.quoteAssetName,
     deal.symbolName,
     deal.closePositionDetail?.symbolName,
     deal.closePositionDetail?.symbol,
@@ -246,6 +252,11 @@ function getCtraderDealSymbol(deal, openingDeal = null, symbolMetadata = null) {
   }
 
   const symbolId = getCtraderDealSymbolId(deal, openingDeal);
+  const fallbackSymbol = BROKER_SYMBOL_FALLBACKS_BY_ID[String(symbolId)];
+  if (fallbackSymbol) {
+    return fallbackSymbol;
+  }
+
   return symbolId !== null ? String(symbolId) : 'Unknown';
 }
 
