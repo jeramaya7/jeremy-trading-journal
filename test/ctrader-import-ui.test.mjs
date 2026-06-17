@@ -34,6 +34,12 @@ test('cTrader preview trades are converted into saved journal entries', () => {
   assertIncludes(source, 'persistTrades([...syncPlan.importedTrades, ...trades])', 'Imported trades are saved to the existing local journal storage path.');
 });
 
+test('cTrader imported trade cards show clean import details without emotion', () => {
+  assertIncludes(source, '<p class="trade-symbol">${escapeHtml(trade.symbol)}</p>', 'Trade cards display the symbol at the top of the card.');
+  assertIncludes(source, "const emotionDetail = isCTraderImportedTrade(trade) ? '' : `<span>Emotion: ${escapeHtml(trade.emotion)}</span>`;", 'cTrader imported trade cards omit emotion from the details.');
+  assertIncludes(source, "return trade?.provider === 'ctrader' || String(trade?.tags || '').toLowerCase().includes('ctrader');", 'The card cleanup only targets cTrader imports.');
+});
+
 test('cTrader sync skips duplicates by source trade IDs and reports imported/skipped counts', () => {
   assertIncludes(syncSource, 'sourceTradeId,', 'Imported entries retain a source trade ID.');
   assertIncludes(syncSource, 'export function hasSourceTradeAlreadyBeenImported(candidateTrade, existingTrades)', 'Duplicate detection checks imported trades against existing journal entries.');
