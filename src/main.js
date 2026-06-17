@@ -206,6 +206,11 @@ function calculateRMultiple(trade) {
 }
 
 function calculatePnl(trade) {
+  const importedNetProfitLoss = toOptionalNumber(trade.netProfitLoss);
+  if (isCTraderImportedTrade(trade) && importedNetProfitLoss !== null) {
+    return importedNetProfitLoss;
+  }
+
   const entry = Number(trade.entry) || 0;
   const exit = Number(trade.exit) || 0;
   const size = Number(trade.size) || 0;

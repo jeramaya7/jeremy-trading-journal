@@ -42,23 +42,22 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
   const pnlConversionFee = toFiniteNumber(closePositionDetail.pnlConversionFee, 0);
   const entry = toFiniteNumber(closePositionDetail.entryPrice ?? openingDeal?.executionPrice);
   const exit = toFiniteNumber(deal.executionPrice ?? closePositionDetail.exitPrice);
-  const rawVolume = toFiniteNumber(
-    closePositionDetail.closedVolume
-      ?? closePositionDetail.volume
-      ?? deal.filledVolume
-      ?? deal.volume
-      ?? openingDeal?.filledVolume
-      ?? openingDeal?.volume,
-  );
+  const volumeSource = getCtraderVolumeSource(deal, openingDeal, closePositionDetail);
+  const rawVolume = toFiniteNumber(volumeSource?.value);
   const symbolMetadata = options.symbolMetadata || getCtraderSymbolMetadataForDeal(deal, openingDeal, options);
   const symbol = getCtraderDealSymbol(deal, openingDeal, symbolMetadata);
-  const volume = mapCtraderVolumeToJournalSize(rawVolume, symbolMetadata);
+  const volume = mapCtraderVolumeToJournalSize(rawVolume, symbolMetadata, volumeSource?.unit);
+  const netProfitLoss = getNetProfitLoss(closePositionDetail);
   logCtraderVolumeMapping(options, {
     dealId: deal.dealId ?? null,
     positionId: deal.positionId ?? null,
     symbol,
     symbolId: deal.symbolId ?? openingDeal?.symbolId ?? null,
+    rawSide: deal.tradeSide ?? null,
+    rawProfit: getRawProfitLoss(closePositionDetail),
     rawVolume,
+    rawVolumeSource: volumeSource?.field ?? null,
+    rawVolumeUnit: volumeSource?.unit ?? null,
     volumeInUnits: getCtraderVolumeInUnits(rawVolume),
     volumeInUnitsStep: getCtraderVolumeInUnits(symbolMetadata?.stepVolume ?? symbolMetadata?.volumeInUnitsStep),
     minVolume: getCtraderVolumeInUnits(symbolMetadata?.minVolume),
@@ -66,6 +65,7 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
     lotSize: toFiniteNumber(symbolMetadata?.lotSize),
     convertedLotSize: getCtraderLotSizeInUnits(symbolMetadata),
     finalStoredSize: volume,
+    finalStoredProfitLoss: netProfitLoss,
   });
 
   return {
@@ -83,7 +83,7 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
     openTime,
     closeTime,
     date: closeTime ? closeTime.slice(0, 10) : null,
-    netProfitLoss: getNetProfitLoss(closePositionDetail),
+    netProfitLoss,
     fees: Math.abs(commission) + Math.abs(swap) + Math.abs(pnlConversionFee),
     setup: 'cTrader import preview',
     emotion: '',
@@ -92,10 +92,14 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
   };
 }
 
-export function mapCtraderVolumeToJournalSize(rawVolume, symbolMetadata) {
+export function mapCtraderVolumeToJournalSize(rawVolume, symbolMetadata, volumeUnit = 'cent-units') {
   const parsedVolume = toFiniteNumber(rawVolume);
   if (parsedVolume === null) {
     return null;
+  }
+
+  if (volumeUnit === 'lots') {
+    return roundJournalSize(parsedVolume);
   }
 
   const lotSizeInUnits = getCtraderLotSizeInUnits(symbolMetadata);
@@ -113,13 +117,35 @@ export function getCtraderVolumeInUnits(volumeInCents) {
 
 export function getCtraderLotSizeInUnits(symbolMetadata) {
   const parsedLotSize = toFiniteNumber(symbolMetadata?.lotSize);
-  return parsedLotSize === null ? null : parsedLotSize;
+  return parsedLotSize === null ? null : getCtraderVolumeInUnits(parsedLotSize);
 }
 
 function getCtraderSymbolMetadataForDeal(deal, openingDeal = null, options = {}) {
   const symbolId = deal?.symbolId ?? openingDeal?.symbolId;
   const metadataById = options.symbolMetadataById || {};
   return metadataById[String(symbolId)] || options.symbolMetadata || null;
+}
+
+function getCtraderVolumeSource(deal, openingDeal, closePositionDetail) {
+  if (closePositionDetail.closedVolume !== undefined && closePositionDetail.closedVolume !== null && closePositionDetail.closedVolume !== '') {
+    return { field: 'closePositionDetail.closedVolume', value: closePositionDetail.closedVolume, unit: 'lots' };
+  }
+  if (closePositionDetail.volume !== undefined && closePositionDetail.volume !== null && closePositionDetail.volume !== '') {
+    return { field: 'closePositionDetail.volume', value: closePositionDetail.volume, unit: 'lots' };
+  }
+  if (deal.filledVolume !== undefined && deal.filledVolume !== null && deal.filledVolume !== '') {
+    return { field: 'deal.filledVolume', value: deal.filledVolume, unit: 'cent-units' };
+  }
+  if (deal.volume !== undefined && deal.volume !== null && deal.volume !== '') {
+    return { field: 'deal.volume', value: deal.volume, unit: 'cent-units' };
+  }
+  if (openingDeal?.filledVolume !== undefined && openingDeal.filledVolume !== null && openingDeal.filledVolume !== '') {
+    return { field: 'openingDeal.filledVolume', value: openingDeal.filledVolume, unit: 'cent-units' };
+  }
+  if (openingDeal?.volume !== undefined && openingDeal.volume !== null && openingDeal.volume !== '') {
+    return { field: 'openingDeal.volume', value: openingDeal.volume, unit: 'cent-units' };
+  }
+  return null;
 }
 
 function roundJournalSize(value) {
@@ -201,14 +227,32 @@ function getNetProfitLoss(closePositionDetail) {
       ?? closePositionDetail.realizedNetProfit,
   );
   if (explicitNetProfitLoss !== null) {
-    return explicitNetProfitLoss;
+    return mapCtraderMoneyToCurrency(explicitNetProfitLoss);
   }
 
   const grossProfit = toFiniteNumber(closePositionDetail.grossProfit, 0);
   const swap = toFiniteNumber(closePositionDetail.swap, 0);
   const commission = toFiniteNumber(closePositionDetail.commission, 0);
   const pnlConversionFee = toFiniteNumber(closePositionDetail.pnlConversionFee, 0);
-  return grossProfit + swap + commission + pnlConversionFee;
+  return mapCtraderMoneyToCurrency(grossProfit + swap + commission + pnlConversionFee);
+}
+
+function getRawProfitLoss(closePositionDetail) {
+  return toFiniteNumber(
+    closePositionDetail.netProfitLoss
+      ?? closePositionDetail.netProfit
+      ?? closePositionDetail.realizedNetProfit
+      ?? closePositionDetail.grossProfit,
+  );
+}
+
+function mapCtraderMoneyToCurrency(valueInCents) {
+  const parsedValue = toFiniteNumber(valueInCents);
+  return parsedValue === null ? null : roundCurrency(parsedValue / 100);
+}
+
+function roundCurrency(value) {
+  return Number(value.toFixed(2));
 }
 
 function toIsoTimestamp(timestamp) {
