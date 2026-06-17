@@ -220,6 +220,44 @@ test('fetches cTrader symbol metadata by symbol ID', async () => {
   assert.deepEqual(await symbolPromise, { symbolId: 392, lotSize: 10000000, stepVolume: 1000, minVolume: 1000 });
 });
 
+test('fetches cTrader symbol metadata when JSON payload returns a symbol object', async () => {
+  const client = createClient();
+  const symbolPromise = client.getSymbolById(12345, 41);
+  const socket = FakeWebSocket.instances[0];
+  socket.open();
+  await flushMicrotasks();
+
+  const sentMessage = socket.sentMessages[0];
+  socket.receive({
+    clientMsgId: sentMessage.clientMsgId,
+    payloadType: CTRADER_PAYLOAD_TYPES.PROTO_OA_SYMBOL_BY_ID_RES,
+    payload: {
+      symbol: { symbolId: 41, symbolName: 'XAUUSD', lotSize: 10000 },
+    },
+  });
+
+  assert.deepEqual(await symbolPromise, { symbolId: 41, symbolName: 'XAUUSD', lotSize: 10000 });
+});
+
+test('fetches archived cTrader symbol metadata when JSON payload returns an archived symbol object', async () => {
+  const client = createClient();
+  const symbolPromise = client.getSymbolById(12345, 10026);
+  const socket = FakeWebSocket.instances[0];
+  socket.open();
+  await flushMicrotasks();
+
+  const sentMessage = socket.sentMessages[0];
+  socket.receive({
+    clientMsgId: sentMessage.clientMsgId,
+    payloadType: CTRADER_PAYLOAD_TYPES.PROTO_OA_SYMBOL_BY_ID_RES,
+    payload: {
+      archivedSymbol: { symbolId: 10026, symbolName: 'BTCUSD', lotSize: 100 },
+    },
+  });
+
+  assert.deepEqual(await symbolPromise, { symbolId: 10026, symbolName: 'BTCUSD', lotSize: 100 });
+});
+
 test('fetches historical cTrader deals for an authorized account', async () => {
   const client = createClient();
   const dealsPromise = client.getDealList(12345, {

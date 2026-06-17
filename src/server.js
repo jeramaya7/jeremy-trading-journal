@@ -344,6 +344,7 @@ export async function fetchRecentCtraderDeals(config, tokens, requestOptions = {
       toTimestamp: requestOptions.toTimestamp,
       maxRows: requestOptions.maxRows,
     });
+    logCtraderDealSymbolFields(accountAuth.authorizedAccountId, rawDeals?.deal);
     const symbolMetadataById = await fetchCtraderSymbolMetadataForDeals(
       client,
       accountAuth.authorizedAccountId,
@@ -394,19 +395,75 @@ async function fetchCtraderSymbolMetadataForDeals(client, accountId, deals) {
       deal?.symbolId,
       deal?.closePositionDetail?.symbolId,
       isNumericCtraderSymbolIdentifier(deal?.symbol) ? deal.symbol : null,
+      deal?.closePositionDetail?.symbol,
     ])
     .filter((symbolId) => symbolId !== undefined && symbolId !== null && symbolId !== '')
+    .filter(isNumericCtraderSymbolIdentifier)
     .map((symbolId) => String(symbolId)))];
   const symbolMetadataById = {};
 
   for (const symbolId of symbolIds) {
-    const symbol = await client.getSymbolById(accountId, symbolId);
-    if (symbol) {
-      symbolMetadataById[String(symbolId)] = symbol;
+    try {
+      const symbol = await client.getSymbolById(accountId, symbolId);
+      if (symbol) {
+        symbolMetadataById[String(symbolId)] = symbol;
+        console.info('[cTrader symbols] Metadata resolved', {
+          accountId,
+          symbolId,
+          symbolName: symbol?.symbolName ?? symbol?.symbol ?? symbol?.name ?? symbol?.displayName ?? null,
+          rawSymbolFields: getCtraderSymbolMetadataLogFields(symbol),
+        });
+      } else {
+        console.warn('[cTrader symbols] Metadata lookup returned no symbol', { accountId, symbolId });
+      }
+    } catch (error) {
+      console.warn('[cTrader symbols] Metadata lookup failed', {
+        accountId,
+        symbolId,
+        error: error.message || 'Unknown cTrader symbol metadata error',
+      });
     }
   }
 
   return symbolMetadataById;
+}
+
+function logCtraderDealSymbolFields(accountId, deals) {
+  if (!Array.isArray(deals) || deals.length === 0) {
+    console.info('[cTrader deals] Raw symbol fields', { accountId, dealCount: 0, symbolFields: [] });
+    return;
+  }
+
+  console.info('[cTrader deals] Raw symbol fields', {
+    accountId,
+    dealCount: deals.length,
+    symbolFields: deals.map((deal) => ({
+      dealId: deal?.dealId ?? null,
+      positionId: deal?.positionId ?? null,
+      symbol: deal?.symbol ?? null,
+      symbolId: deal?.symbolId ?? null,
+      symbolName: deal?.symbolName ?? null,
+      closePositionDetailSymbol: deal?.closePositionDetail?.symbol ?? null,
+      closePositionDetailSymbolId: deal?.closePositionDetail?.symbolId ?? null,
+      closePositionDetailSymbolName: deal?.closePositionDetail?.symbolName ?? null,
+    })),
+  });
+}
+
+function getCtraderSymbolMetadataLogFields(symbol) {
+  if (!symbol || typeof symbol !== 'object') {
+    return symbol ?? null;
+  }
+
+  return {
+    symbolId: symbol.symbolId ?? null,
+    symbolName: symbol.symbolName ?? null,
+    symbol: symbol.symbol ?? null,
+    name: symbol.name ?? null,
+    displayName: symbol.displayName ?? null,
+    baseAssetId: symbol.baseAssetId ?? null,
+    quoteAssetId: symbol.quoteAssetId ?? null,
+  };
 }
 
 function isNumericCtraderSymbolIdentifier(value) {
