@@ -168,7 +168,8 @@ export class CTraderOpenApiJsonClient {
       CTRADER_PAYLOAD_TYPES.PROTO_OA_SYMBOL_BY_ID_RES,
     );
 
-    return firstOpenApiSymbol(response.payload?.symbol)
+    return firstReadableOpenApiSymbol(response.payload?.symbol, response.payload?.archivedSymbol)
+      || firstOpenApiSymbol(response.payload?.symbol)
       || firstOpenApiSymbol(response.payload?.archivedSymbol)
       || null;
   }
@@ -305,15 +306,33 @@ export class CTraderOpenApiJsonClient {
 }
 
 function firstOpenApiSymbol(symbolPayload) {
+  return openApiSymbolCandidates(symbolPayload)[0] || null;
+}
+
+function firstReadableOpenApiSymbol(...symbolPayloads) {
+  return symbolPayloads
+    .flatMap(openApiSymbolCandidates)
+    .find(hasReadableOpenApiSymbolName) || null;
+}
+
+function openApiSymbolCandidates(symbolPayload) {
   if (Array.isArray(symbolPayload)) {
-    return symbolPayload[0] || null;
+    return symbolPayload.filter((symbol) => symbol && typeof symbol === 'object');
   }
 
   if (symbolPayload && typeof symbolPayload === 'object') {
-    return symbolPayload;
+    return [symbolPayload];
   }
 
-  return null;
+  return [];
+}
+
+function hasReadableOpenApiSymbolName(symbol) {
+  return [symbol?.symbolName, symbol?.symbol, symbol?.name, symbol?.displayName]
+    .some((value) => {
+      const normalized = value === undefined || value === null ? '' : String(value).trim();
+      return normalized && !/^\d+$/.test(normalized);
+    });
 }
 
 export function parseOpenApiJsonMessage(data) {
