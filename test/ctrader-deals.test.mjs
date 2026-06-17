@@ -208,7 +208,7 @@ test('maps an individual cTrader closing deal into the journal trade schema', ()
   });
 });
 
-test('maps cTrader cent-volume into symbol-specific lot sizes and logs the mapping', () => {
+test('maps cTrader volume units into symbol-specific lot sizes and logs the mapping', () => {
   const logs = [];
   const logger = { info: (...args) => logs.push(args) };
 
