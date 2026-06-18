@@ -99,6 +99,24 @@ const PLAY_BOOK_SETUP_OPTIONS = [
   'The General Forecast',
 ];
 const CUSTOM_SETUP_OPTION = 'Custom';
+const LOSS_REASON_OPTIONS = [
+  'Bad Entry',
+  'Chased Price',
+  'Entered Too Late',
+  'Entered Too Early',
+  'Stop Too Tight',
+  'Stop Too Wide',
+  'Ignored Trend',
+  'Against 200 MA',
+  'News Spike',
+  'No Clear Setup',
+  'Moved Stop',
+  'Took Profit Too Late',
+  'Revenge Trade',
+  'Overtraded',
+  'Good Trade, Normal Loss',
+  'Other',
+];
 
 const app = document.querySelector('#root');
 
@@ -761,13 +779,18 @@ function tradeCard(trade) {
 
 function tradeJournalDetails(trade) {
   return `
+      ${trade.lossReason ? `<p class="loss-reason"><strong>Loss Reason:</strong> ${escapeHtml(trade.lossReason)}</p>` : ''}
       ${trade.tags ? `<p class="tags">${escapeHtml(trade.tags)}</p>` : ''}
       ${trade.notes ? `<p class="notes">${escapeHtml(trade.notes)}</p>` : ''}`;
 }
 
-function renderSetupOption(option, selectedValue) {
+function renderSelectOption(option, selectedValue) {
   const selected = option === selectedValue ? ' selected' : '';
   return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(option)}</option>`;
+}
+
+function renderSetupOption(option, selectedValue) {
+  return renderSelectOption(option, selectedValue);
 }
 
 function isPlayBookSetup(setup) {
@@ -785,6 +808,16 @@ function renderPlayBookSetupSelect(trade) {
       ${renderSetupOption(CUSTOM_SETUP_OPTION, selectedSetup)}
     </select>
     <input name="setupCustom" value="${escapeHtml(customValue)}" placeholder="Custom setup name" data-custom-setup="${escapeHtml(trade.id)}"${customHidden} />
+  `;
+}
+
+function renderLossReasonSelect(trade) {
+  const currentLossReason = String(trade.lossReason || '').trim();
+  return `
+    <select name="lossReason" aria-label="Loss Reason">
+      <option value="">No loss reason</option>
+      ${LOSS_REASON_OPTIONS.map((option) => renderSelectOption(option, currentLossReason)).join('')}
+    </select>
   `;
 }
 
@@ -806,6 +839,7 @@ function editTradeForm(trade) {
       <form class="edit-trade-form" data-edit-trade-form="${escapeHtml(trade.id)}">
         <div class="form-grid">
           ${field('Setup', renderPlayBookSetupSelect(trade))}
+          ${field('Loss Reason', renderLossReasonSelect(trade))}
           ${field('Tags', `<input name="tags" value="${escapeHtml(trade.tags)}" placeholder="gap, reversal, A+" />`)}
         </div>
         ${field('Notes', `<textarea name="notes" rows="5" placeholder="What was the plan? What happened? What will you repeat or avoid?">${escapeHtml(trade.notes)}</textarea>`)}
@@ -1173,6 +1207,7 @@ async function submitTradeEdit(event) {
   const uploadedScreenshot = formData.get('editScreenshot');
   const journalingUpdates = {
     setup: getSetupFormValue(formData),
+    lossReason: String(formData.get('lossReason')).trim(),
     tags: String(formData.get('tags')).trim(),
     notes: String(formData.get('notes')).trim(),
   };
