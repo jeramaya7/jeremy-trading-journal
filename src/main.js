@@ -522,7 +522,9 @@ function setupAnalyticsRow(report) {
 
 function getStats() {
   const pnlValues = trades.map(calculatePnl);
-  const rValues = trades.map(calculateRMultiple).filter((value) => value !== null);
+  const rValues = trades.map(calculateRMultiple).filter(Number.isFinite);
+  const riskDollarValues = trades.map(calculateRiskDollars).filter(Number.isFinite);
+  const riskPercentValues = trades.map(calculateRiskPercent).filter(Number.isFinite);
   const wins = pnlValues.filter((value) => value > 0);
   const losses = pnlValues.filter((value) => value < 0);
   const totalPnl = pnlValues.reduce((sum, value) => sum + value, 0);
@@ -530,6 +532,12 @@ function getStats() {
   const averageLoss = losses.length ? losses.reduce((sum, value) => sum + value, 0) / losses.length : 0;
   const totalR = rValues.reduce((sum, value) => sum + value, 0);
   const averageR = rValues.length ? totalR / rValues.length : null;
+  const averageRiskDollars = riskDollarValues.length
+    ? riskDollarValues.reduce((sum, value) => sum + value, 0) / riskDollarValues.length
+    : null;
+  const averageRiskPercent = riskPercentValues.length
+    ? riskPercentValues.reduce((sum, value) => sum + value, 0) / riskPercentValues.length
+    : null;
 
   return {
     totalPnl,
@@ -539,6 +547,8 @@ function getStats() {
     averageLoss,
     totalR: rValues.length ? totalR : null,
     averageR,
+    averageRiskDollars,
+    averageRiskPercent,
   };
 }
 
@@ -779,7 +789,8 @@ function render() {
         ${statCard('target', 'Win rate', `${stats.winRate}%`)}
         ${statCard('chart', 'Trades logged', stats.tradeCount)}
         ${statCard('line', 'Avg win / loss', `${currency(stats.averageWin)} / ${currency(stats.averageLoss)}`)}
-        ${statCard('target', 'Total R', formatRMultiple(stats.totalR), stats.totalR === null || stats.totalR >= 0 ? 'positive' : 'negative')}
+        ${statCard('target', 'Average Risk $', stats.averageRiskDollars === null ? '—' : currency(stats.averageRiskDollars))}
+        ${statCard('target', 'Average Risk %', formatPercent(stats.averageRiskPercent))}
         ${statCard('line', 'Average R', formatRMultiple(stats.averageR), stats.averageR === null || stats.averageR >= 0 ? 'positive' : 'negative')}
       </section>
 
