@@ -14,15 +14,28 @@ function getDashboardStatsTemplate() {
   return source.slice(start, end);
 }
 
-test('dashboard focuses R statistics on Average R only', () => {
+test('dashboard focuses R and risk statistics without Total R', () => {
   const dashboardStats = getDashboardStatsTemplate();
 
   assert.equal(dashboardStats.includes("'Total R'"), false, 'Total R should not render as a dashboard card.');
   assert.ok(dashboardStats.includes("'Average R'"), 'Average R should still render as a dashboard card.');
+  assert.ok(dashboardStats.includes("'Average Risk $'"), 'Average Risk $ should render as a dashboard card.');
+  assert.ok(dashboardStats.includes("'Average Risk %'"), 'Average Risk % should render as a dashboard card.');
 });
 
-test('R calculations remain available outside the dashboard summary', () => {
+test('dashboard average risk metrics only use valid risk values', () => {
+  assert.ok(source.includes('const riskDollarValues = trades.map(calculateRiskDollars).filter(Number.isFinite);'), 'Average Risk $ should ignore missing or invalid Risk $ values.');
+  assert.ok(source.includes('const riskPercentValues = trades.map(calculateRiskPercent).filter(Number.isFinite);'), 'Average Risk % should ignore missing or invalid Risk % values.');
+  assert.ok(source.includes('riskDollarValues.reduce((sum, value) => sum + value, 0) / riskDollarValues.length'), 'Average Risk $ should average only valid Risk $ values.');
+  assert.ok(source.includes('riskPercentValues.reduce((sum, value) => sum + value, 0) / riskPercentValues.length'), 'Average Risk % should average only valid Risk % values.');
+});
+
+test('R and risk calculations remain available outside the dashboard summary', () => {
   assert.ok(source.includes('function calculateRMultiple(trade)'), 'Individual R calculation helper should remain.');
+  assert.ok(source.includes('function calculateRiskDollars(trade)'), 'Risk dollar calculation helper should remain.');
+  assert.ok(source.includes('function calculateRiskPercent(trade)'), 'Risk percent calculation helper should remain.');
+  assert.ok(source.includes('<span>Risk $: ${riskDollars === null ?'), 'Trade cards should still show Risk $ values.');
+  assert.ok(source.includes('<span>Risk %: ${formatPercent(riskPercent)}</span>'), 'Trade cards should still show Risk % values.');
   assert.ok(source.includes('<span class="${rTone}">R: ${formatRMultiple(rMultiple)}</span>'), 'Trade cards should still show R values.');
   assert.ok(source.includes('const rMultiple = calculateRMultiple(trade);'), 'Setup Analytics should still reuse R calculations.');
   assert.ok(source.includes('${setupAnalyticsHeader(\'averageR\', \'Average R\')}'), 'Setup Analytics should still show Average R.');
