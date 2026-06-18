@@ -779,7 +779,6 @@ function render() {
         ${statCard('target', 'Win rate', `${stats.winRate}%`)}
         ${statCard('chart', 'Trades logged', stats.tradeCount)}
         ${statCard('line', 'Avg win / loss', `${currency(stats.averageWin)} / ${currency(stats.averageLoss)}`)}
-        ${statCard('target', 'Total R', formatRMultiple(stats.totalR), stats.totalR === null || stats.totalR >= 0 ? 'positive' : 'negative')}
         ${statCard('line', 'Average R', formatRMultiple(stats.averageR), stats.averageR === null || stats.averageR >= 0 ? 'positive' : 'negative')}
       </section>
 

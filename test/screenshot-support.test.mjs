@@ -47,10 +47,10 @@ test('risk fields and calculations are available for trade logging', () => {
   assertIncludes(source, 'return (gross * getTradeContractSize(trade)) - fees;', 'Manual lot-sized P&L uses the same contract-size conversion as risk.');
 });
 
-test('risk metrics render on cards and summary', () => {
+test('risk metrics render on trade cards and focused dashboard summary', () => {
   assertIncludes(source, 'Risk $: ${riskDollars === null ?', 'Trade cards render risk dollars with blank-field fallback.');
   assertIncludes(source, 'Risk %: ${formatPercent(riskPercent)}', 'Trade cards render risk percent.');
   assertIncludes(source, 'R: ${formatRMultiple(rMultiple)}', 'Trade cards render R multiple.');
-  assertIncludes(source, "statCard('target', 'Total R'", 'The summary includes total R.');
+  assert.equal(source.includes("statCard('target', 'Total R'"), false, 'The dashboard summary omits Total R.');
   assertIncludes(source, "statCard('line', 'Average R'", 'The summary includes average R.');
 });
