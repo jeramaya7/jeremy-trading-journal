@@ -384,6 +384,10 @@ function getReportPeriodStart(referenceDate, period) {
     periodStart.setDate(1);
   }
 
+  if (period === 'year') {
+    periodStart.setMonth(0, 1);
+  }
+
   return periodStart;
 }
 
@@ -416,7 +420,17 @@ function getPnlReports(referenceDate = new Date()) {
     { label: 'Daily P&L', period: 'day', ...calculatePnlForPeriod(trades, 'day', referenceDate) },
     { label: 'Weekly P&L', period: 'week', ...calculatePnlForPeriod(trades, 'week', referenceDate) },
     { label: 'Monthly P&L', period: 'month', ...calculatePnlForPeriod(trades, 'month', referenceDate) },
+    { label: 'Yearly P&L', period: 'year', ...calculatePnlForPeriod(trades, 'year', referenceDate) },
   ];
+}
+
+function calculateBiggestWinner(tradeList) {
+  const winningPnlValues = tradeList
+    .filter((trade) => getTradeReportDate(trade) !== null)
+    .map(calculatePnl)
+    .filter((value) => Number.isFinite(value) && value > 0);
+
+  return winningPnlValues.length ? Math.max(...winningPnlValues) : null;
 }
 
 function getSetupAnalytics() {
@@ -553,6 +567,7 @@ function getStats() {
   const averageRiskPercent = riskPercentValues.length
     ? riskPercentValues.reduce((sum, value) => sum + value, 0) / riskPercentValues.length
     : null;
+  const biggestWinner = calculateBiggestWinner(trades);
 
   return {
     totalPnl,
@@ -564,6 +579,7 @@ function getStats() {
     averageR,
     averageRiskDollars,
     averageRiskPercent,
+    biggestWinner,
   };
 }
 
@@ -849,6 +865,36 @@ function isCTraderImportedTrade(trade) {
 function render() {
   const stats = getStats();
   const pnlReports = getPnlReports();
+  const [dailyPnl, weeklyPnl, monthlyPnl, yearlyPnl] = pnlReports;
+  const dashboardCardRows = [
+    {
+      label: 'Overall Performance',
+      cards: [
+        statCard('trend', 'Net P&L', currency(stats.totalPnl), stats.totalPnl >= 0 ? 'positive' : 'negative'),
+        statCard('target', 'Win Rate', `${stats.winRate}%`),
+        statCard('chart', 'Trades Logged', stats.tradeCount),
+        statCard('line', 'Average R', formatRMultiple(stats.averageR), stats.averageR === null || stats.averageR >= 0 ? 'positive' : 'negative'),
+      ],
+    },
+    {
+      label: 'Risk Metrics',
+      cards: [
+        statCard('line', 'Average Win / Loss', `${currency(stats.averageWin)} / ${currency(stats.averageLoss)}`),
+        statCard('target', 'Average Risk $', stats.averageRiskDollars === null ? '—' : currency(stats.averageRiskDollars)),
+        statCard('target', 'Average Risk %', formatPercent(stats.averageRiskPercent)),
+        statCard('trend', 'Biggest Winner', stats.biggestWinner === null ? '—' : currency(stats.biggestWinner), stats.biggestWinner === null || stats.biggestWinner >= 0 ? 'positive' : 'negative'),
+      ],
+    },
+    {
+      label: 'Time Performance',
+      cards: [
+        statCard('calendar', 'Daily P&L', currency(dailyPnl.pnl), dailyPnl.pnl >= 0 ? 'positive' : 'negative'),
+        statCard('calendar', 'Weekly P&L', currency(weeklyPnl.pnl), weeklyPnl.pnl >= 0 ? 'positive' : 'negative'),
+        statCard('calendar', 'Monthly P&L', currency(monthlyPnl.pnl), monthlyPnl.pnl >= 0 ? 'positive' : 'negative'),
+        statCard('calendar', 'Yearly P&L', currency(yearlyPnl.pnl), yearlyPnl.pnl >= 0 ? 'positive' : 'negative'),
+      ],
+    },
+  ];
   const filteredTrades = getFilteredTrades();
   const setupAnalyticsSection = renderSetupAnalytics();
   const today = new Date().toISOString().slice(0, 10);
@@ -868,18 +914,11 @@ function render() {
         </div>
       </section>
 
-      <section class="stats-grid" aria-label="Trading performance summary">
-        ${statCard('trend', 'Net P&L', currency(stats.totalPnl), stats.totalPnl >= 0 ? 'positive' : 'negative')}
-        ${statCard('target', 'Win rate', `${stats.winRate}%`)}
-        ${statCard('chart', 'Trades logged', stats.tradeCount)}
-        ${statCard('line', 'Avg win / loss', `${currency(stats.averageWin)} / ${currency(stats.averageLoss)}`)}
-        ${statCard('target', 'Average Risk $', stats.averageRiskDollars === null ? '—' : currency(stats.averageRiskDollars))}
-        ${statCard('target', 'Average Risk %', formatPercent(stats.averageRiskPercent))}
-        ${statCard('line', 'Average R', formatRMultiple(stats.averageR), stats.averageR === null || stats.averageR >= 0 ? 'positive' : 'negative')}
-      </section>
-
-      <section class="reports-grid" aria-label="P&L reports">
-        ${pnlReports.map(reportCard).join('')}
+      <section class="dashboard-card-groups" aria-label="Trading performance summary">
+        ${dashboardCardRows.map((row) => `
+          <section class="stats-grid dashboard-card-row" aria-label="${row.label}">
+            ${row.cards.join('')}
+          </section>`).join('')}
       </section>
 
       ${setupAnalyticsSection}

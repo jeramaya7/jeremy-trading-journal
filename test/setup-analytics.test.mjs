@@ -18,13 +18,13 @@ test('setup analytics groups non-blank setups using existing trade calculations'
   assertIncludes(source, 'netPnl: report.netPnl,', 'Net P&L is included for each setup row.');
 });
 
-test('setup analytics renders below reports as a sortable table ordered by net P&L by default', () => {
-  const reportsIndex = source.indexOf('<section class="reports-grid" aria-label="P&L reports">');
+test('setup analytics renders below the dashboard as a sortable table ordered by net P&L by default', () => {
+  const statsIndex = source.indexOf('<section class="dashboard-card-groups" aria-label="Trading performance summary">');
   const setupIndex = source.indexOf('${setupAnalyticsSection}');
   const workspaceIndex = source.indexOf('<section class="workspace-grid">');
 
-  assert.ok(reportsIndex > -1, 'Existing reports section still renders.');
-  assert.ok(setupIndex > reportsIndex, 'Setup analytics renders below existing reports.');
+  assert.ok(statsIndex > -1, 'Existing dashboard section still renders.');
+  assert.ok(setupIndex > statsIndex, 'Setup analytics renders below the dashboard.');
   assert.ok(workspaceIndex > setupIndex, 'Setup analytics renders above the workspace.');
   assertIncludes(source, "let setupAnalyticsSort = { key: 'netPnl', direction: 'desc' };", 'Setup analytics defaults to highest Net P&L first.');
   assertIncludes(source, 'data-setup-sort-key', 'Setup analytics table headers are sortable.');

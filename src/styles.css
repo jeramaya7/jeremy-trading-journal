@@ -251,12 +251,22 @@ h2 {
   color: #b42318;
 }
 
+.dashboard-card-groups {
+  display: grid;
+  gap: 1rem;
+  margin: 1.25rem 0;
+}
+
 .stats-grid,
 .reports-grid {
   display: grid;
   gap: 1rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin: 1.25rem 0;
+}
+
+.dashboard-card-row {
+  margin: 0;
 }
 
 .stat-card,
