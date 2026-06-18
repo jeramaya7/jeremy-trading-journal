@@ -466,13 +466,26 @@ h2 {
   justify-content: space-between;
 }
 
-.trade-card-header > div {
+.trade-card-heading {
   min-width: 0;
+  width: 100%;
 }
 
-.trade-card-header strong {
+.trade-title-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.trade-pnl-badge {
+  border: 1px solid currentColor;
+  border-radius: 999px;
   flex: 0 0 auto;
-  text-align: right;
+  font-size: clamp(1.2rem, 2.5vw, 1.65rem);
+  font-weight: 950;
+  line-height: 1;
+  padding: 0.45rem 0.75rem;
 }
 
 .trade-symbol {
@@ -676,10 +689,6 @@ h2 {
     align-items: stretch;
     flex-direction: column;
     gap: 0.35rem;
-  }
-
-  .trade-card-header strong {
-    text-align: left;
   }
 
   .screenshot-link {
