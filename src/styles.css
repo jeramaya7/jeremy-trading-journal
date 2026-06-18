@@ -690,7 +690,7 @@ h2 {
   }
 }
 
-.backend-diagnostics {
+.ctrader-connection-summary {
   background: rgba(234, 241, 255, 0.78);
   border: 1px solid rgba(39, 110, 241, 0.16);
   border-radius: 16px;
@@ -705,36 +705,31 @@ h2 {
   padding: 0.85rem;
 }
 
-.backend-diagnostics div {
+.ctrader-connection-summary div {
   display: grid;
   gap: 0.15rem;
   min-width: 0;
 }
 
-.backend-diagnostics dt {
+.ctrader-connection-summary dt {
   color: #64748b;
   font-weight: 900;
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
 
-.backend-diagnostics dd {
+.ctrader-connection-summary dd {
   color: #172033;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-weight: 800;
+  font-weight: 900;
   margin: 0;
   overflow-wrap: anywhere;
 }
 
-.backend-diagnostics .diagnostic-success {
+.ctrader-connection-summary .connection-connected {
   color: #059669;
 }
 
-.backend-diagnostics .diagnostic-pending {
-  color: #31517c;
-}
-
-.backend-diagnostics .diagnostic-error {
+.ctrader-connection-summary .connection-disconnected {
   color: #b91c1c;
 }
 .connect-button {
