@@ -54,6 +54,9 @@ export function applyCTraderImportedTradeUpdates(existingTrades, skippedTrades) 
       sourceSymbolId: skippedTrade.trade?.sourceSymbolId,
       openTime: skippedTrade.trade?.openTime,
       closeTime: skippedTrade.trade?.closeTime,
+      accountSize: skippedTrade.trade?.accountSize,
+      accountBalance: skippedTrade.trade?.accountBalance,
+      accountBalanceFetchedAt: skippedTrade.trade?.accountBalanceFetchedAt,
     });
   }
 
@@ -71,12 +74,18 @@ export function applyCTraderImportedTradeUpdates(existingTrades, skippedTrades) 
       ...(update.sourceSymbolId !== undefined ? { sourceSymbolId: update.sourceSymbolId } : {}),
       ...(update.openTime ? { openTime: update.openTime } : {}),
       ...(update.closeTime ? { closeTime: update.closeTime } : {}),
+      ...(update.accountSize !== undefined ? { accountSize: update.accountSize } : {}),
+      ...(update.accountBalance !== undefined ? { accountBalance: update.accountBalance } : {}),
+      ...(update.accountBalanceFetchedAt !== undefined ? { accountBalanceFetchedAt: update.accountBalanceFetchedAt } : {}),
     };
     const didChange = nextTrade.symbol !== trade.symbol
       || nextTrade.brokerSymbol !== trade.brokerSymbol
       || nextTrade.sourceSymbolId !== trade.sourceSymbolId
       || nextTrade.openTime !== trade.openTime
-      || nextTrade.closeTime !== trade.closeTime;
+      || nextTrade.closeTime !== trade.closeTime
+      || nextTrade.accountSize !== trade.accountSize
+      || nextTrade.accountBalance !== trade.accountBalance
+      || nextTrade.accountBalanceFetchedAt !== trade.accountBalanceFetchedAt;
     if (didChange) {
       updatedCount += 1;
       return nextTrade;

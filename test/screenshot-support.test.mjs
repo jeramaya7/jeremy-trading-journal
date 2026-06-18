@@ -39,6 +39,7 @@ test('risk fields and calculations are available for trade logging', () => {
   assertIncludes(source, 'input name="accountSize" type="number"', 'The trade form includes an Account Size field.');
   assertIncludes(source, 'input name="riskPercent" type="number"', 'The trade form includes a calculated Risk % field.');
   assertIncludes(source, 'Math.abs(entry - stopLoss) * size', 'Risk dollars are calculated from entry, stop loss, and position size.');
+  assertIncludes(source, 'const accountSize = toOptionalNumber(trade.accountSize) ?? accountBalance;', 'Risk percent falls back to imported account balance.');
   assertIncludes(source, 'return (riskDollars / accountSize) * 100;', 'Risk percent is calculated from risk dollars and account size.');
   assertIncludes(source, 'return calculatePnl(trade) / riskDollars;', 'R multiple is calculated from P&L and risk dollars.');
 });

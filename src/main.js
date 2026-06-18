@@ -291,7 +291,8 @@ function calculateRiskDollars(trade) {
 
 function calculateRiskPercent(trade) {
   const riskDollars = calculateRiskDollars(trade);
-  const accountSize = toOptionalNumber(trade.accountSize);
+  const accountBalance = toOptionalNumber(trade.accountBalance);
+  const accountSize = toOptionalNumber(trade.accountSize) ?? accountBalance;
 
   if (riskDollars === null || accountSize === null || accountSize <= 0) {
     return null;
