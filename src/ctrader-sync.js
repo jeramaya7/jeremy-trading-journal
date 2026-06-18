@@ -114,7 +114,26 @@ export function convertCTraderPreviewTradeToJournalEntry(previewTrade, options =
     tags: normalizeImportedTags(previewTrade.tags),
     notes,
     importedAt: getImportedAt(options),
+    ...getImportedAccountBalanceFields(options.accountBalance),
   };
+}
+
+function getImportedAccountBalanceFields(accountBalance) {
+  const balance = toFiniteNumber(accountBalance?.balance ?? accountBalance);
+  if (balance === null || balance <= 0) {
+    return {};
+  }
+
+  return {
+    accountSize: balance,
+    accountBalance: balance,
+    accountBalanceFetchedAt: accountBalance?.fetchedAt || getImportedAt(),
+  };
+}
+
+function toFiniteNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
 function getReadableImportedSymbol(...values) {

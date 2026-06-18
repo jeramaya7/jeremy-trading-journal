@@ -69,6 +69,11 @@ export function createAppServer(options = {}) {
       return;
     }
 
+    if (request.method === 'GET' && url.pathname === '/api/ctrader/balance') {
+      await getCtraderBalance(response, url, options);
+      return;
+    }
+
     if (request.method === 'GET') {
       await serveStaticFile(response, url.pathname);
       return;
@@ -540,6 +545,50 @@ function isNumericCtraderSymbolIdentifier(value) {
   return /^\d+$/.test(String(value).trim());
 }
 
+export async function fetchCtraderAccountBalance(config, tokens, requestOptions = {}, options = {}) {
+  const OpenApiClient = options.OpenApiClient || CTraderOpenApiJsonClient;
+  const client = options.openApiClient || new OpenApiClient({
+    environment: config.environment,
+    clientId: config.clientId,
+    clientSecret: config.clientSecret,
+    accessToken: tokens.accessToken,
+  });
+
+  try {
+    const accountAuth = await client.authenticateAndAuthorizeAccount(
+      requestOptions.ctidTraderAccountId,
+      tokens.accessToken,
+    );
+    const trader = await client.getTrader(accountAuth.authorizedAccountId);
+    const balance = normalizeCtraderMoney(trader?.balance, trader?.moneyDigits);
+
+    return {
+      provider: 'ctrader',
+      environment: accountAuth.accountEnvironment || config.environment,
+      accountId: accountAuth.authorizedAccountId,
+      balance,
+      rawBalance: trader?.balance ?? null,
+      moneyDigits: trader?.moneyDigits ?? null,
+      depositAssetId: trader?.depositAssetId ?? null,
+      accountNumber: trader?.login ?? getCtraderAccountNumber(findCtraderAccount(accountAuth.accounts, accountAuth.authorizedAccountId)),
+      isLive: findCtraderAccount(accountAuth.accounts, accountAuth.authorizedAccountId)?.isLive ?? null,
+    };
+  } finally {
+    if (typeof client.close === 'function') {
+      client.close();
+    }
+  }
+}
+
+function normalizeCtraderMoney(value, moneyDigits) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) {
+    return null;
+  }
+  const digits = Number.isInteger(Number(moneyDigits)) ? Number(moneyDigits) : 2;
+  return Number((numericValue / (10 ** digits)).toFixed(2));
+}
+
 export async function fetchCtraderAccounts(config, tokens, requestOptions = {}, options = {}) {
   const OpenApiClient = options.OpenApiClient || CTraderOpenApiJsonClient;
   const client = options.openApiClient || new OpenApiClient({
@@ -703,6 +752,25 @@ async function getCtraderDeals(response, url, options = {}) {
     });
   } catch (error) {
     logCtraderRouteError('/api/ctrader/deals', url, error);
+    sendJson(response, 502, { error: error.message });
+  }
+}
+
+async function getCtraderBalance(response, url, options = {}) {
+  const config = getCtraderConfig(options.env);
+  if (!config.ok) {
+    sendConfigurationError(response, config);
+    return;
+  }
+
+  try {
+    const tokens = await loadStoredCtraderTokens(config, options);
+    const requestOptions = buildCtraderDealsRequest(url, options.now?.() ?? Date.now());
+    console.info('[cTrader balance] Incoming backend request', getCtraderRequestLogContext(url, requestOptions));
+    const balanceResult = await fetchCtraderAccountBalance(config, tokens, requestOptions, options);
+    sendJson(response, 200, balanceResult);
+  } catch (error) {
+    logCtraderRouteError('/api/ctrader/balance', url, error);
     sendJson(response, 502, { error: error.message });
   }
 }

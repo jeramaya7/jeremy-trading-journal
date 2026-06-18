@@ -193,7 +193,25 @@ test('runs app auth, account list, and account authorization in sequence', async
   assert.deepEqual(result.accounts, [{ ctidTraderAccountId: 67890 }]);
 });
 
+test('fetches cTrader trader account details with balance', async () => {
+  const client = createClient();
+  const traderPromise = client.getTrader(12345);
+  const socket = FakeWebSocket.instances[0];
+  socket.open();
+  await flushMicrotasks();
 
+  const sentMessage = socket.sentMessages[0];
+  assert.equal(sentMessage.payloadType, CTRADER_PAYLOAD_TYPES.PROTO_OA_TRADER_REQ);
+  assert.deepEqual(sentMessage.payload, { ctidTraderAccountId: 12345 });
+
+  socket.receive({
+    clientMsgId: sentMessage.clientMsgId,
+    payloadType: CTRADER_PAYLOAD_TYPES.PROTO_OA_TRADER_RES,
+    payload: { trader: { ctidTraderAccountId: 12345, balance: 2500000, moneyDigits: 2 } },
+  });
+
+  assert.deepEqual(await traderPromise, { ctidTraderAccountId: 12345, balance: 2500000, moneyDigits: 2 });
+});
 
 test('fetches cTrader symbol metadata by symbol ID', async () => {
   const client = createClient();

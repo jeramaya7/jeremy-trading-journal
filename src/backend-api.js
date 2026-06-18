@@ -7,6 +7,7 @@ const HTML_PREVIEW_LENGTH = 120;
 export const CTRADER_ENDPOINTS = Object.freeze({
   status: '/api/ctrader/status',
   accounts: '/api/ctrader/accounts',
+  balance: '/api/ctrader/balance',
   journalPreview: '/api/ctrader/journal-preview',
   deals: '/api/ctrader/deals',
   authStart: '/auth/ctrader/start',
