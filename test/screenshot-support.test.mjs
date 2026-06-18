@@ -28,6 +28,16 @@ test('pasted screenshots populate the field and use the same thumbnail/full-size
   assertIncludes(source, "preview.innerHTML = selectedScreenshot ? screenshotLink(selectedScreenshot, 'selected trade screenshot') : '';", 'The form preview uses the reusable screenshot thumbnail/full-size link markup.');
 });
 
+
+test('full-size screenshot links render data URL images in a new tab document', () => {
+  assertIncludes(source, 'function openScreenshotLink(event)', 'A click handler exists for full-size screenshot links.');
+  assertIncludes(source, "const imageUrl = link.getAttribute('href');", 'The handler uses the rendered screenshot href as the full-size image source.');
+  assertIncludes(source, "if (!imageUrl?.startsWith('data:image/'))", 'Only locally stored image data URLs are intercepted for custom viewing.');
+  assertIncludes(source, "const fullSizeWindow = window.open('', '_blank');", 'The handler opens a new tab before writing the screenshot document.');
+  assertIncludes(source, '<img src="${escapeHtml(imageUrl)}"', 'The new tab document assigns the screenshot data URL to an image element instead of leaving about:blank empty.');
+  assertIncludes(source, "link.addEventListener('click', openScreenshotLink);", 'Rendered screenshot links are wired to the full-size screenshot handler.');
+});
+
 test('helper copy and JSON import/export preserve screenshot data', () => {
   assertIncludes(source, 'Tip: Paste a screenshot with Ctrl+V / Cmd+V', 'The Trade Screenshot helper text is rendered.');
   assertIncludes(source, 'JSON.stringify(trades, null, 2)', 'Export serializes full trade objects, including screenshot data.');
