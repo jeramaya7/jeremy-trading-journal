@@ -127,6 +127,7 @@ test('maps completed cTrader deals into journal preview trade objects', () => {
       exit: 1.105,
       size: 1,
       volume: 1,
+      contractSize: 100000,
       openTime: '2023-07-22T04:26:40.000Z',
       closeTime: '2023-11-14T22:13:20.000Z',
       date: '2023-11-14',
@@ -149,6 +150,7 @@ test('maps completed cTrader deals into journal preview trade objects', () => {
       exit: 1.25,
       size: 0.5,
       volume: 0.5,
+      contractSize: 100000,
       openTime: null,
       closeTime: '2023-11-26T12:00:00.000Z',
       date: '2023-11-26',
@@ -195,6 +197,7 @@ test('maps an individual cTrader closing deal into the journal trade schema', ()
     exit: 1.085,
     size: 0.25,
     volume: 0.25,
+    contractSize: 100000,
     openTime: '2023-11-14T22:13:20.000Z',
     closeTime: '2023-11-16T02:00:00.000Z',
     date: '2023-11-16',
@@ -241,10 +244,12 @@ test('maps cTrader cent-volume into symbol-specific lot sizes and logs the mappi
 
   assert.equal(goldTrade.size, 0.01);
   assert.equal(goldTrade.volume, 0.01);
+  assert.equal(goldTrade.contractSize, 100);
   assert.equal(goldTrade.symbol, 'XAUUSD');
   assert.equal(goldTrade.netProfitLoss, 0.45);
   assert.equal(bitcoinTrade.size, 0.01);
   assert.equal(bitcoinTrade.volume, 0.01);
+  assert.equal(bitcoinTrade.contractSize, 1);
   assert.deepEqual(logs.map(([, mapping]) => ({
     symbol: mapping.symbol,
     rawVolume: mapping.rawVolume,
@@ -668,6 +673,7 @@ test('GET /api/ctrader/journal-preview returns mapped trades without saving jour
         stopLoss: 150.9,
         size: 1,
         volume: 1,
+        contractSize: 100000,
         openTime: '2023-11-03T08:26:40.000Z',
         closeTime: '2023-11-14T22:13:20.000Z',
         date: '2023-11-14',

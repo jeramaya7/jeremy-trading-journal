@@ -72,6 +72,7 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
     || isNumericIdentifier(deal?.closePositionDetail?.symbol)
     || isNumericIdentifier(openingDeal?.symbol);
   const volume = mapCtraderVolumeToJournalSize(rawVolume, symbolMetadata);
+  const contractSize = getCtraderLotSizeInUnits(symbolMetadata);
   const netProfitLoss = getNetProfitLoss(closePositionDetail);
   logCtraderVolumeMapping(options, {
     dealId: deal.dealId ?? null,
@@ -85,7 +86,7 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
     minVolume: getCtraderVolumeInUnits(symbolMetadata?.minVolume),
     maxVolume: getCtraderVolumeInUnits(symbolMetadata?.maxVolume),
     lotSize: toFiniteNumber(symbolMetadata?.lotSize),
-    convertedLotSize: getCtraderLotSizeInUnits(symbolMetadata),
+    convertedLotSize: contractSize,
     finalStoredSize: volume,
     finalStoredStopLoss: stopLoss,
     finalStoredProfitLoss: netProfitLoss,
@@ -106,6 +107,7 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
     ...(stopLoss !== null ? { stopLoss } : {}),
     size: volume,
     volume,
+    ...(contractSize !== null && contractSize > 0 ? { contractSize } : {}),
     openTime,
     closeTime,
     date: closeTime ? closeTime.slice(0, 10) : null,
