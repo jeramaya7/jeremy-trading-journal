@@ -138,6 +138,7 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(source, "const selectedSetup = isPlayBookSetup(currentSetup) ? currentSetup : CUSTOM_SETUP_OPTION;", 'Existing non-Play Book setup values open as Custom.');
   assertIncludes(source, "const customValue = selectedSetup === CUSTOM_SETUP_OPTION ? currentSetup : '';", 'Existing custom setup values are preserved in the custom setup input.');
   assert.ok(!source.includes("${field('Emotion'"), 'The edit form does not render an emotion field.');
+  assertIncludes(source, "${field('Loss Reason', renderLossReasonSelect(trade))}", 'The edit form allows an optional loss reason selection.');
   assertIncludes(source, "${field('Tags', `<input name=\"tags\"", 'The edit form allows tag changes.');
   assertIncludes(source, "${field('Notes', `<textarea name=\"notes\"", 'The edit form allows notes changes.');
   assertIncludes(source, "form.addEventListener('submit', submitTradeEdit);", 'Edit forms are wired to the save handler.');
@@ -148,11 +149,20 @@ test('saving trade edits only updates journaling fields and preserves imported e
   assertIncludes(source, "setup: getSetupFormValue(formData)", 'Saving edits updates setup from the dropdown or custom setup input.');
   assertIncludes(source, "if (setupChoice === CUSTOM_SETUP_OPTION)", 'Saving edits supports custom setup names.');
   assert.ok(!source.includes("formData.get('emotion')"), 'Saving edits does not update emotion.');
+  assertIncludes(source, "lossReason: String(formData.get('lossReason')).trim()", 'Saving edits stores the selected loss reason.');
   assertIncludes(source, "tags: String(formData.get('tags')).trim()", 'Saving edits updates tags.');
   assertIncludes(source, "notes: String(formData.get('notes')).trim()", 'Saving edits updates notes.');
   assertIncludes(source, '? { ...trade, ...journalingUpdates }', 'Saving edits spreads the existing trade first, preserving cTrader fields not in the journaling update.');
   assertIncludes(source, 'persistTrades(trades.map((trade) => (', 'Saving edits persists the updated journal to localStorage through the existing storage path.');
   assertIncludes(source, 'Imported cTrader execution fields are read-only and will be preserved when journaling edits are saved.', 'The edit UI tells users imported cTrader execution fields remain read-only.');
+});
+
+test('loss reason dropdown is optional and only renders on trade cards when filled', () => {
+  assertIncludes(source, 'const LOSS_REASON_OPTIONS = [', 'Loss reason options are centralized for the edit dropdown.');
+  assertIncludes(source, "'Bad Entry'", 'Loss reason includes Bad Entry.');
+  assertIncludes(source, "'Good Trade, Normal Loss'", 'Loss reason includes Good Trade, Normal Loss.');
+  assertIncludes(source, '<option value="">No loss reason</option>', 'Loss reason can be left blank for existing or winning trades.');
+  assertIncludes(source, '${trade.lossReason ? `<p class="loss-reason"><strong>Loss Reason:</strong> ${escapeHtml(trade.lossReason)}</p>` : \'\'}', 'Trade cards only show loss reason when a saved value exists.');
 });
 
 test('imported cTrader edit flow supports screenshot attachments', () => {

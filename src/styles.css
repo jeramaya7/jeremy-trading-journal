@@ -529,6 +529,7 @@ h2 {
 
 .trade-meta,
 .notes,
+.loss-reason,
 .empty-state {
   color: #64748b;
   line-height: 1.6;
@@ -547,6 +548,10 @@ h2 {
 .trade-details span {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.loss-reason strong {
+  color: #334155;
 }
 
 .tags {
