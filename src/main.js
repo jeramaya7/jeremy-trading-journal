@@ -81,6 +81,7 @@ let isLoadingCTraderAccounts = false;
 let hasHandledCTraderOAuthReturn = false;
 let editingTradeId = null;
 let isManualTradeFormOpen = false;
+let setupAnalyticsSort = { key: 'netPnl', direction: 'desc' };
 
 const app = document.querySelector('#root');
 
@@ -374,6 +375,122 @@ function getPnlReports(referenceDate = new Date()) {
   ];
 }
 
+function getSetupAnalytics() {
+  const setupReports = new Map();
+
+  trades.forEach((trade) => {
+    const setupName = String(trade.setup ?? '').trim();
+    if (!setupName) {
+      return;
+    }
+
+    const pnl = calculatePnl(trade);
+    const rMultiple = calculateRMultiple(trade);
+    const report = setupReports.get(setupName) ?? {
+      setupName,
+      tradeCount: 0,
+      winCount: 0,
+      rCount: 0,
+      totalR: 0,
+      netPnl: 0,
+    };
+
+    report.tradeCount += 1;
+    report.winCount += pnl > 0 ? 1 : 0;
+    report.netPnl += pnl;
+
+    if (rMultiple !== null) {
+      report.rCount += 1;
+      report.totalR += rMultiple;
+    }
+
+    setupReports.set(setupName, report);
+  });
+
+  return [...setupReports.values()]
+    .map((report) => ({
+      setupName: report.setupName,
+      tradeCount: report.tradeCount,
+      winRate: report.tradeCount ? (report.winCount / report.tradeCount) * 100 : 0,
+      averageR: report.rCount ? report.totalR / report.rCount : null,
+      netPnl: report.netPnl,
+    }))
+    .sort(compareSetupAnalyticsRows);
+}
+
+function compareSetupAnalyticsRows(firstRow, secondRow) {
+  const direction = setupAnalyticsSort.direction === 'asc' ? 1 : -1;
+  const firstValue = firstRow[setupAnalyticsSort.key];
+  const secondValue = secondRow[setupAnalyticsSort.key];
+  let result = 0;
+
+  if (typeof firstValue === 'string' || typeof secondValue === 'string') {
+    result = String(firstValue ?? '').localeCompare(String(secondValue ?? ''), undefined, { sensitivity: 'base' });
+  } else {
+    result = (firstValue ?? Number.NEGATIVE_INFINITY) - (secondValue ?? Number.NEGATIVE_INFINITY);
+  }
+
+  if (result === 0 && setupAnalyticsSort.key !== 'netPnl') {
+    result = firstRow.netPnl - secondRow.netPnl;
+  }
+
+  return result * direction;
+}
+
+function renderSetupAnalytics() {
+  const setupAnalytics = getSetupAnalytics();
+  const sortLabels = { setupName: 'Setup Name', tradeCount: 'Number of Trades', winRate: 'Win Rate %', averageR: 'Average R', netPnl: 'Net P&L' };
+
+  return `
+      <section class="panel setup-analytics-panel" aria-label="Setup Analytics">
+        <div class="setup-analytics-header">
+          <div>
+            <div class="section-title">${icon('chart')}<h2>Setup Analytics</h2></div>
+            <p class="section-helper">Performance grouped by non-blank setup values across manual and cTrader-imported trades.</p>
+          </div>
+          <p class="setup-sort-helper">Sorted by ${escapeHtml(sortLabels[setupAnalyticsSort.key])} ${setupAnalyticsSort.direction === 'asc' ? 'ascending' : 'descending'}</p>
+        </div>
+        <div class="setup-analytics-table-wrap">
+          <table class="setup-analytics-table">
+            <thead>
+              <tr>
+                ${setupAnalyticsHeader('setupName', 'Setup Name')}
+                ${setupAnalyticsHeader('tradeCount', 'Number of Trades')}
+                ${setupAnalyticsHeader('winRate', 'Win Rate %')}
+                ${setupAnalyticsHeader('averageR', 'Average R')}
+                ${setupAnalyticsHeader('netPnl', 'Net P&L')}
+              </tr>
+            </thead>
+            <tbody>
+              ${setupAnalytics.length ? setupAnalytics.map(setupAnalyticsRow).join('') : '<tr><td colspan="5" class="empty-state">No setup analytics yet. Add Setup values to trades to see this report.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </section>`;
+}
+
+function setupAnalyticsHeader(key, label) {
+  const isActive = setupAnalyticsSort.key === key;
+  const nextDirection = isActive && setupAnalyticsSort.direction === 'desc' ? 'asc' : 'desc';
+  const indicator = isActive ? (setupAnalyticsSort.direction === 'desc' ? ' ↓' : ' ↑') : '';
+
+  return `<th scope="col"><button class="table-sort-button" type="button" data-setup-sort-key="${escapeHtml(key)}" data-setup-sort-direction="${nextDirection}" aria-label="Sort setup analytics by ${escapeHtml(label)} ${nextDirection}">${escapeHtml(label)}${indicator}</button></th>`;
+}
+
+function setupAnalyticsRow(report) {
+  const pnlTone = report.netPnl >= 0 ? 'positive' : 'negative';
+  const rTone = report.averageR === null || report.averageR >= 0 ? 'positive' : 'negative';
+
+  return `
+              <tr>
+                <td>${escapeHtml(report.setupName)}</td>
+                <td>${report.tradeCount}</td>
+                <td>${formatPercent(report.winRate)}</td>
+                <td class="${rTone}">${formatRMultiple(report.averageR)}</td>
+                <td class="${pnlTone}">${currency(report.netPnl)}</td>
+              </tr>`;
+}
+
 function getStats() {
   const pnlValues = trades.map(calculatePnl);
   const rValues = trades.map(calculateRMultiple).filter((value) => value !== null);
@@ -583,6 +700,7 @@ function render() {
   const stats = getStats();
   const pnlReports = getPnlReports();
   const filteredTrades = getFilteredTrades();
+  const setupAnalyticsSection = renderSetupAnalytics();
   const today = new Date().toISOString().slice(0, 10);
 
   app.innerHTML = `
@@ -633,6 +751,8 @@ ${cTraderSyncStatus ? `<p class="import-status ${escapeHtml(cTraderSyncStatus.to
       <section class="reports-grid" aria-label="P&L reports">
         ${pnlReports.map(reportCard).join('')}
       </section>
+
+      ${setupAnalyticsSection}
 
       <section class="workspace-grid">
         <section class="panel journal-panel">
@@ -728,6 +848,15 @@ function bindEvents() {
   document.querySelector('#deleteAllCTraderImports').addEventListener('click', deleteAllCTraderImports);
   document.querySelector('#exportTrades').addEventListener('click', exportTrades);
   document.querySelector('#importTrades').addEventListener('change', importTrades);
+  document.querySelectorAll('[data-setup-sort-key]').forEach((button) => {
+    button.addEventListener('click', () => {
+      setupAnalyticsSort = {
+        key: button.dataset.setupSortKey,
+        direction: button.dataset.setupSortDirection,
+      };
+      render();
+    });
+  });
 
   updateScreenshotFieldPreview();
   if (tradeForm) {
