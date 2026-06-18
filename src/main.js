@@ -66,6 +66,7 @@ let trades = loadTrades();
 let searchQuery = '';
 let selectedScreenshot = null;
 let pastedScreenshotFile = null;
+let editScreenshotDrafts = {};
 let isPasteListenerBound = false;
 let cTraderSyncStatus = null;
 let isSyncingCTrader = false;
@@ -655,6 +656,10 @@ function tradeJournalDetails(trade) {
 }
 
 function editTradeForm(trade) {
+  const currentScreenshot = getEditScreenshotPreview(trade);
+  const removeButton = currentScreenshot
+    ? `<button class="secondary-button" type="button" data-remove-edit-screenshot="${escapeHtml(trade.id)}">${icon('trash')} Remove screenshot</button>`
+    : '';
   return `
       <form class="edit-trade-form" data-edit-trade-form="${escapeHtml(trade.id)}">
         <div class="form-grid">
@@ -662,12 +667,37 @@ function editTradeForm(trade) {
           ${field('Tags', `<input name="tags" value="${escapeHtml(trade.tags)}" placeholder="gap, reversal, A+" />`)}
         </div>
         ${field('Notes', `<textarea name="notes" rows="5" placeholder="What was the plan? What happened? What will you repeat or avoid?">${escapeHtml(trade.notes)}</textarea>`)}
+        <div class="screenshot-upload-field">
+          <label class="screenshot-upload">
+            <span>${icon('image')} Trade screenshot</span>
+            <input name="editScreenshot" type="file" accept="image/*" data-edit-screenshot-input="${escapeHtml(trade.id)}" />
+            <small>Optional. Upload or paste an image to attach it to this imported trade.</small>
+            <small>Tip: Paste a screenshot with Ctrl+V / Cmd+V</small>
+          </label>
+          <div class="screenshot-field-preview" data-edit-screenshot-preview="${escapeHtml(trade.id)}" aria-live="polite">
+            ${currentScreenshot ? screenshotLink(currentScreenshot, `${getTradeDisplaySymbol(trade)} trade screenshot`) : ''}
+          </div>
+        </div>
         <p class="edit-import-note">Imported cTrader execution fields are read-only and will be preserved when journaling edits are saved.</p>
         <div class="edit-form-actions">
           <button class="primary-button" type="submit">${icon('save')} Save edits</button>
+          ${removeButton}
           <button class="secondary-button" type="button" data-cancel-edit-trade="${escapeHtml(trade.id)}">Cancel</button>
         </div>
       </form>`;
+}
+
+function getEditScreenshotDraft(tradeId) {
+  return editScreenshotDrafts[tradeId] || {};
+}
+
+function getEditScreenshotPreview(trade) {
+  const screenshotDraft = getEditScreenshotDraft(trade.id);
+  if (screenshotDraft.removeScreenshot) {
+    return null;
+  }
+
+  return screenshotDraft.selectedScreenshot || trade.screenshot || null;
 }
 
 function getTradeDisplaySymbol(trade) {
@@ -858,6 +888,26 @@ function bindEvents() {
     form.addEventListener('submit', submitTradeEdit);
   });
 
+  document.querySelectorAll('[data-edit-screenshot-input]').forEach((input) => {
+    input.addEventListener('change', changeEditScreenshot);
+  });
+
+  document.querySelectorAll('[data-remove-edit-screenshot]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const tradeId = button.dataset.removeEditScreenshot;
+      editScreenshotDrafts = {
+        ...editScreenshotDrafts,
+        [tradeId]: {
+          ...getEditScreenshotDraft(tradeId),
+          selectedScreenshot: null,
+          pastedScreenshotFile: null,
+          removeScreenshot: true,
+        },
+      };
+      render();
+    });
+  });
+
   document.querySelectorAll('[data-delete-trade]').forEach((button) => {
     button.addEventListener('click', () => {
       const deletedTrade = trades.find((trade) => trade.id === button.dataset.deleteTrade);
@@ -929,21 +979,31 @@ async function submitTrade(event) {
   persistTrades([nextTrade, ...trades]);
 }
 
-function submitTradeEdit(event) {
+async function submitTradeEdit(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const tradeId = form.dataset.editTradeForm;
   const formData = new FormData(form);
+  const screenshotDraft = getEditScreenshotDraft(tradeId);
+  const uploadedScreenshot = formData.get('editScreenshot');
   const journalingUpdates = {
     setup: String(formData.get('setup')).trim() || 'Uncategorized setup',
     tags: String(formData.get('tags')).trim(),
     notes: String(formData.get('notes')).trim(),
   };
+  const resolvedScreenshot = screenshotDraft.removeScreenshot
+    ? null
+    : screenshotDraft.selectedScreenshot ?? await readScreenshot(uploadedScreenshot || screenshotDraft.pastedScreenshotFile);
+  const screenshotUpdate = screenshotDraft.removeScreenshot || resolvedScreenshot
+    ? { screenshot: resolvedScreenshot }
+    : {};
 
   editingTradeId = null;
+  delete editScreenshotDrafts[tradeId];
   persistTrades(trades.map((trade) => (
+    // Keep the existing cTrader execution payload first: ? { ...trade, ...journalingUpdates }
     trade.id === tradeId
-      ? { ...trade, ...journalingUpdates }
+      ? { ...trade, ...journalingUpdates, ...screenshotUpdate }
       : trade
   )));
 }
@@ -972,6 +1032,20 @@ async function changeScreenshot(event) {
   updateScreenshotFieldPreview();
 }
 
+async function changeEditScreenshot(event) {
+  const tradeId = event.target.dataset.editScreenshotInput;
+  const selectedEditScreenshot = await readScreenshot(event.target.files?.[0]);
+  editScreenshotDrafts = {
+    ...editScreenshotDrafts,
+    [tradeId]: {
+      selectedScreenshot: selectedEditScreenshot,
+      pastedScreenshotFile: null,
+      removeScreenshot: false,
+    },
+  };
+  updateEditScreenshotFieldPreview(tradeId);
+}
+
 async function pasteScreenshot(event) {
   const file = getClipboardImageFile(event.clipboardData);
   if (!file) {
@@ -979,6 +1053,23 @@ async function pasteScreenshot(event) {
   }
 
   event.preventDefault();
+  const editForm = document.activeElement?.closest?.('[data-edit-trade-form]')
+    || (editingTradeId ? document.querySelector(`[data-edit-trade-form="${cssEscape(editingTradeId)}"]`) : null);
+  if (editForm) {
+    const tradeId = editForm.dataset.editTradeForm;
+    setFileInputFile(editForm.querySelector('input[name="editScreenshot"]'), file);
+    editScreenshotDrafts = {
+      ...editScreenshotDrafts,
+      [tradeId]: {
+        selectedScreenshot: await readScreenshot(file),
+        pastedScreenshotFile: file,
+        removeScreenshot: false,
+      },
+    };
+    updateEditScreenshotFieldPreview(tradeId);
+    return;
+  }
+
   pastedScreenshotFile = file;
   setFileInputFile(document.querySelector('input[name="screenshot"]'), file);
   selectedScreenshot = await readScreenshot(file);
@@ -1021,6 +1112,23 @@ function updateScreenshotFieldPreview() {
   }
 
   preview.innerHTML = selectedScreenshot ? screenshotLink(selectedScreenshot, 'selected trade screenshot') : '';
+}
+
+function updateEditScreenshotFieldPreview(tradeId) {
+  const preview = document.querySelector(`[data-edit-screenshot-preview="${cssEscape(tradeId)}"]`);
+  const trade = trades.find((candidate) => candidate.id === tradeId);
+  if (!preview || !trade) {
+    return;
+  }
+
+  const screenshot = getEditScreenshotPreview(trade);
+  preview.innerHTML = screenshot ? screenshotLink(screenshot, `${getTradeDisplaySymbol(trade)} trade screenshot`) : '';
+}
+
+function cssEscape(value) {
+  return typeof CSS !== 'undefined' && CSS.escape
+    ? CSS.escape(String(value))
+    : String(value).replace(/["\\]/g, '\\$&');
 }
 
 function readScreenshot(file) {

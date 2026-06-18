@@ -147,3 +147,14 @@ test('saving trade edits only updates journaling fields and preserves imported e
   assertIncludes(source, 'persistTrades(trades.map((trade) => (', 'Saving edits persists the updated journal to localStorage through the existing storage path.');
   assertIncludes(source, 'Imported cTrader execution fields are read-only and will be preserved when journaling edits are saved.', 'The edit UI tells users imported cTrader execution fields remain read-only.');
 });
+
+test('imported cTrader edit flow supports screenshot attachments', () => {
+  assertIncludes(source, 'input name="editScreenshot" type="file" accept="image/*"', 'Imported trade edit forms accept image uploads.');
+  assertIncludes(source, 'data-edit-screenshot-preview="${escapeHtml(trade.id)}"', 'Imported trade edit forms render a screenshot preview target.');
+  assertIncludes(source, 'data-remove-edit-screenshot="${escapeHtml(trade.id)}"', 'Imported trade edit forms expose screenshot removal.');
+  assertIncludes(source, 'input.addEventListener(\'change\', changeEditScreenshot);', 'Imported trade screenshot uploads use the existing image reader path.');
+  assertIncludes(source, 'editScreenshotDrafts = {', 'Imported trade screenshot edits are tracked as local drafts until the trade edit is saved.');
+  assertIncludes(source, 'setFileInputFile(editForm.querySelector(\'input[name="editScreenshot"]\'), file);', 'Pasted screenshots target the active imported trade edit form.');
+  assertIncludes(source, 'screenshotLink(currentScreenshot, `${getTradeDisplaySymbol(trade)} trade screenshot`)', 'Imported trade edit previews reuse the manual screenshot link renderer.');
+  assertIncludes(source, 'screenshotUpdate', 'Saving imported trade edits preserves execution data while adding, replacing, or removing screenshots.');
+});
