@@ -873,16 +873,16 @@ function render() {
         statCard('trend', 'Net P&L', currency(stats.totalPnl), stats.totalPnl >= 0 ? 'positive' : 'negative'),
         statCard('target', 'Win Rate', `${stats.winRate}%`),
         statCard('chart', 'Trades Logged', stats.tradeCount),
-        statCard('line', 'Average R', formatRMultiple(stats.averageR), stats.averageR === null || stats.averageR >= 0 ? 'positive' : 'negative'),
+        statCard('trend', 'Biggest Winner', stats.biggestWinner === null ? '—' : currency(stats.biggestWinner), stats.biggestWinner === null || stats.biggestWinner >= 0 ? 'positive' : 'negative'),
       ],
     },
     {
       label: 'Risk Metrics',
       cards: [
         statCard('line', 'Average Win / Loss', `${currency(stats.averageWin)} / ${currency(stats.averageLoss)}`),
+        statCard('line', 'Average R', formatRMultiple(stats.averageR), stats.averageR === null || stats.averageR >= 0 ? 'positive' : 'negative'),
         statCard('target', 'Average Risk $', stats.averageRiskDollars === null ? '—' : currency(stats.averageRiskDollars)),
         statCard('target', 'Average Risk %', formatPercent(stats.averageRiskPercent)),
-        statCard('trend', 'Biggest Winner', stats.biggestWinner === null ? '—' : currency(stats.biggestWinner), stats.biggestWinner === null || stats.biggestWinner >= 0 ? 'positive' : 'negative'),
       ],
     },
     {
