@@ -722,6 +722,8 @@ function tradeCard(trade) {
   const tone = pnl >= 0 ? 'positive' : 'negative';
   const rTone = rMultiple === null || rMultiple >= 0 ? 'positive' : 'negative';
   const importedTimeDetail = cTraderTimeDetails(trade);
+  const setupName = String(trade.setup || '').trim();
+  const setupBadge = setupName ? `<p class="trade-setup-row"><span class="trade-setup-badge">${escapeHtml(setupName)}</span></p>` : '';
   const isEditing = editingTradeId === trade.id;
   return `
     <article class="trade-card">
@@ -731,7 +733,8 @@ function tradeCard(trade) {
             <p class="trade-symbol">${escapeHtml(displaySymbol)}</p>
             <strong class="trade-pnl-badge ${tone}" aria-label="P&L ${currency(pnl)}">${currency(pnl)}</strong>
           </div>
-          <p class="trade-meta">${escapeHtml(trade.date)} • ${escapeHtml(trade.direction)} • ${escapeHtml(trade.setup)}</p>
+          ${setupBadge}
+          <p class="trade-meta">${escapeHtml(trade.date)} • ${escapeHtml(trade.direction)}</p>
         </div>
       </div>
       <div class="trade-details">

@@ -484,8 +484,8 @@ h2 {
 .trade-title-row {
   align-items: center;
   display: flex;
-  flex-wrap: wrap;
   gap: 0.65rem;
+  justify-content: space-between;
 }
 
 .trade-pnl-badge {
@@ -499,11 +499,32 @@ h2 {
 }
 
 .trade-symbol {
+  flex: 1 1 auto;
   font-size: 1.25rem;
   font-weight: 900;
   letter-spacing: -0.03em;
   margin: 0;
+  min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.trade-setup-row {
+  display: flex;
+  margin: 0.55rem 0 0;
+}
+
+.trade-setup-badge {
+  background: #eef4ff;
+  border: 1px solid rgba(39, 110, 241, 0.2);
+  border-radius: 999px;
+  color: #1d4ed8;
+  display: inline-flex;
+  font-size: 0.88rem;
+  font-weight: 900;
+  line-height: 1.35;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 0.35rem 0.7rem;
 }
 
 .trade-meta,
@@ -699,6 +720,15 @@ h2 {
     align-items: stretch;
     flex-direction: column;
     gap: 0.35rem;
+  }
+
+  .trade-title-row {
+    align-items: flex-start;
+  }
+
+  .trade-pnl-badge {
+    font-size: 1.05rem;
+    padding: 0.4rem 0.6rem;
   }
 
   .screenshot-link {
