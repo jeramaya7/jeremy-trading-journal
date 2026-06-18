@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 
-export const CTRADER_JOURNAL_MAPPER_TRACE_VERSION = 'symbol-metadata-by-id-v3-symbol-fallback';
+export const CTRADER_JOURNAL_MAPPER_TRACE_VERSION = 'symbol-metadata-by-id-v4-stop-loss';
 
 const BROKER_SYMBOL_FALLBACKS_BY_ID = {
   41: 'XAUUSD',
@@ -56,6 +56,7 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
       ?? openingDeal?.filledVolume
       ?? openingDeal?.volume,
   );
+  const stopLoss = getCtraderStopLoss(deal, openingDeal);
   const symbolMetadata = options.symbolMetadata || getCtraderSymbolMetadataForDeal(deal, openingDeal, options);
   const symbol = getCtraderDealSymbol(deal, openingDeal, symbolMetadata);
   const symbolId = getCtraderDealSymbolId(deal, openingDeal);
@@ -70,6 +71,7 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
     symbol,
     symbolId,
     rawVolume,
+    stopLoss,
     volumeInUnits: getCtraderVolumeInUnits(rawVolume),
     volumeInUnitsStep: getCtraderVolumeInUnits(symbolMetadata?.stepVolume ?? symbolMetadata?.volumeInUnitsStep),
     minVolume: getCtraderVolumeInUnits(symbolMetadata?.minVolume),
@@ -77,6 +79,7 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
     lotSize: toFiniteNumber(symbolMetadata?.lotSize),
     convertedLotSize: getCtraderLotSizeInUnits(symbolMetadata),
     finalStoredSize: volume,
+    finalStoredStopLoss: stopLoss,
     finalStoredProfitLoss: netProfitLoss,
   });
 
@@ -92,6 +95,7 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
     direction,
     entry,
     exit,
+    ...(stopLoss !== null ? { stopLoss } : {}),
     size: volume,
     volume,
     openTime,
@@ -160,6 +164,35 @@ function getCtraderDealSymbolId(deal, openingDeal = null) {
     openingDeal?.symbolId,
     isNumericIdentifier(openingDeal?.symbol) ? openingDeal.symbol : null,
   );
+}
+
+function getCtraderStopLoss(deal, openingDeal = null) {
+  return toFiniteNumber(firstDefined(
+    deal?.stopLoss,
+    deal?.stopLossPrice,
+    deal?.slPrice,
+    deal?.sl,
+    deal?.order?.stopLoss,
+    deal?.order?.stopLossPrice,
+    deal?.position?.stopLoss,
+    deal?.position?.stopLossPrice,
+    deal?.closePositionDetail?.stopLoss,
+    deal?.closePositionDetail?.stopLossPrice,
+    deal?.closePositionDetail?.slPrice,
+    deal?.closePositionDetail?.sl,
+    deal?.closePositionDetail?.order?.stopLoss,
+    deal?.closePositionDetail?.order?.stopLossPrice,
+    deal?.closePositionDetail?.position?.stopLoss,
+    deal?.closePositionDetail?.position?.stopLossPrice,
+    openingDeal?.stopLoss,
+    openingDeal?.stopLossPrice,
+    openingDeal?.slPrice,
+    openingDeal?.sl,
+    openingDeal?.order?.stopLoss,
+    openingDeal?.order?.stopLossPrice,
+    openingDeal?.position?.stopLoss,
+    openingDeal?.position?.stopLossPrice,
+  ));
 }
 
 function firstDefined(...values) {
