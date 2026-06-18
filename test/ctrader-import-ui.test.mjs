@@ -130,7 +130,13 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(source, 'data-edit-trade="${escapeHtml(trade.id)}"', 'Each trade card renders an Edit button tied to that trade ID.');
   assertIncludes(source, 'function editTradeForm(trade)', 'Editing renders a focused form on the selected trade card.');
   assertIncludes(source, 'data-edit-trade-form="${escapeHtml(trade.id)}"', 'The edit form keeps a stable trade ID for saving changes.');
-  assertIncludes(source, "${field('Setup', `<input name=\"setup\"", 'The edit form allows setup changes.');
+  assertIncludes(source, "${field('Setup', renderPlayBookSetupSelect(trade))}", 'The edit form allows setup changes through the Play Book dropdown.');
+  assertIncludes(source, 'const PLAY_BOOK_SETUP_OPTIONS = [', 'The Play Book setup dropdown has a fixed setup list.');
+  assertIncludes(source, "'Elephant Bar'", 'The Play Book setup dropdown includes Elephant Bar.');
+  assertIncludes(source, "'Ride the 🐋'", 'The Play Book setup dropdown includes Ride the whale.');
+  assertIncludes(source, "const CUSTOM_SETUP_OPTION = 'Custom';", 'The Play Book setup dropdown includes a Custom option.');
+  assertIncludes(source, "const selectedSetup = isPlayBookSetup(currentSetup) ? currentSetup : CUSTOM_SETUP_OPTION;", 'Existing non-Play Book setup values open as Custom.');
+  assertIncludes(source, "const customValue = selectedSetup === CUSTOM_SETUP_OPTION ? currentSetup : '';", 'Existing custom setup values are preserved in the custom setup input.');
   assert.ok(!source.includes("${field('Emotion'"), 'The edit form does not render an emotion field.');
   assertIncludes(source, "${field('Tags', `<input name=\"tags\"", 'The edit form allows tag changes.');
   assertIncludes(source, "${field('Notes', `<textarea name=\"notes\"", 'The edit form allows notes changes.');
@@ -139,7 +145,8 @@ test('trade cards expose an edit flow for local journaling fields', () => {
 
 test('saving trade edits only updates journaling fields and preserves imported execution data', () => {
   assertIncludes(source, 'const journalingUpdates = {', 'The edit save handler creates a restricted journaling update object.');
-  assertIncludes(source, "setup: String(formData.get('setup')).trim() || 'Uncategorized setup'", 'Saving edits updates setup.');
+  assertIncludes(source, "setup: getSetupFormValue(formData)", 'Saving edits updates setup from the dropdown or custom setup input.');
+  assertIncludes(source, "if (setupChoice === CUSTOM_SETUP_OPTION)", 'Saving edits supports custom setup names.');
   assert.ok(!source.includes("formData.get('emotion')"), 'Saving edits does not update emotion.');
   assertIncludes(source, "tags: String(formData.get('tags')).trim()", 'Saving edits updates tags.');
   assertIncludes(source, "notes: String(formData.get('notes')).trim()", 'Saving edits updates notes.');
