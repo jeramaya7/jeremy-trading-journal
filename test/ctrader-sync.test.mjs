@@ -141,6 +141,32 @@ test('cTrader sync updates stale local cTrader symbols from skipped preview trad
   assert.equal(updatedExistingTrades.trades[0].closeTime, '2026-06-12T14:30:00.000Z');
 });
 
+
+test('cTrader sync refreshes account balance fields on existing imported trades', () => {
+  const existingTrades = [
+    {
+      id: 'ctrader-501',
+      provider: 'ctrader',
+      sourceTradeId: '501',
+      symbol: 'EURUSD',
+      brokerSymbol: 'EURUSD',
+    },
+  ];
+
+  const syncPlan = buildCTraderSyncPlan([{ ...closedPreviewTrade, stopLoss: 1.095 }], existingTrades, {
+    now: () => Date.parse('2026-06-12T15:00:00.000Z'),
+    accountBalance: { balance: 25000, fetchedAt: '2026-06-12T14:59:00.000Z' },
+  });
+  const updatedExistingTrades = applyCTraderImportedTradeUpdates(existingTrades, syncPlan.skippedTrades);
+
+  assert.equal(syncPlan.importedCount, 0);
+  assert.equal(syncPlan.skippedCount, 1);
+  assert.equal(updatedExistingTrades.updatedCount, 1);
+  assert.equal(updatedExistingTrades.trades[0].accountSize, 25000);
+  assert.equal(updatedExistingTrades.trades[0].accountBalance, 25000);
+  assert.equal(updatedExistingTrades.trades[0].accountBalanceFetchedAt, '2026-06-12T14:59:00.000Z');
+});
+
 test('existing duplicate protection still keys cTrader trades by source trade ID', () => {
   const candidateTrade = {
     provider: 'ctrader',
