@@ -9,28 +9,32 @@ function assertIncludes(text, expected, message) {
   assert.ok(text.includes(expected), `${message}\nExpected to find: ${expected}`);
 }
 
-test('reports foundation calculates daily, weekly, and monthly P&L from existing trades', () => {
+test('reports foundation calculates daily, weekly, monthly, and yearly P&L from existing trades', () => {
   assertIncludes(source, 'function calculatePnlForPeriod(tradeList, period, referenceDate = new Date())', 'Reports have a shared period calculator.');
   assertIncludes(source, 'pnl: report.pnl + calculatePnl(trade)', 'Reports reuse the existing calculatePnl helper for manual and cTrader trades.');
   assertIncludes(source, "{ label: 'Daily P&L', period: 'day', ...calculatePnlForPeriod(trades, 'day', referenceDate) }", 'Daily P&L is calculated.');
   assertIncludes(source, "{ label: 'Weekly P&L', period: 'week', ...calculatePnlForPeriod(trades, 'week', referenceDate) }", 'Weekly P&L is calculated.');
   assertIncludes(source, "{ label: 'Monthly P&L', period: 'month', ...calculatePnlForPeriod(trades, 'month', referenceDate) }", 'Monthly P&L is calculated.');
+  assertIncludes(source, "{ label: 'Yearly P&L', period: 'year', ...calculatePnlForPeriod(trades, 'year', referenceDate) }", 'Yearly P&L is calculated.');
+  assertIncludes(source, 'periodStart.setMonth(0, 1);', 'Yearly P&L starts from the first day of the current year.');
   assertIncludes(source, 'const dateValue = trade.closeTime || trade.date;', 'Imported cTrader close timestamps are supported without changing import data.');
 });
 
-test('P&L report cards render below the statistics section', () => {
-  const statsIndex = source.indexOf('<section class="stats-grid" aria-label="Trading performance summary">');
-  const reportsIndex = source.indexOf('<section class="reports-grid" aria-label="P&L reports">');
+test('P&L cards render inside the balanced dashboard grid', () => {
+  const statsIndex = source.indexOf('<section class="dashboard-card-groups" aria-label="Trading performance summary">');
   const workspaceIndex = source.indexOf('<section class="workspace-grid">');
 
-  assert.ok(statsIndex > -1, 'The current statistics section is still rendered.');
-  assert.ok(reportsIndex > statsIndex, 'Report cards render below the current statistics section.');
-  assert.ok(workspaceIndex > reportsIndex, 'Report cards render above the main trade workspace.');
-  assertIncludes(source, '${pnlReports.map(reportCard).join(\'\')}', 'The report cards are rendered from the calculated P&L reports.');
+  assert.ok(statsIndex > -1, 'The current dashboard section is still rendered.');
+  assert.ok(workspaceIndex > statsIndex, 'Dashboard cards render above the main trade workspace.');
+  assertIncludes(source, "statCard('calendar', 'Daily P&L'", 'Daily P&L renders in the dashboard grid.');
+  assertIncludes(source, "statCard('calendar', 'Weekly P&L'", 'Weekly P&L renders in the dashboard grid.');
+  assertIncludes(source, "statCard('calendar', 'Monthly P&L'", 'Monthly P&L renders in the dashboard grid.');
+  assertIncludes(source, "statCard('calendar', 'Yearly P&L'", 'Yearly P&L renders in the dashboard grid.');
 });
 
-test('report cards have production UI styling separate from trade entry and cTrader controls', () => {
-  assertIncludes(styles, '.reports-grid', 'Report cards use a dedicated grid class.');
-  assertIncludes(styles, '.report-card-header', 'Report cards have header styling.');
-  assertIncludes(styles, '.report-card small', 'Report cards include supporting trade-count text styling.');
+test('dashboard cards have production 4-column responsive styling', () => {
+  assertIncludes(styles, '.stats-grid', 'Dashboard cards use the shared stats grid class.');
+  assertIncludes(styles, 'grid-template-columns: repeat(4, minmax(0, 1fr));', 'Desktop dashboard uses four consistent columns.');
+  assertIncludes(styles, '@media (max-width: 1100px)', 'Tablet responsive breakpoint is preserved.');
+  assertIncludes(styles, 'grid-template-columns: 1fr;', 'Mobile stacking is preserved.');
 });
