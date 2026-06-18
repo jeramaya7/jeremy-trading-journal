@@ -94,7 +94,7 @@ test('cTrader Auto Sync keeps syncing while the app is open', () => {
 });
 
 test('cTrader production UI shows a user-facing connection summary instead of backend diagnostics', () => {
-  assertIncludes(source, 'renderCTraderConnectionSummary()', 'The hero renders a user-facing cTrader summary near the account controls.');
+  assertIncludes(source, 'renderCTraderConnectionCard()', 'The hero renders one compact cTrader connection card near the account controls.');
   assertIncludes(source, 'cTrader</dt>', 'The summary displays whether cTrader is connected.');
   assertIncludes(source, 'Selected Account', 'The summary displays the selected cTrader account.');
   assertIncludes(source, 'Account Balance', 'The summary displays the selected account balance.');
@@ -105,7 +105,7 @@ test('cTrader production UI shows a user-facing connection summary instead of ba
 
 test('cTrader UI lets users select an account and syncs only that saved account', () => {
   assertIncludes(source, "const SELECTED_CTRADER_ACCOUNT_STORAGE_KEY = 'jeremy-trading-journal:ctrader-selected-account:v1';", 'The selected cTrader account is persisted in local storage.');
-  assertIncludes(source, 'renderCTraderAccountSelector()', 'The hero renders a cTrader account selector.');
+  assertIncludes(source, 'id="cTraderAccountSelect"', 'The compact cTrader card renders a cTrader account selector.');
   assertIncludes(source, 'id="cTraderAccountSelect"', 'The selector has a stable DOM id.');
   assertIncludes(source, 'formatCTraderAccountLabel(account)', 'Account options show a formatted account label.');
   assertIncludes(source, "return `${environment} ${numberLabel} (ID ${accountId})`;", 'Account labels include live/demo, account number, and account ID.');
