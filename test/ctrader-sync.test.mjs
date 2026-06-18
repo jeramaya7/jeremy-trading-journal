@@ -123,6 +123,7 @@ test('cTrader sync updates stale local cTrader symbols from skipped preview trad
       brokerSymbol: 'XAUUSD',
       openTime: '2026-06-12T13:15:00.000Z',
       closeTime: '2026-06-12T14:30:00.000Z',
+      contractSize: 100,
     },
   ];
 
@@ -139,6 +140,7 @@ test('cTrader sync updates stale local cTrader symbols from skipped preview trad
   assert.equal(updatedExistingTrades.trades[0].sourceSymbolId, 41);
   assert.equal(updatedExistingTrades.trades[0].openTime, '2026-06-12T13:15:00.000Z');
   assert.equal(updatedExistingTrades.trades[0].closeTime, '2026-06-12T14:30:00.000Z');
+  assert.equal(updatedExistingTrades.trades[0].contractSize, 100);
 });
 
 

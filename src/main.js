@@ -289,8 +289,35 @@ function calculateRiskDollars(trade) {
     return null;
   }
 
-  const riskDollars = Math.abs(entry - stopLoss) * size;
+  const riskDollars = Math.abs(entry - stopLoss) * size * getTradeContractSize(trade);
   return riskDollars > 0 ? riskDollars : null;
+}
+
+function getTradeContractSize(trade) {
+  const explicitContractSize = toOptionalNumber(trade.contractSize ?? trade.lotSizeInUnits);
+  if (explicitContractSize !== null && explicitContractSize > 0) {
+    return explicitContractSize;
+  }
+
+  const size = toOptionalNumber(trade.size);
+  const symbol = getTradeDisplaySymbol(trade).toUpperCase().replace(/[^A-Z]/g, '');
+
+  // Manual trades historically used raw instrument units as size. Only infer a
+  // lot contract when the stored size looks like a lot quantity, which is how
+  // cTrader imports and manual lot-sized entries represent metals/FX.
+  if (size !== null && size > 100) {
+    return 1;
+  }
+
+  if (symbol === 'XAUUSD' || symbol.includes('GOLD')) {
+    return 100;
+  }
+
+  if (/^[A-Z]{6}$/.test(symbol)) {
+    return 100000;
+  }
+
+  return 1;
 }
 
 function calculateRiskPercent(trade) {
@@ -325,7 +352,7 @@ function calculatePnl(trade) {
   const size = Number(trade.size) || 0;
   const fees = Number(trade.fees) || 0;
   const gross = trade.direction === 'Short' ? (entry - exit) * size : (exit - entry) * size;
-  return gross - fees;
+  return (gross * getTradeContractSize(trade)) - fees;
 }
 
 function getReportPeriodStart(referenceDate, period) {
