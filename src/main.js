@@ -74,6 +74,7 @@ let isCTraderAutoSyncEnabled = loadCTraderAutoSyncSetting();
 let cTraderLastSyncAt = loadCTraderLastSyncTime();
 let cTraderAutoSyncTimer = null;
 let cTraderBackendDiagnostics = getCTraderBackendDiagnostics();
+let isCTraderConnected = false;
 let cTraderAccounts = [];
 let cTraderAccountBalance = null;
 let selectedCTraderAccountId = loadSelectedCTraderAccountId();
@@ -714,12 +715,12 @@ function render() {
             <input type="checkbox" id="autoSyncCTrader" ${isCTraderAutoSyncEnabled ? 'checked' : ''} />
             <span>Auto Sync ${isCTraderAutoSyncEnabled ? 'ON' : 'OFF'}</span>
           </label>
-          ${renderCTraderBackendDiagnostics()}
+          ${renderCTraderConnectionSummary()}
           ${renderCTraderAccountSelector()}
 ${cTraderSyncStatus ? `<p class="import-status ${escapeHtml(cTraderSyncStatus.tone)}" role="status">${escapeHtml(cTraderSyncStatus.message)}</p>` : ''}
-<button class="connect-button" type="button" id="connectCTrader" ${isCheckingCTraderConnection ? 'disabled' : ''}>
+${!isCTraderConnected ? `<button class="connect-button" type="button" id="connectCTrader" ${isCheckingCTraderConnection ? 'disabled' : ''}>
  Connect cTrader
-</button>
+</button>` : ''}
           <button class="secondary-button" type="button" id="syncCTrader" ${isSyncingCTrader || isCheckingCTraderConnection ? 'disabled' : ''}>
             ${icon('refresh')} ${isSyncingCTrader ? 'Syncing cTrader...' : 'Sync cTrader'}
           </button>
@@ -731,7 +732,6 @@ ${cTraderSyncStatus ? `<p class="import-status ${escapeHtml(cTraderSyncStatus.to
             ${icon('upload')} Import JSON
             <input type="file" accept="application/json" id="importTrades" />
           </label>
-          <p class="sync-meta">Last cTrader sync: <strong>${escapeHtml(formatSyncTime(cTraderLastSyncAt))}</strong></p>
         </div>
       </section>
 
@@ -838,7 +838,7 @@ function bindEvents() {
   document.querySelector('#autoSyncCTrader').addEventListener('change', changeCTraderAutoSyncSetting);
   document.querySelector('#cTraderAccountSelect')?.addEventListener('change', changeCTraderAccountSelection);
   document.querySelector('#refreshCTraderAccounts')?.addEventListener('click', () => loadCTraderAccounts({ force: true }));
-  document.querySelector('#connectCTrader').addEventListener('click', startCTraderOAuthFlow);
+  document.querySelector('#connectCTrader')?.addEventListener('click', startCTraderOAuthFlow);
   document.querySelector('#syncCTrader').addEventListener('click', () => syncCTrader({ source: 'manual' }));
   document.querySelector('#deleteAllCTraderImports').addEventListener('click', deleteAllCTraderImports);
   document.querySelector('#exportTrades').addEventListener('click', exportTrades);
@@ -1083,28 +1083,29 @@ function setCTraderBackendDiagnostics(overrides = {}) {
   cTraderBackendDiagnostics = getCTraderBackendDiagnostics(overrides);
 }
 
-function renderCTraderBackendDiagnostics() {
+function renderCTraderConnectionSummary() {
+  const selectedAccount = getSelectedCTraderAccount();
+  const selectedAccountLabel = selectedAccount
+    ? formatCTraderAccountLabel(selectedAccount)
+    : (selectedCTraderAccountId ? `Selected account ID ${selectedCTraderAccountId}` : 'No account selected');
+
   return `
-    <dl class="backend-diagnostics" aria-label="cTrader backend diagnostics">
+    <dl class="ctrader-connection-summary" aria-label="cTrader connection summary">
       <div>
-        <dt>Backend URL</dt>
-        <dd>${escapeHtml(cTraderBackendDiagnostics.backendUrl)}</dd>
+        <dt>cTrader</dt>
+        <dd class="connection-${isCTraderConnected ? 'connected' : 'disconnected'}">${isCTraderConnected ? 'Connected' : 'Not Connected'}</dd>
       </div>
       <div>
-        <dt>Status check URL</dt>
-        <dd>${escapeHtml(cTraderBackendDiagnostics.statusUrl)}</dd>
+        <dt>Selected Account</dt>
+        <dd>${escapeHtml(selectedAccountLabel)}</dd>
       </div>
       <div>
-        <dt>OAuth start URL</dt>
-        <dd>${escapeHtml(cTraderBackendDiagnostics.authStartUrl)}</dd>
+        <dt>Account Balance</dt>
+        <dd>${escapeHtml(formatCTraderAccountBalance())}</dd>
       </div>
       <div>
-        <dt>OAuth callback URL</dt>
-        <dd>${escapeHtml(cTraderBackendDiagnostics.authCallbackUrl)}</dd>
-      </div>
-      <div>
-        <dt>Connection status</dt>
-        <dd class="diagnostic-${escapeHtml(cTraderBackendDiagnostics.tone)}">${escapeHtml(cTraderBackendDiagnostics.connectionStatus)}</dd>
+        <dt>Last Sync Time</dt>
+        <dd>${escapeHtml(formatSyncTime(cTraderLastSyncAt))}</dd>
       </div>
     </dl>
   `;
@@ -1193,8 +1194,6 @@ function renderCTraderAccountSelector() {
     const accountId = String(getCTraderAccountId(account));
     return `<option value="${escapeHtml(accountId)}" ${accountId === String(selectedCTraderAccountId) ? 'selected' : ''}>${escapeHtml(formatCTraderAccountLabel(account))}</option>`;
   }).join('');
-  const selectedLabel = escapeHtml(getSelectedCTraderAccountStatusLabel().trim());
-
   return `
     <div class="ctrader-account-selector">
       <label class="field" for="cTraderAccountSelect">
@@ -1203,9 +1202,7 @@ function renderCTraderAccountSelector() {
           ${cTraderAccounts.length ? options : '<option value="">Connect cTrader to load accounts</option>'}
         </select>
       </label>
-      <button class="secondary-button" type="button" id="refreshCTraderAccounts" ${isLoadingCTraderAccounts ? 'disabled' : ''}>${isLoadingCTraderAccounts ? 'Loading accounts...' : 'Refresh accounts'}</button>
-      <p class="selected-account-meta">${selectedLabel}</p>
-      <p class="selected-account-meta">${escapeHtml(formatCTraderAccountBalance())}</p>
+      <button class="secondary-button" type="button" id="refreshCTraderAccounts" ${isLoadingCTraderAccounts ? 'disabled' : ''}>${isLoadingCTraderAccounts ? 'Loading accounts...' : 'Refresh Accounts'}</button>
     </div>
   `;
 }
@@ -1343,12 +1340,14 @@ async function checkCTraderConnection() {
   const { response, body: status, url } = await fetchBackendJson(CTRADER_ENDPOINTS.status);
   if (!response.ok || !status.connected) {
     setCTraderBackendDiagnostics({ connectionStatus: describeCTraderConnectionStatus(status), tone: 'error' });
+    isCTraderConnected = false;
     const error = new Error(status.error || 'cTrader is not connected.');
     error.url = url;
     throw error;
   }
 
   setCTraderBackendDiagnostics({ connectionStatus: describeCTraderConnectionStatus(status), tone: 'success' });
+  isCTraderConnected = true;
   await loadCTraderAccounts();
   return status;
 }
@@ -1383,6 +1382,7 @@ async function syncCTrader(options = {}) {
     }
 
     setCTraderBackendDiagnostics({ connectionStatus: 'Backend reachable; cTrader journal preview loaded.', tone: 'success' });
+    isCTraderConnected = true;
 
     const previewTrades = Array.isArray(preview.trades) ? preview.trades : [];
     const syncPlan = buildCTraderSyncPlan(previewTrades, trades, {
@@ -1411,6 +1411,7 @@ async function syncCTrader(options = {}) {
       stack: error.stack || null,
     });
     setCTraderBackendDiagnostics({ connectionStatus: error.url ? `Backend error at ${error.url}` : 'Backend check failed', tone: 'error' });
+    isCTraderConnected = false;
     cTraderSyncStatus = {
       tone: 'error',
       message: error.message || 'cTrader sync failed.',
@@ -1516,6 +1517,7 @@ async function syncCTraderOnStartup() {
     await checkCTraderConnection();
   } catch (error) {
     setCTraderBackendDiagnostics({ connectionStatus: error.url ? `Backend error at ${error.url}` : 'Backend check failed', tone: 'error' });
+    isCTraderConnected = false;
     cTraderSyncStatus = {
       tone: 'error',
       message: error.message || 'cTrader is not connected. Connect cTrader to enable Auto Sync.',

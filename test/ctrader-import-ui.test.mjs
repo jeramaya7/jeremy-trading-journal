@@ -19,7 +19,7 @@ test('cTrader sync button calls the journal preview API', () => {
 test('cTrader connect button starts OAuth on the Render backend and checks status after return', () => {
   assertIncludes(source, 'id="connectCTrader"', 'The hero actions render a visible Connect cTrader button.');
   assertIncludes(source, 'Connect cTrader', 'The button copy clearly starts cTrader connection.');
-  assertIncludes(source, "document.querySelector('#connectCTrader').addEventListener('click', startCTraderOAuthFlow);", 'The connect button is wired to the OAuth handler.');
+  assertIncludes(source, "document.querySelector('#connectCTrader')?.addEventListener('click', startCTraderOAuthFlow);", 'The connect button is wired to the OAuth handler.');
   assertIncludes(source, 'buildCTraderOAuthUrl(CTRADER_ENDPOINTS.authStart)', 'The OAuth handler uses the Render auth start URL builder.');
   assertIncludes(source, "authStartUrl.searchParams.set('returnTo', getCTraderOAuthReturnUrl());", 'The OAuth handler asks the backend to return to the frontend after authorization.');
   assertIncludes(source, "currentUrl.searchParams.get('ctrader') !== 'connected'", 'The frontend detects the OAuth return flag.');
@@ -80,7 +80,7 @@ test('cTrader Auto Sync runs on startup and exposes settings metadata', () => {
   assertIncludes(source, "document.querySelector('#autoSyncCTrader').addEventListener('change', changeCTraderAutoSyncSetting);", 'The Auto Sync checkbox updates the saved preference.');
   assertIncludes(source, 'fetchBackendJson(CTRADER_ENDPOINTS.status)', 'Startup Auto Sync checks cTrader connection status before syncing trades.');
   assertIncludes(source, "syncCTrader({ source: 'auto' })", 'Startup Auto Sync imports new cTrader trades without pressing Sync.');
-  assertIncludes(source, 'Last cTrader sync:', 'The UI shows the last cTrader sync time.');
+  assertIncludes(source, 'Last Sync Time', 'The UI shows the last cTrader sync time.');
   assertIncludes(source, 'syncCTraderOnStartup();', 'The app starts Auto Sync after the first render.');
 });
 
@@ -93,12 +93,14 @@ test('cTrader Auto Sync keeps syncing while the app is open', () => {
   assertIncludes(source, 'scheduleCTraderAutoSync();', 'The app schedules Auto Sync during startup and preference changes.');
 });
 
-test('cTrader backend diagnostics show backend URL and connection status', () => {
-  assertIncludes(source, 'renderCTraderBackendDiagnostics()', 'The hero renders backend diagnostics near the cTrader controls.');
-  assertIncludes(source, 'Backend URL', 'The diagnostics display the backend URL used by fetch calls.');
-  assertIncludes(source, 'Status check URL', 'The diagnostics display the exact status endpoint being checked.');
-  assertIncludes(source, 'Connection status', 'The diagnostics display the current backend/cTrader connection state.');
-  assertIncludes(source, 'describeCTraderConnectionStatus(status)', 'The connection status is derived from the backend status response.');
+test('cTrader production UI shows a user-facing connection summary instead of backend diagnostics', () => {
+  assertIncludes(source, 'renderCTraderConnectionSummary()', 'The hero renders a user-facing cTrader summary near the account controls.');
+  assertIncludes(source, 'cTrader</dt>', 'The summary displays whether cTrader is connected.');
+  assertIncludes(source, 'Selected Account', 'The summary displays the selected cTrader account.');
+  assertIncludes(source, 'Account Balance', 'The summary displays the selected account balance.');
+  assertIncludes(source, 'Last Sync Time', 'The summary displays the last cTrader sync time.');
+  assertIncludes(source, '!isCTraderConnected ? `<button class="connect-button"', 'The Connect cTrader button is only rendered while disconnected.');
+  assertIncludes(source, 'describeCTraderConnectionStatus(status)', 'Connection state still comes from the existing backend status response.');
 });
 
 test('cTrader UI lets users select an account and syncs only that saved account', () => {
@@ -110,7 +112,6 @@ test('cTrader UI lets users select an account and syncs only that saved account'
   assertIncludes(source, "accounts.find((account) => account?.isLive === true) || accounts[0]", 'The frontend defaults to the first live cTrader account.');
   assertIncludes(source, "params.set('accountId', String(selectedCTraderAccountId));", 'The sync request passes the selected account ID to the backend.');
   assertIncludes(source, "String(trade?.accountId) === String(selectedCTraderAccountId)", 'The incremental sync cursor is scoped to the selected account.');
-  assertIncludes(source, 'getSelectedCTraderAccountStatusLabel()', 'The selected account appears beside cTrader connection status.');
   assertIncludes(source, 'selectedAccount: getSelectedCTraderAccount() ?', 'Sync diagnostics keep logging the selected account metadata.');
   assertIncludes(source, 'dealsReturned: preview?.dealCount ?? previewTrades.length', 'Sync diagnostics keep logging deals returned.');
 });
