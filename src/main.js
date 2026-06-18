@@ -621,11 +621,13 @@ function tradeCard(trade) {
   return `
     <article class="trade-card">
       <div class="trade-card-header">
-        <div>
-          <p class="trade-symbol">${escapeHtml(displaySymbol)}</p>
+        <div class="trade-card-heading">
+          <div class="trade-title-row">
+            <p class="trade-symbol">${escapeHtml(displaySymbol)}</p>
+            <strong class="trade-pnl-badge ${tone}" aria-label="P&L ${currency(pnl)}">${currency(pnl)}</strong>
+          </div>
           <p class="trade-meta">${escapeHtml(trade.date)} • ${escapeHtml(trade.direction)} • ${escapeHtml(trade.setup)}</p>
         </div>
-        <strong class="${tone}">${currency(pnl)}</strong>
       </div>
       <div class="trade-details">
         <span>Entry: ${currency(Number(trade.entry))}</span>
