@@ -4,9 +4,9 @@ A local-first trading journal built with plain HTML, CSS, and JavaScript. Log tr
 
 ## Features
 
-- Add long or short trades with symbol, setup, entry, exit, size, fees, emotion, tags, and notes.
+- Add long or short trades with symbol, setup, entry, exit, size, fees, tags, and notes.
 - Automatically calculate per-trade P&L and portfolio summary metrics.
-- Search journal entries by symbol, setup, direction, tags, emotion, or notes.
+- Search journal entries by symbol, setup, direction, tags, or notes.
 - Persist trades in browser local storage for a quick no-backend workflow.
 - Attach trade screenshots with the file picker or by pasting an image from the clipboard.
 - Import and export the full journal as JSON.

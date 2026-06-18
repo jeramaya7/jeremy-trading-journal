@@ -520,7 +520,7 @@ function getFilteredTrades() {
   }
 
   return trades.filter((trade) => {
-    return [trade.symbol, trade.setup, trade.direction, trade.emotion, trade.tags, trade.notes]
+    return [trade.symbol, trade.setup, trade.direction, trade.tags, trade.notes]
       .join(' ')
       .toLowerCase()
       .includes(normalizedQuery);
@@ -615,7 +615,6 @@ function tradeCard(trade) {
   const tone = pnl >= 0 ? 'positive' : 'negative';
   const rTone = rMultiple === null || rMultiple >= 0 ? 'positive' : 'negative';
   const importedTimeDetail = cTraderTimeDetails(trade);
-  const emotionDetail = isCTraderImportedTrade(trade) ? '' : `<span>Emotion: ${escapeHtml(trade.emotion)}</span>`;
   const isEditing = editingTradeId === trade.id;
   return `
     <article class="trade-card">
@@ -635,7 +634,6 @@ function tradeCard(trade) {
         <span>Risk %: ${formatPercent(riskPercent)}</span>
         <span class="${rTone}">R: ${formatRMultiple(rMultiple)}</span>
         ${importedTimeDetail}
-        ${emotionDetail}
       </div>
       ${isEditing ? editTradeForm(trade) : tradeJournalDetails(trade)}
       ${!isEditing ? screenshotPreview(trade) : ''}
@@ -651,7 +649,6 @@ function tradeCard(trade) {
 
 function tradeJournalDetails(trade) {
   return `
-      ${isCTraderImportedTrade(trade) && trade.emotion ? `<p class="journal-detail"><strong>Emotion:</strong> ${escapeHtml(trade.emotion)}</p>` : ''}
       ${trade.tags ? `<p class="tags">${escapeHtml(trade.tags)}</p>` : ''}
       ${trade.notes ? `<p class="notes">${escapeHtml(trade.notes)}</p>` : ''}`;
 }
@@ -661,7 +658,6 @@ function editTradeForm(trade) {
       <form class="edit-trade-form" data-edit-trade-form="${escapeHtml(trade.id)}">
         <div class="form-grid">
           ${field('Setup', `<input name="setup" value="${escapeHtml(trade.setup)}" placeholder="Breakout, pullback, VWAP..." />`)}
-          ${field('Emotion', `<input name="emotion" value="${escapeHtml(trade.emotion)}" placeholder="Calm, FOMO, patient..." />`)}
           ${field('Tags', `<input name="tags" value="${escapeHtml(trade.tags)}" placeholder="gap, reversal, A+" />`)}
         </div>
         ${field('Notes', `<textarea name="notes" rows="5" placeholder="What was the plan? What happened? What will you repeat or avoid?">${escapeHtml(trade.notes)}</textarea>`)}
@@ -797,7 +793,6 @@ function renderManualTradeForm(today) {
         ${field('Account Size', '<input name="accountSize" type="number" min="0" step="0.01" placeholder="Optional" />')}
         ${field('Risk %', '<input name="riskPercent" type="number" min="0" step="0.01" placeholder="Calculated" readonly />')}
         ${field('Fees', '<input name="fees" type="number" min="0" step="0.01" value="0" />')}
-        ${field('Emotion', '<input name="emotion" placeholder="Calm, FOMO, patient..." value="Calm" />')}
         ${field('Tags', '<input name="tags" placeholder="gap, reversal, A+" />')}
       </div>
       ${field('Notes', '<textarea name="notes" rows="5" placeholder="What was the plan? What happened? What will you repeat or avoid?"></textarea>')}
@@ -944,7 +939,6 @@ async function submitTrade(event) {
       accountSize: formData.get('accountSize'),
     }),
     fees: Number(formData.get('fees')) || 0,
-    emotion: String(formData.get('emotion')).trim() || 'Calm',
     tags: String(formData.get('tags')).trim(),
     notes: String(formData.get('notes')).trim(),
     screenshot,
@@ -962,7 +956,6 @@ function submitTradeEdit(event) {
   const formData = new FormData(form);
   const journalingUpdates = {
     setup: String(formData.get('setup')).trim() || 'Uncategorized setup',
-    emotion: String(formData.get('emotion')).trim() || (isCTraderImportedTrade(trades.find((trade) => trade.id === tradeId)) ? 'Imported' : 'Calm'),
     tags: String(formData.get('tags')).trim(),
     notes: String(formData.get('notes')).trim(),
   };

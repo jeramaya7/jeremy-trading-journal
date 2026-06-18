@@ -35,7 +35,7 @@ test('cTrader preview trades are converted into saved journal entries', () => {
   assertIncludes(source, 'applyCTraderImportedTradeUpdates(trades, syncPlan.skippedTrades)', 'Skipped duplicate imports refresh stale local cTrader symbols.');
 });
 
-test('cTrader imported trade cards show clean import details without emotion', () => {
+test('trade cards show clean details without emotion', () => {
   assertIncludes(source, '<p class="trade-symbol">${escapeHtml(displaySymbol)}</p>', 'Trade cards display the resolved broker symbol at the top of the card.');
   assertIncludes(source, 'function getTradeDisplaySymbol(trade)', 'Trade cards resolve stored broker symbols before rendering cTrader imports.');
   assertIncludes(source, 'trade.brokerSymbol,', 'Numeric cTrader symbol IDs in stored imports are bypassed when broker symbols are available.');
@@ -48,7 +48,7 @@ test('cTrader imported trade cards show clean import details without emotion', (
   assertIncludes(source, '<span>Opened: ${escapeHtml(formatTradeTimestamp(trade.openTime))}</span>', 'Imported trade cards show the cTrader open time.');
   assertIncludes(source, '<span>Closed: ${escapeHtml(formatTradeTimestamp(trade.closeTime))}</span>', 'Imported trade cards show the cTrader close time.');
   assertIncludes(source, '<span>Duration: ${escapeHtml(formatTradeDuration(trade.openTime, trade.closeTime))}</span>', 'Imported trade cards show the trade duration.');
-  assertIncludes(source, "const emotionDetail = isCTraderImportedTrade(trade) ? '' : `<span>Emotion: ${escapeHtml(trade.emotion)}</span>`;", 'cTrader imported trade cards omit emotion from the details.');
+  assert.ok(!source.includes('Emotion:'), 'Trade cards do not display emotion details.');
   assertIncludes(source, "return trade?.provider === 'ctrader' || String(trade?.tags || '').toLowerCase().includes('ctrader');", 'The card cleanup only targets cTrader imports.');
 });
 
@@ -130,7 +130,7 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(source, 'function editTradeForm(trade)', 'Editing renders a focused form on the selected trade card.');
   assertIncludes(source, 'data-edit-trade-form="${escapeHtml(trade.id)}"', 'The edit form keeps a stable trade ID for saving changes.');
   assertIncludes(source, "${field('Setup', `<input name=\"setup\"", 'The edit form allows setup changes.');
-  assertIncludes(source, "${field('Emotion', `<input name=\"emotion\"", 'The edit form allows emotion changes.');
+  assert.ok(!source.includes("${field('Emotion'"), 'The edit form does not render an emotion field.');
   assertIncludes(source, "${field('Tags', `<input name=\"tags\"", 'The edit form allows tag changes.');
   assertIncludes(source, "${field('Notes', `<textarea name=\"notes\"", 'The edit form allows notes changes.');
   assertIncludes(source, "form.addEventListener('submit', submitTradeEdit);", 'Edit forms are wired to the save handler.');
@@ -139,7 +139,7 @@ test('trade cards expose an edit flow for local journaling fields', () => {
 test('saving trade edits only updates journaling fields and preserves imported execution data', () => {
   assertIncludes(source, 'const journalingUpdates = {', 'The edit save handler creates a restricted journaling update object.');
   assertIncludes(source, "setup: String(formData.get('setup')).trim() || 'Uncategorized setup'", 'Saving edits updates setup.');
-  assertIncludes(source, "emotion: String(formData.get('emotion')).trim()", 'Saving edits updates emotion.');
+  assert.ok(!source.includes("formData.get('emotion')"), 'Saving edits does not update emotion.');
   assertIncludes(source, "tags: String(formData.get('tags')).trim()", 'Saving edits updates tags.');
   assertIncludes(source, "notes: String(formData.get('notes')).trim()", 'Saving edits updates notes.');
   assertIncludes(source, '? { ...trade, ...journalingUpdates }', 'Saving edits spreads the existing trade first, preserving cTrader fields not in the journaling update.');
