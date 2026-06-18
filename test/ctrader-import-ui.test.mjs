@@ -41,6 +41,13 @@ test('cTrader imported trade cards show clean import details without emotion', (
   assertIncludes(source, 'trade.brokerSymbol,', 'Numeric cTrader symbol IDs in stored imports are bypassed when broker symbols are available.');
   assertIncludes(source, 'const importedNetProfitLoss = toOptionalNumber(trade.netProfitLoss);', 'Imported cTrader P/L uses the cTrader net profit/loss field instead of recalculating from journal size.');
   assertIncludes(source, 'if (isCTraderImportedTrade(trade) && importedNetProfitLoss !== null) {', 'Only cTrader imported trades prefer the broker-provided P/L value.');
+  assertIncludes(source, "const importedTimeDetail = cTraderTimeDetails(trade);", 'cTrader imported trade cards render cTrader time details.');
+  assertIncludes(source, 'function formatTradeTimestamp(value)', 'Imported cTrader timestamps are formatted in the browser local time zone.');
+  assertIncludes(source, 'timestamp.toLocaleString([], {', 'Imported cTrader timestamps use local browser formatting.');
+  assertIncludes(source, 'function formatTradeDuration(openTime, closeTime)', 'Imported cTrader open and close timestamps are used to calculate duration.');
+  assertIncludes(source, '<span>Opened: ${escapeHtml(formatTradeTimestamp(trade.openTime))}</span>', 'Imported trade cards show the cTrader open time.');
+  assertIncludes(source, '<span>Closed: ${escapeHtml(formatTradeTimestamp(trade.closeTime))}</span>', 'Imported trade cards show the cTrader close time.');
+  assertIncludes(source, '<span>Duration: ${escapeHtml(formatTradeDuration(trade.openTime, trade.closeTime))}</span>', 'Imported trade cards show the trade duration.');
   assertIncludes(source, "const emotionDetail = isCTraderImportedTrade(trade) ? '' : `<span>Emotion: ${escapeHtml(trade.emotion)}</span>`;", 'cTrader imported trade cards omit emotion from the details.');
   assertIncludes(source, "return trade?.provider === 'ctrader' || String(trade?.tags || '').toLowerCase().includes('ctrader');", 'The card cleanup only targets cTrader imports.');
 });

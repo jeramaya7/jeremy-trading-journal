@@ -52,6 +52,8 @@ export function applyCTraderImportedTradeUpdates(existingTrades, skippedTrades) 
       symbol: readableSymbol,
       brokerSymbol: readableSymbol,
       sourceSymbolId: skippedTrade.trade?.sourceSymbolId,
+      openTime: skippedTrade.trade?.openTime,
+      closeTime: skippedTrade.trade?.closeTime,
     });
   }
 
@@ -67,10 +69,14 @@ export function applyCTraderImportedTradeUpdates(existingTrades, skippedTrades) 
       symbol: update.symbol,
       brokerSymbol: update.brokerSymbol,
       ...(update.sourceSymbolId !== undefined ? { sourceSymbolId: update.sourceSymbolId } : {}),
+      ...(update.openTime ? { openTime: update.openTime } : {}),
+      ...(update.closeTime ? { closeTime: update.closeTime } : {}),
     };
     const didChange = nextTrade.symbol !== trade.symbol
       || nextTrade.brokerSymbol !== trade.brokerSymbol
-      || nextTrade.sourceSymbolId !== trade.sourceSymbolId;
+      || nextTrade.sourceSymbolId !== trade.sourceSymbolId
+      || nextTrade.openTime !== trade.openTime
+      || nextTrade.closeTime !== trade.closeTime;
     if (didChange) {
       updatedCount += 1;
       return nextTrade;
