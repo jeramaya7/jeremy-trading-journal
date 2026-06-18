@@ -16,6 +16,8 @@ export const CTRADER_PAYLOAD_TYPES = {
   PROTO_OA_SYMBOL_BY_ID_RES: 2117,
   PROTO_OA_DEAL_LIST_REQ: 2133,
   PROTO_OA_DEAL_LIST_RES: 2134,
+  PROTO_OA_ORDER_LIST_BY_POSITION_ID_REQ: 2183,
+  PROTO_OA_ORDER_LIST_BY_POSITION_ID_RES: 2184,
   PROTO_OA_ERROR_RES: 2142,
   PROTO_OA_GET_ACCOUNTS_BY_ACCESS_TOKEN_REQ: 2149,
   PROTO_OA_GET_ACCOUNTS_BY_ACCESS_TOKEN_RES: 2150,
@@ -197,6 +199,31 @@ export class CTraderOpenApiJsonClient {
     );
 
     return response.payload || { ctidTraderAccountId, deal: [] };
+  }
+
+  async getOrderListByPositionId(ctidTraderAccountId, positionId, { fromTimestamp, toTimestamp } = {}) {
+    if (!ctidTraderAccountId) {
+      throw new Error('cTrader account ID is required to fetch orders by position ID');
+    }
+    if (positionId === undefined || positionId === null || positionId === '') {
+      throw new Error('cTrader position ID is required to fetch orders');
+    }
+
+    const payload = { ctidTraderAccountId, positionId: Number(positionId) };
+    if (fromTimestamp !== undefined) {
+      payload.fromTimestamp = fromTimestamp;
+    }
+    if (toTimestamp !== undefined) {
+      payload.toTimestamp = toTimestamp;
+    }
+
+    const response = await this.sendRequest(
+      CTRADER_PAYLOAD_TYPES.PROTO_OA_ORDER_LIST_BY_POSITION_ID_REQ,
+      payload,
+      CTRADER_PAYLOAD_TYPES.PROTO_OA_ORDER_LIST_BY_POSITION_ID_RES,
+    );
+
+    return response.payload || { ctidTraderAccountId, positionId: Number(positionId), order: [] };
   }
 
   async authorizeAccount(ctidTraderAccountId, accessToken = this.accessToken) {

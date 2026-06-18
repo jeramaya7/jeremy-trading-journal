@@ -408,3 +408,39 @@ test('prefers readable archived cTrader symbol metadata over numeric active plac
 
   assert.deepEqual(await symbolPromise, { symbolId: 41, symbolName: 'XAUUSD', lotSize: 10000 });
 });
+
+test('fetches cTrader orders by position ID for stop loss fallback', async () => {
+  const client = createClient();
+  const ordersPromise = client.getOrderListByPositionId(12345, 67890, {
+    fromTimestamp: 1_690_000_000_000,
+    toTimestamp: 1_700_000_000_000,
+  });
+  const socket = FakeWebSocket.instances[0];
+  socket.open();
+  await flushMicrotasks();
+
+  const sentMessage = socket.sentMessages[0];
+  assert.equal(sentMessage.payloadType, CTRADER_PAYLOAD_TYPES.PROTO_OA_ORDER_LIST_BY_POSITION_ID_REQ);
+  assert.deepEqual(sentMessage.payload, {
+    ctidTraderAccountId: 12345,
+    positionId: 67890,
+    fromTimestamp: 1_690_000_000_000,
+    toTimestamp: 1_700_000_000_000,
+  });
+
+  socket.receive({
+    clientMsgId: sentMessage.clientMsgId,
+    payloadType: CTRADER_PAYLOAD_TYPES.PROTO_OA_ORDER_LIST_BY_POSITION_ID_RES,
+    payload: {
+      ctidTraderAccountId: 12345,
+      positionId: 67890,
+      order: [{ orderId: 5, stopLoss: 1.2345 }],
+    },
+  });
+
+  assert.deepEqual(await ordersPromise, {
+    ctidTraderAccountId: 12345,
+    positionId: 67890,
+    order: [{ orderId: 5, stopLoss: 1.2345 }],
+  });
+});

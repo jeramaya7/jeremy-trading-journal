@@ -612,6 +612,11 @@ test('GET /api/ctrader/journal-preview returns mapped trades without saving jour
       return { symbolId, symbolName: 'EURUSD', lotSize: 10000000, stepVolume: 1000, minVolume: 1000 };
     }
 
+    async getOrderListByPositionId(ctidTraderAccountId, positionId, request) {
+      calls.push(['getOrderListByPositionId', ctidTraderAccountId, positionId, request]);
+      return { ctidTraderAccountId, positionId, order: [{ orderId: 900, stopLoss: 150.9 }] };
+    }
+
     close() {
       calls.push(['close']);
     }
@@ -660,6 +665,7 @@ test('GET /api/ctrader/journal-preview returns mapped trades without saving jour
         direction: 'Short',
         entry: 151.1,
         exit: 150.2,
+        stopLoss: 150.9,
         size: 1,
         volume: 1,
         openTime: '2023-11-03T08:26:40.000Z',
@@ -679,6 +685,7 @@ test('GET /api/ctrader/journal-preview returns mapped trades without saving jour
       'authenticateAndAuthorizeAccount',
       'getDealList',
       'getSymbolById',
+      'getOrderListByPositionId',
       'close',
     ]);
   } finally {
@@ -1062,4 +1069,53 @@ test('backend supports cross-origin GitHub Pages API checks', async () => {
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
+});
+
+test('uses cTrader order history stop loss when deal stop loss fields are absent', () => {
+  const logs = [];
+  const logger = { info: (...args) => logs.push(args) };
+  const [trade] = mapCtraderDealsToJournalTrades({
+    deal: [
+      {
+        dealId: 410,
+        positionId: 510,
+        symbolName: 'EURUSD',
+        tradeSide: 'BUY',
+        executionPrice: 1.1,
+        executionTimestamp: 1_699_000_000_000,
+        filledVolume: 10000000,
+      },
+      {
+        dealId: 411,
+        positionId: 510,
+        symbolName: 'EURUSD',
+        tradeSide: 'SELL',
+        executionPrice: 1.2,
+        executionTimestamp: 1_700_000_000_000,
+        closePositionDetail: {
+          entryPrice: 1.1,
+          closedVolume: 10000000,
+        },
+      },
+    ],
+  }, {
+    logger,
+    symbolMetadata: { lotSize: 10000000 },
+    ordersByPositionId: {
+      510: [
+        { orderId: 7001 },
+        { orderId: 7002, stopLoss: '1.0950' },
+      ],
+    },
+  });
+
+  assert.equal(trade.stopLoss, 1.095);
+  const stopLossLog = logs.find(([message]) => message === '[cTrader journal mapper] Order stop loss selected');
+  assert.deepEqual(stopLossLog[1], {
+    dealId: 411,
+    positionId: 510,
+    ordersFound: 2,
+    selectedStopLoss: 1.095,
+    selectedOrderId: 7002,
+  });
 });

@@ -350,6 +350,14 @@ export async function fetchRecentCtraderDeals(config, tokens, requestOptions = {
       accountAuth.authorizedAccountId,
       rawDeals?.deal,
     );
+    const ordersByPositionId = requestOptions.includeOrdersByPositionId
+      ? await fetchCtraderOrdersByPositionIdForDeals(
+        client,
+        accountAuth.authorizedAccountId,
+        rawDeals?.deal,
+        requestOptions,
+      )
+      : {};
 
     const dealCount = Array.isArray(rawDeals?.deal) ? rawDeals.deal.length : 0;
     const latestDealId = getLatestCtraderDealId(rawDeals?.deal);
@@ -375,6 +383,7 @@ export async function fetchRecentCtraderDeals(config, tokens, requestOptions = {
       },
       rawDeals,
       symbolMetadataById,
+      ordersByPositionId,
       dealCount,
       latestDealId,
     };
@@ -383,6 +392,44 @@ export async function fetchRecentCtraderDeals(config, tokens, requestOptions = {
       client.close();
     }
   }
+}
+
+async function fetchCtraderOrdersByPositionIdForDeals(client, accountId, deals, requestOptions = {}) {
+  if (typeof client.getOrderListByPositionId !== 'function') {
+    return {};
+  }
+
+  const positionIds = [...new Set((Array.isArray(deals) ? deals : [])
+    .map((deal) => deal?.positionId)
+    .filter((positionId) => positionId !== undefined && positionId !== null && positionId !== '')
+    .map((positionId) => String(positionId)))];
+  const ordersByPositionId = {};
+
+  for (const positionId of positionIds) {
+    try {
+      const rawOrders = await client.getOrderListByPositionId(accountId, positionId, {
+        fromTimestamp: requestOptions.fromTimestamp,
+        toTimestamp: requestOptions.toTimestamp,
+      });
+      const orders = Array.isArray(rawOrders?.order) ? rawOrders.order : [];
+      ordersByPositionId[positionId] = orders;
+      console.info('[cTrader orders] Orders resolved for position', {
+        accountId,
+        positionId,
+        orderCount: orders.length,
+        orderIds: orders.map((order) => order?.orderId ?? order?.id ?? null),
+      });
+    } catch (error) {
+      ordersByPositionId[positionId] = [];
+      console.warn('[cTrader orders] Order lookup failed for position; continuing without order stop loss fallback', {
+        accountId,
+        positionId,
+        error: error.message || 'Unknown cTrader order history error',
+      });
+    }
+  }
+
+  return ordersByPositionId;
 }
 
 async function fetchCtraderSymbolMetadataForDeals(client, accountId, deals) {
@@ -688,7 +735,10 @@ async function getCtraderJournalPreview(response, url, options = {}) {
 
   try {
     const tokens = await loadStoredCtraderTokens(config, options);
-    const requestOptions = buildCtraderDealsRequest(url, options.now?.() ?? Date.now());
+    const requestOptions = {
+      ...buildCtraderDealsRequest(url, options.now?.() ?? Date.now()),
+      includeOrdersByPositionId: true,
+    };
     console.info('[cTrader journal-preview] Incoming backend request', getCtraderRequestLogContext(url, requestOptions));
     const dealsResult = await fetchRecentCtraderDeals(config, tokens, requestOptions, options);
     const symbolMetadataById = dealsResult.symbolMetadataById || {};
@@ -697,9 +747,11 @@ async function getCtraderJournalPreview(response, url, options = {}) {
       symbolMetadataIds: Object.keys(symbolMetadataById),
       hasSymbolMetadataForXauusd41: Boolean(symbolMetadataById['41']),
     });
+    const ordersByPositionId = dealsResult.ordersByPositionId || {};
     const trades = mapCtraderDealsToJournalTrades(dealsResult.rawDeals, {
       accountId: dealsResult.accountId,
       symbolMetadataById,
+      ordersByPositionId,
     });
     console.info('[cTrader journal-preview] Import preview summary', {
       accountId: dealsResult.accountId,
