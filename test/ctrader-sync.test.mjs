@@ -46,6 +46,22 @@ test('cTrader sync converts preview trades into journal entries', () => {
   assert.equal(journalTrade.importedAt, '2026-06-12T15:00:00.000Z');
 });
 
+test('cTrader sync stores selected account balance on imported trades for Risk % calculations', () => {
+  const journalTrade = convertCTraderPreviewTradeToJournalEntry({
+    ...closedPreviewTrade,
+    stopLoss: 1.095,
+    entry: 1.1,
+    size: 10000,
+  }, {
+    now: () => Date.parse('2026-06-12T15:00:00.000Z'),
+    accountBalance: { balance: 25000, fetchedAt: '2026-06-12T14:59:00.000Z' },
+  });
+
+  assert.equal(journalTrade.accountSize, 25000);
+  assert.equal(journalTrade.accountBalance, 25000);
+  assert.equal(journalTrade.accountBalanceFetchedAt, '2026-06-12T14:59:00.000Z');
+});
+
 test('cTrader sync imports only trades not already in the journal', () => {
   const existingTrades = [
     {

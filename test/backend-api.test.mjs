@@ -25,6 +25,7 @@ test('cTrader production endpoint registry covers status, sync, raw deals, and O
   assert.deepEqual(CTRADER_ENDPOINTS, {
     status: '/api/ctrader/status',
     accounts: '/api/ctrader/accounts',
+    balance: '/api/ctrader/balance',
     journalPreview: '/api/ctrader/journal-preview',
     deals: '/api/ctrader/deals',
     authStart: '/auth/ctrader/start',

@@ -75,6 +75,7 @@ let cTraderLastSyncAt = loadCTraderLastSyncTime();
 let cTraderAutoSyncTimer = null;
 let cTraderBackendDiagnostics = getCTraderBackendDiagnostics();
 let cTraderAccounts = [];
+let cTraderAccountBalance = null;
 let selectedCTraderAccountId = loadSelectedCTraderAccountId();
 let isLoadingCTraderAccounts = false;
 let hasHandledCTraderOAuthReturn = false;
@@ -908,6 +909,14 @@ function getCTraderAccountEnvironmentLabel(account) {
   return 'UNKNOWN';
 }
 
+function formatCTraderAccountBalance(accountBalance = cTraderAccountBalance) {
+  const balance = toOptionalNumber(accountBalance?.balance);
+  if (balance === null) {
+    return 'Balance not loaded';
+  }
+  return `Balance: ${currency(balance)}`;
+}
+
 function formatCTraderAccountLabel(account) {
   if (!account) {
     return selectedCTraderAccountId ? `Selected account ${selectedCTraderAccountId}` : 'No account selected';
@@ -969,6 +978,7 @@ function renderCTraderAccountSelector() {
       </label>
       <button class="secondary-button" type="button" id="refreshCTraderAccounts" ${isLoadingCTraderAccounts ? 'disabled' : ''}>${isLoadingCTraderAccounts ? 'Loading accounts...' : 'Refresh accounts'}</button>
       <p class="selected-account-meta">${selectedLabel}</p>
+      <p class="selected-account-meta">${escapeHtml(formatCTraderAccountBalance())}</p>
     </div>
   `;
 }
@@ -1042,6 +1052,27 @@ function changeCTraderAutoSyncSetting(event) {
   }
 }
 
+async function loadSelectedCTraderAccountBalance(options = {}) {
+  if (!selectedCTraderAccountId) {
+    cTraderAccountBalance = null;
+    return null;
+  }
+  if (cTraderAccountBalance && String(cTraderAccountBalance.accountId) === String(selectedCTraderAccountId) && !options.force) {
+    return cTraderAccountBalance;
+  }
+
+  const params = new URLSearchParams({ accountId: String(selectedCTraderAccountId) });
+  const { response, body, url } = await fetchBackendJson(`${CTRADER_ENDPOINTS.balance}?${params.toString()}`);
+  if (!response.ok) {
+    const error = new Error(body.error || 'Unable to load cTrader account balance.');
+    error.url = url;
+    throw error;
+  }
+
+  cTraderAccountBalance = { ...body, fetchedAt: new Date().toISOString() };
+  return cTraderAccountBalance;
+}
+
 async function loadCTraderAccounts(options = {}) {
   if (isLoadingCTraderAccounts) {
     return cTraderAccounts;
@@ -1058,6 +1089,12 @@ async function loadCTraderAccounts(options = {}) {
       throw new Error(body.error || 'Unable to load cTrader accounts.');
     }
     applyCTraderAccounts(body.accounts);
+    try {
+      await loadSelectedCTraderAccountBalance(options);
+    } catch (error) {
+      console.warn('[cTrader balance] Could not load selected account balance while refreshing accounts.', error);
+      cTraderAccountBalance = null;
+    }
     setCTraderBackendDiagnostics({ connectionStatus: describeCTraderConnectionStatus({ connected: true }), tone: 'success' });
     return cTraderAccounts;
   } finally {
@@ -1068,6 +1105,7 @@ async function loadCTraderAccounts(options = {}) {
 
 function changeCTraderAccountSelection(event) {
   persistSelectedCTraderAccountId(event.target.value);
+  cTraderAccountBalance = null;
   cTraderSyncStatus = { tone: 'success', message: `Selected cTrader account: ${formatCTraderAccountLabel(getSelectedCTraderAccount())}.` };
   setCTraderBackendDiagnostics({ connectionStatus: describeCTraderConnectionStatus({ connected: true }), tone: 'success' });
   render();
@@ -1103,6 +1141,7 @@ async function syncCTrader(options = {}) {
     if (!selectedCTraderAccountId) {
       throw new Error('Select a cTrader account before syncing.');
     }
+    const accountBalance = await loadSelectedCTraderAccountBalance({ force: true });
     const syncRequestPath = buildCTraderSyncRequestPath(trades);
     console.info('[cTrader sync] Frontend request starting', {
       requestPath: syncRequestPath,
@@ -1121,6 +1160,7 @@ async function syncCTrader(options = {}) {
     const previewTrades = Array.isArray(preview.trades) ? preview.trades : [];
     const syncPlan = buildCTraderSyncPlan(previewTrades, trades, {
       deletedSourceKeys: loadDeletedCTraderSourceKeys(),
+      accountBalance,
     });
     logCTraderSyncDiagnostics({ preview, syncPlan, existingTrades: trades });
 

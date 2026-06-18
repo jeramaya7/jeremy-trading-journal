@@ -10,6 +10,8 @@ export const CTRADER_PAYLOAD_TYPES = {
   PROTO_OA_APPLICATION_AUTH_RES: 2101,
   PROTO_OA_ACCOUNT_AUTH_REQ: 2102,
   PROTO_OA_ACCOUNT_AUTH_RES: 2103,
+  PROTO_OA_TRADER_REQ: 2121,
+  PROTO_OA_TRADER_RES: 2122,
   PROTO_OA_SYMBOLS_LIST_REQ: 2114,
   PROTO_OA_SYMBOLS_LIST_RES: 2115,
   PROTO_OA_SYMBOL_BY_ID_REQ: 2116,
@@ -151,6 +153,20 @@ export class CTraderOpenApiJsonClient {
     );
 
     return response.payload?.ctidTraderAccount || [];
+  }
+
+  async getTrader(ctidTraderAccountId) {
+    if (!ctidTraderAccountId) {
+      throw new Error('cTrader account ID is required to fetch trader account details');
+    }
+
+    const response = await this.sendRequest(
+      CTRADER_PAYLOAD_TYPES.PROTO_OA_TRADER_REQ,
+      { ctidTraderAccountId },
+      CTRADER_PAYLOAD_TYPES.PROTO_OA_TRADER_RES,
+    );
+
+    return response.payload?.trader || response.payload || null;
   }
 
   async getSymbolById(ctidTraderAccountId, symbolId) {
