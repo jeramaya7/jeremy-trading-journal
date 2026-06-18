@@ -1,0 +1,38 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import test from 'node:test';
+
+const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
+const styles = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');
+
+function assertIncludes(text, expected, message) {
+  assert.ok(text.includes(expected), `${message}\nExpected to find: ${expected}`);
+}
+
+test('setup analytics groups non-blank setups using existing trade calculations', () => {
+  assertIncludes(source, 'function getSetupAnalytics()', 'Setup analytics has a dedicated report calculator.');
+  assertIncludes(source, "const setupName = String(trade.setup ?? '').trim();", 'Setup values are normalized from existing trade data.');
+  assertIncludes(source, 'if (!setupName) {', 'Blank setup values are ignored.');
+  assertIncludes(source, 'const pnl = calculatePnl(trade);', 'Setup analytics reuses the existing P&L calculation.');
+  assertIncludes(source, 'const rMultiple = calculateRMultiple(trade);', 'Setup analytics reuses the existing R calculation.');
+  assertIncludes(source, 'netPnl: report.netPnl,', 'Net P&L is included for each setup row.');
+});
+
+test('setup analytics renders below reports as a sortable table ordered by net P&L by default', () => {
+  const reportsIndex = source.indexOf('<section class="reports-grid" aria-label="P&L reports">');
+  const setupIndex = source.indexOf('${setupAnalyticsSection}');
+  const workspaceIndex = source.indexOf('<section class="workspace-grid">');
+
+  assert.ok(reportsIndex > -1, 'Existing reports section still renders.');
+  assert.ok(setupIndex > reportsIndex, 'Setup analytics renders below existing reports.');
+  assert.ok(workspaceIndex > setupIndex, 'Setup analytics renders above the workspace.');
+  assertIncludes(source, "let setupAnalyticsSort = { key: 'netPnl', direction: 'desc' };", 'Setup analytics defaults to highest Net P&L first.');
+  assertIncludes(source, 'data-setup-sort-key', 'Setup analytics table headers are sortable.');
+  assertIncludes(source, '<table class="setup-analytics-table">', 'Setup analytics is displayed as a table.');
+});
+
+test('setup analytics has clean production table styling', () => {
+  assertIncludes(styles, '.setup-analytics-panel', 'Setup analytics panel has dedicated styling.');
+  assertIncludes(styles, '.setup-analytics-table', 'Setup analytics table has dedicated styling.');
+  assertIncludes(styles, '.table-sort-button', 'Sortable table headers have dedicated styling.');
+});
