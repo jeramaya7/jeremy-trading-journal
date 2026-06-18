@@ -70,6 +70,7 @@ button:disabled {
 .hero-card,
 .panel,
 .stat-card,
+.report-card,
 .trade-card {
   background: rgba(255, 255, 255, 0.88);
   border: 1px solid rgba(89, 112, 149, 0.16);
@@ -249,14 +250,16 @@ h2 {
   color: #b42318;
 }
 
-.stats-grid {
+.stats-grid,
+.reports-grid {
   display: grid;
   gap: 1rem;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 1.25rem 0;
 }
 
-.stat-card {
+.stat-card,
+.report-card {
   border-radius: 24px;
   min-width: 0;
   padding: 1.25rem;
@@ -272,7 +275,8 @@ h2 {
   padding: 0.7rem;
 }
 
-.stat-card span {
+.stat-card span,
+.report-card span {
   color: #64748b;
   display: block;
   font-size: 0.85rem;
@@ -281,10 +285,30 @@ h2 {
   text-transform: uppercase;
 }
 
-.stat-card strong {
+.stat-card strong,
+.report-card strong {
   display: block;
   font-size: clamp(1.25rem, 2vw, 1.8rem);
   overflow-wrap: anywhere;
+}
+
+
+.report-card-header {
+  align-items: center;
+  display: flex;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.report-card-header .stat-icon {
+  margin-bottom: 0;
+}
+
+.report-card small {
+  color: #64748b;
+  display: block;
+  font-weight: 800;
+  line-height: 1.4;
 }
 
 .workspace-grid {
@@ -507,7 +531,8 @@ h2 {
 }
 
 @media (max-width: 1100px) {
-  .stats-grid {
+  .stats-grid,
+  .reports-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -579,16 +604,19 @@ h2 {
   }
 
   .stats-grid,
+  .reports-grid,
   .form-grid,
   .trade-details {
     grid-template-columns: 1fr;
   }
 
-  .stats-grid {
+  .stats-grid,
+  .reports-grid {
     gap: 0.75rem;
   }
 
-  .stat-card {
+  .stat-card,
+  .report-card {
     align-items: center;
     display: grid;
     gap: 0 0.85rem;

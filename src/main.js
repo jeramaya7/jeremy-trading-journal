@@ -324,6 +324,55 @@ function calculatePnl(trade) {
   return gross - fees;
 }
 
+function getReportPeriodStart(referenceDate, period) {
+  const periodStart = new Date(referenceDate);
+  periodStart.setHours(0, 0, 0, 0);
+
+  if (period === 'week') {
+    const dayOfWeek = periodStart.getDay();
+    const daysSinceMonday = (dayOfWeek + 6) % 7;
+    periodStart.setDate(periodStart.getDate() - daysSinceMonday);
+  }
+
+  if (period === 'month') {
+    periodStart.setDate(1);
+  }
+
+  return periodStart;
+}
+
+function getTradeReportDate(trade) {
+  const dateValue = trade.closeTime || trade.date;
+  const tradeDate = new Date(dateValue);
+  return Number.isNaN(tradeDate.getTime()) ? null : tradeDate;
+}
+
+function calculatePnlForPeriod(tradeList, period, referenceDate = new Date()) {
+  const periodStart = getReportPeriodStart(referenceDate, period);
+  const periodEnd = new Date(referenceDate);
+  periodEnd.setHours(23, 59, 59, 999);
+
+  return tradeList.reduce((report, trade) => {
+    const tradeDate = getTradeReportDate(trade);
+    if (!tradeDate || tradeDate < periodStart || tradeDate > periodEnd) {
+      return report;
+    }
+
+    return {
+      pnl: report.pnl + calculatePnl(trade),
+      tradeCount: report.tradeCount + 1,
+    };
+  }, { pnl: 0, tradeCount: 0 });
+}
+
+function getPnlReports(referenceDate = new Date()) {
+  return [
+    { label: 'Daily P&L', period: 'day', ...calculatePnlForPeriod(trades, 'day', referenceDate) },
+    { label: 'Weekly P&L', period: 'week', ...calculatePnlForPeriod(trades, 'week', referenceDate) },
+    { label: 'Monthly P&L', period: 'month', ...calculatePnlForPeriod(trades, 'month', referenceDate) },
+  ];
+}
+
 function getStats() {
   const pnlValues = trades.map(calculatePnl);
   const rValues = trades.map(calculateRMultiple).filter((value) => value !== null);
@@ -395,6 +444,25 @@ function statCard(iconName, label, value, tone = '') {
       <div class="stat-icon">${icon(iconName)}</div>
       <span>${label}</span>
       <strong class="${tone}">${value}</strong>
+    </article>
+  `;
+}
+
+
+function reportCard(report) {
+  const tone = report.pnl >= 0 ? 'positive' : 'negative';
+  const tradeLabel = report.tradeCount === 1 ? 'trade' : 'trades';
+
+  return `
+    <article class="report-card">
+      <div class="report-card-header">
+        <div class="stat-icon">${icon('calendar')}</div>
+        <div>
+          <span>${report.label}</span>
+          <small>${report.tradeCount} ${tradeLabel} closed</small>
+        </div>
+      </div>
+      <strong class="${tone}">${currency(report.pnl)}</strong>
     </article>
   `;
 }
@@ -511,6 +579,7 @@ function isCTraderImportedTrade(trade) {
 
 function render() {
   const stats = getStats();
+  const pnlReports = getPnlReports();
   const filteredTrades = getFilteredTrades();
   const today = new Date().toISOString().slice(0, 10);
 
@@ -557,6 +626,10 @@ ${cTraderSyncStatus ? `<p class="import-status ${escapeHtml(cTraderSyncStatus.to
         ${statCard('line', 'Avg win / loss', `${currency(stats.averageWin)} / ${currency(stats.averageLoss)}`)}
         ${statCard('target', 'Total R', formatRMultiple(stats.totalR), stats.totalR === null || stats.totalR >= 0 ? 'positive' : 'negative')}
         ${statCard('line', 'Average R', formatRMultiple(stats.averageR), stats.averageR === null || stats.averageR >= 0 ? 'positive' : 'negative')}
+      </section>
+
+      <section class="reports-grid" aria-label="P&L reports">
+        ${pnlReports.map(reportCard).join('')}
       </section>
 
       <section class="workspace-grid">
