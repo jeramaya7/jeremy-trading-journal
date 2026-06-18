@@ -85,6 +85,21 @@ let editingTradeId = null;
 let isManualTradeFormOpen = false;
 let setupAnalyticsSort = { key: 'netPnl', direction: 'desc' };
 
+const PLAY_BOOK_SETUP_OPTIONS = [
+  'Elephant Bar',
+  'Buy the Retrace',
+  'TB Retrace',
+  'Ride the 🐋',
+  'MATX',
+  'MAX',
+  'Support & Resistance',
+  'Hedge',
+  'Set & Forget',
+  'Return to 200',
+  'The General Forecast',
+];
+const CUSTOM_SETUP_OPTION = 'Custom';
+
 const app = document.querySelector('#root');
 
 function loadTrades() {
@@ -731,6 +746,38 @@ function tradeJournalDetails(trade) {
       ${trade.notes ? `<p class="notes">${escapeHtml(trade.notes)}</p>` : ''}`;
 }
 
+function renderSetupOption(option, selectedValue) {
+  const selected = option === selectedValue ? ' selected' : '';
+  return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(option)}</option>`;
+}
+
+function isPlayBookSetup(setup) {
+  return PLAY_BOOK_SETUP_OPTIONS.includes(String(setup || '').trim());
+}
+
+function renderPlayBookSetupSelect(trade) {
+  const currentSetup = String(trade.setup || '').trim();
+  const selectedSetup = isPlayBookSetup(currentSetup) ? currentSetup : CUSTOM_SETUP_OPTION;
+  const customValue = selectedSetup === CUSTOM_SETUP_OPTION ? currentSetup : '';
+  const customHidden = selectedSetup === CUSTOM_SETUP_OPTION ? '' : ' hidden';
+  return `
+    <select name="setupChoice" data-setup-choice="${escapeHtml(trade.id)}" aria-label="Play Book setup">
+      ${PLAY_BOOK_SETUP_OPTIONS.map((option) => renderSetupOption(option, selectedSetup)).join('')}
+      ${renderSetupOption(CUSTOM_SETUP_OPTION, selectedSetup)}
+    </select>
+    <input name="setupCustom" value="${escapeHtml(customValue)}" placeholder="Custom setup name" data-custom-setup="${escapeHtml(trade.id)}"${customHidden} />
+  `;
+}
+
+function getSetupFormValue(formData) {
+  const setupChoice = String(formData.get('setupChoice') || '').trim();
+  if (setupChoice === CUSTOM_SETUP_OPTION) {
+    return String(formData.get('setupCustom')).trim() || 'Uncategorized setup';
+  }
+
+  return String(formData.get('setup') || '').trim() || setupChoice || 'Uncategorized setup';
+}
+
 function editTradeForm(trade) {
   const currentScreenshot = getEditScreenshotPreview(trade);
   const removeButton = currentScreenshot
@@ -739,7 +786,7 @@ function editTradeForm(trade) {
   return `
       <form class="edit-trade-form" data-edit-trade-form="${escapeHtml(trade.id)}">
         <div class="form-grid">
-          ${field('Setup', `<input name="setup" value="${escapeHtml(trade.setup)}" placeholder="Breakout, pullback, VWAP..." />`)}
+          ${field('Setup', renderPlayBookSetupSelect(trade))}
           ${field('Tags', `<input name="tags" value="${escapeHtml(trade.tags)}" placeholder="gap, reversal, A+" />`)}
         </div>
         ${field('Notes', `<textarea name="notes" rows="5" placeholder="What was the plan? What happened? What will you repeat or avoid?">${escapeHtml(trade.notes)}</textarea>`)}
@@ -968,6 +1015,10 @@ function bindEvents() {
     form.addEventListener('submit', submitTradeEdit);
   });
 
+  document.querySelectorAll('[data-setup-choice]').forEach((select) => {
+    select.addEventListener('change', changeEditSetupChoice);
+  });
+
   document.querySelectorAll('[data-edit-screenshot-input]').forEach((input) => {
     input.addEventListener('change', changeEditScreenshot);
   });
@@ -998,6 +1049,18 @@ function bindEvents() {
       persistTrades(trades.filter((trade) => trade.id !== button.dataset.deleteTrade));
     });
   });
+}
+
+function changeEditSetupChoice(event) {
+  const customSetupInput = event.currentTarget.closest('form')?.querySelector('[data-custom-setup]');
+  if (!customSetupInput) {
+    return;
+  }
+
+  customSetupInput.hidden = event.currentTarget.value !== CUSTOM_SETUP_OPTION;
+  if (!customSetupInput.hidden) {
+    customSetupInput.focus();
+  }
 }
 
 function toggleManualTradeForm() {
@@ -1067,7 +1130,7 @@ async function submitTradeEdit(event) {
   const screenshotDraft = getEditScreenshotDraft(tradeId);
   const uploadedScreenshot = formData.get('editScreenshot');
   const journalingUpdates = {
-    setup: String(formData.get('setup')).trim() || 'Uncategorized setup',
+    setup: getSetupFormValue(formData),
     tags: String(formData.get('tags')).trim(),
     notes: String(formData.get('notes')).trim(),
   };
