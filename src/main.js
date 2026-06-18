@@ -80,6 +80,7 @@ let selectedCTraderAccountId = loadSelectedCTraderAccountId();
 let isLoadingCTraderAccounts = false;
 let hasHandledCTraderOAuthReturn = false;
 let editingTradeId = null;
+let isManualTradeFormOpen = false;
 
 const app = document.querySelector('#root');
 
@@ -428,6 +429,7 @@ function icon(name) {
     chart: '<svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 16V8"/><path d="M12 16V5"/><path d="M17 16v-3"/></svg>',
     line: '<svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l3-3 4 4 5-8"/></svg>',
     plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>',
+    minus: '<svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>',
     calendar: '<svg viewBox="0 0 24 24"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>',
     trash: '<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>',
     image: '<svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>',
@@ -633,44 +635,24 @@ ${cTraderSyncStatus ? `<p class="import-status ${escapeHtml(cTraderSyncStatus.to
       </section>
 
       <section class="workspace-grid">
-        <form class="panel trade-form" id="tradeForm">
-          <div class="section-title">${icon('plus')}<h2>Add trade</h2></div>
-          <div class="form-grid">
-            ${field('Date', '<input name="date" type="date" required value="' + today + '" />')}
-            ${field('Symbol', '<input name="symbol" placeholder="SPY" required />')}
-            ${field('Direction', '<select name="direction"><option>Long</option><option>Short</option></select>')}
-            ${field('Setup', '<input name="setup" placeholder="Breakout, pullback, VWAP..." />')}
-            ${field('Entry', '<input name="entry" type="number" min="0" step="0.01" required />')}
-            ${field('Exit', '<input name="exit" type="number" min="0" step="0.01" required />')}
-            ${field('Size', '<input name="size" type="number" min="0.01" step="0.01" required />')}
-            ${field('Stop Loss', '<input name="stopLoss" type="number" min="0" step="0.01" placeholder="Optional" />')}
-            ${field('Account Size', '<input name="accountSize" type="number" min="0" step="0.01" placeholder="Optional" />')}
-            ${field('Risk %', '<input name="riskPercent" type="number" min="0" step="0.01" placeholder="Calculated" readonly />')}
-            ${field('Fees', '<input name="fees" type="number" min="0" step="0.01" value="0" />')}
-            ${field('Emotion', '<input name="emotion" placeholder="Calm, FOMO, patient..." value="Calm" />')}
-            ${field('Tags', '<input name="tags" placeholder="gap, reversal, A+" />')}
-          </div>
-          ${field('Notes', '<textarea name="notes" rows="5" placeholder="What was the plan? What happened? What will you repeat or avoid?"></textarea>')}
-          <div class="screenshot-upload-field">
-            <label class="screenshot-upload" id="screenshotUpload">
-              <span>${icon('image')} Trade screenshot</span>
-              <input name="screenshot" type="file" accept="image/*" />
-              <small>Optional. One image is stored locally with this trade and included in JSON backups.</small>
-              <small>Tip: Paste a screenshot with Ctrl+V / Cmd+V</small>
-            </label>
-            <div class="screenshot-field-preview" id="screenshotFieldPreview" aria-live="polite"></div>
-          </div>
-          <button class="primary-button" type="submit">Save trade</button>
-        </form>
-
         <section class="panel journal-panel">
           <div class="journal-header">
-            <div class="section-title">${icon('calendar')}<h2>Journal entries</h2></div>
+            <div>
+              <div class="section-title">${icon('calendar')}<h2>Journal entries</h2></div>
+              <p class="section-helper">Review, search, and edit imported cTrader trades first. Manual entries are available below when needed.</p>
+            </div>
             <input class="search-input" id="searchInput" placeholder="Search trades..." value="${escapeHtml(searchQuery)}" />
           </div>
           <div class="trade-list">
             ${filteredTrades.length ? filteredTrades.map(tradeCard).join('') : '<p class="empty-state">No trades match your search yet.</p>'}
           </div>
+        </section>
+
+        <section class="manual-trade-panel">
+          <button class="secondary-button manual-trade-toggle" type="button" id="toggleManualTrade" aria-expanded="${isManualTradeFormOpen ? 'true' : 'false'}" aria-controls="tradeForm">
+            ${icon(isManualTradeFormOpen ? 'minus' : 'plus')} ${isManualTradeFormOpen ? 'Hide Manual Trade Form' : '+ Add Manual Trade'}
+          </button>
+          ${isManualTradeFormOpen ? renderManualTradeForm(today) : '<p class="manual-trade-helper">Use this only for trades that did not come from cTrader import.</p>'}
         </section>
       </section>
     </main>
@@ -679,17 +661,55 @@ ${cTraderSyncStatus ? `<p class="import-status ${escapeHtml(cTraderSyncStatus.to
   bindEvents();
 }
 
+function renderManualTradeForm(today) {
+  return `
+    <form class="panel trade-form" id="tradeForm" aria-label="Add manual trade">
+      <div class="section-title">${icon('plus')}<h2>Add manual trade</h2></div>
+      <div class="form-grid">
+        ${field('Date', '<input name="date" type="date" required value="' + today + '" />')}
+        ${field('Symbol', '<input name="symbol" placeholder="SPY" required />')}
+        ${field('Direction', '<select name="direction"><option>Long</option><option>Short</option></select>')}
+        ${field('Setup', '<input name="setup" placeholder="Breakout, pullback, VWAP..." />')}
+        ${field('Entry', '<input name="entry" type="number" min="0" step="0.01" required />')}
+        ${field('Exit', '<input name="exit" type="number" min="0" step="0.01" required />')}
+        ${field('Size', '<input name="size" type="number" min="0.01" step="0.01" required />')}
+        ${field('Stop Loss', '<input name="stopLoss" type="number" min="0" step="0.01" placeholder="Optional" />')}
+        ${field('Account Size', '<input name="accountSize" type="number" min="0" step="0.01" placeholder="Optional" />')}
+        ${field('Risk %', '<input name="riskPercent" type="number" min="0" step="0.01" placeholder="Calculated" readonly />')}
+        ${field('Fees', '<input name="fees" type="number" min="0" step="0.01" value="0" />')}
+        ${field('Emotion', '<input name="emotion" placeholder="Calm, FOMO, patient..." value="Calm" />')}
+        ${field('Tags', '<input name="tags" placeholder="gap, reversal, A+" />')}
+      </div>
+      ${field('Notes', '<textarea name="notes" rows="5" placeholder="What was the plan? What happened? What will you repeat or avoid?"></textarea>')}
+      <div class="screenshot-upload-field">
+        <label class="screenshot-upload" id="screenshotUpload">
+          <span>${icon('image')} Trade screenshot</span>
+          <input name="screenshot" type="file" accept="image/*" />
+          <small>Optional. One image is stored locally with this trade and included in JSON backups.</small>
+          <small>Tip: Paste a screenshot with Ctrl+V / Cmd+V</small>
+        </label>
+        <div class="screenshot-field-preview" id="screenshotFieldPreview" aria-live="polite"></div>
+      </div>
+      <button class="primary-button" type="submit">Save trade</button>
+    </form>
+  `;
+}
+
 function field(label, control) {
   return `<label class="field"><span>${label}</span>${control}</label>`;
 }
 
 function bindEvents() {
   const tradeForm = document.querySelector('#tradeForm');
-  const screenshotInput = tradeForm.querySelector('input[name="screenshot"]');
+  const screenshotInput = tradeForm?.querySelector('input[name="screenshot"]');
 
-  tradeForm.addEventListener('submit', submitTrade);
-  tradeForm.addEventListener('input', updateRiskPercentField);
-  screenshotInput.addEventListener('change', changeScreenshot);
+  document.querySelector('#toggleManualTrade').addEventListener('click', toggleManualTradeForm);
+
+  if (tradeForm) {
+    tradeForm.addEventListener('submit', submitTrade);
+    tradeForm.addEventListener('input', updateRiskPercentField);
+    screenshotInput?.addEventListener('change', changeScreenshot);
+  }
 
   if (!isPasteListenerBound) {
     document.addEventListener('paste', pasteScreenshot);
@@ -710,7 +730,9 @@ function bindEvents() {
   document.querySelector('#importTrades').addEventListener('change', importTrades);
 
   updateScreenshotFieldPreview();
-  updateRiskPercentField({ currentTarget: tradeForm });
+  if (tradeForm) {
+    updateRiskPercentField({ currentTarget: tradeForm });
+  }
 
   document.querySelectorAll('[data-edit-trade]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -742,6 +764,15 @@ function bindEvents() {
       persistTrades(trades.filter((trade) => trade.id !== button.dataset.deleteTrade));
     });
   });
+}
+
+function toggleManualTradeForm() {
+  isManualTradeFormOpen = !isManualTradeFormOpen;
+  if (!isManualTradeFormOpen) {
+    selectedScreenshot = null;
+    pastedScreenshotFile = null;
+  }
+  render();
 }
 
 function deleteAllCTraderImports() {
