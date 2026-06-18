@@ -78,6 +78,7 @@ let cTraderAccounts = [];
 let selectedCTraderAccountId = loadSelectedCTraderAccountId();
 let isLoadingCTraderAccounts = false;
 let hasHandledCTraderOAuthReturn = false;
+let editingTradeId = null;
 
 const app = document.querySelector('#root');
 
@@ -380,6 +381,8 @@ function icon(name) {
     trash: '<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>',
     image: '<svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>',
     refresh: '<svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>',
+    edit: '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+    save: '<svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>',
   };
   return icons[name] ?? '';
 }
@@ -424,6 +427,7 @@ function tradeCard(trade) {
   const rTone = rMultiple === null || rMultiple >= 0 ? 'positive' : 'negative';
   const importedTimeDetail = cTraderTimeDetails(trade);
   const emotionDetail = isCTraderImportedTrade(trade) ? '' : `<span>Emotion: ${escapeHtml(trade.emotion)}</span>`;
+  const isEditing = editingTradeId === trade.id;
   return `
     <article class="trade-card">
       <div class="trade-card-header">
@@ -444,14 +448,40 @@ function tradeCard(trade) {
         ${importedTimeDetail}
         ${emotionDetail}
       </div>
-      ${trade.tags ? `<p class="tags">${escapeHtml(trade.tags)}</p>` : ''}
-      ${trade.notes ? `<p class="notes">${escapeHtml(trade.notes)}</p>` : ''}
-      ${screenshotPreview(trade)}
-      <button class="icon-button" type="button" data-delete-trade="${escapeHtml(trade.id)}" aria-label="Delete ${escapeHtml(trade.symbol)} trade">
-        ${icon('trash')} Delete
-      </button>
+      ${isEditing ? editTradeForm(trade) : tradeJournalDetails(trade)}
+      ${!isEditing ? screenshotPreview(trade) : ''}
+      <div class="trade-card-actions">
+        ${isEditing ? '' : `<button class="edit-button" type="button" data-edit-trade="${escapeHtml(trade.id)}" aria-label="Edit journaling fields for ${escapeHtml(displaySymbol)} trade">${icon('edit')} Edit</button>`}
+        <button class="icon-button" type="button" data-delete-trade="${escapeHtml(trade.id)}" aria-label="Delete ${escapeHtml(trade.symbol)} trade">
+          ${icon('trash')} Delete
+        </button>
+      </div>
     </article>
   `;
+}
+
+function tradeJournalDetails(trade) {
+  return `
+      ${isCTraderImportedTrade(trade) && trade.emotion ? `<p class="journal-detail"><strong>Emotion:</strong> ${escapeHtml(trade.emotion)}</p>` : ''}
+      ${trade.tags ? `<p class="tags">${escapeHtml(trade.tags)}</p>` : ''}
+      ${trade.notes ? `<p class="notes">${escapeHtml(trade.notes)}</p>` : ''}`;
+}
+
+function editTradeForm(trade) {
+  return `
+      <form class="edit-trade-form" data-edit-trade-form="${escapeHtml(trade.id)}">
+        <div class="form-grid">
+          ${field('Setup', `<input name="setup" value="${escapeHtml(trade.setup)}" placeholder="Breakout, pullback, VWAP..." />`)}
+          ${field('Emotion', `<input name="emotion" value="${escapeHtml(trade.emotion)}" placeholder="Calm, FOMO, patient..." />`)}
+          ${field('Tags', `<input name="tags" value="${escapeHtml(trade.tags)}" placeholder="gap, reversal, A+" />`)}
+        </div>
+        ${field('Notes', `<textarea name="notes" rows="5" placeholder="What was the plan? What happened? What will you repeat or avoid?">${escapeHtml(trade.notes)}</textarea>`)}
+        <p class="edit-import-note">Imported cTrader execution fields are read-only and will be preserved when journaling edits are saved.</p>
+        <div class="edit-form-actions">
+          <button class="primary-button" type="submit">${icon('save')} Save edits</button>
+          <button class="secondary-button" type="button" data-cancel-edit-trade="${escapeHtml(trade.id)}">Cancel</button>
+        </div>
+      </form>`;
 }
 
 function getTradeDisplaySymbol(trade) {
@@ -607,10 +637,33 @@ function bindEvents() {
   updateScreenshotFieldPreview();
   updateRiskPercentField({ currentTarget: tradeForm });
 
+  document.querySelectorAll('[data-edit-trade]').forEach((button) => {
+    button.addEventListener('click', () => {
+      editingTradeId = button.dataset.editTrade;
+      render();
+    });
+  });
+
+  document.querySelectorAll('[data-cancel-edit-trade]').forEach((button) => {
+    button.addEventListener('click', () => {
+      if (editingTradeId === button.dataset.cancelEditTrade) {
+        editingTradeId = null;
+      }
+      render();
+    });
+  });
+
+  document.querySelectorAll('[data-edit-trade-form]').forEach((form) => {
+    form.addEventListener('submit', submitTradeEdit);
+  });
+
   document.querySelectorAll('[data-delete-trade]').forEach((button) => {
     button.addEventListener('click', () => {
       const deletedTrade = trades.find((trade) => trade.id === button.dataset.deleteTrade);
       rememberDeletedCTraderSourceKey(deletedTrade);
+      if (editingTradeId === button.dataset.deleteTrade) {
+        editingTradeId = null;
+      }
       persistTrades(trades.filter((trade) => trade.id !== button.dataset.deleteTrade));
     });
   });
@@ -665,6 +718,26 @@ async function submitTrade(event) {
   selectedScreenshot = null;
   pastedScreenshotFile = null;
   persistTrades([nextTrade, ...trades]);
+}
+
+function submitTradeEdit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const tradeId = form.dataset.editTradeForm;
+  const formData = new FormData(form);
+  const journalingUpdates = {
+    setup: String(formData.get('setup')).trim() || 'Uncategorized setup',
+    emotion: String(formData.get('emotion')).trim() || (isCTraderImportedTrade(trades.find((trade) => trade.id === tradeId)) ? 'Imported' : 'Calm'),
+    tags: String(formData.get('tags')).trim(),
+    notes: String(formData.get('notes')).trim(),
+  };
+
+  editingTradeId = null;
+  persistTrades(trades.map((trade) => (
+    trade.id === tradeId
+      ? { ...trade, ...journalingUpdates }
+      : trade
+  )));
 }
 
 function updateRiskPercentField(event) {

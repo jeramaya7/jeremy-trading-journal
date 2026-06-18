@@ -124,3 +124,25 @@ test('cTrader deleted source keys are persisted and used during sync', () => {
   assertIncludes(source, 'rememberDeletedCTraderSourceKey(deletedTrade);', 'Delete handlers remember cTrader source keys before removing the trade.');
   assertIncludes(source, 'window.localStorage.setItem(DELETED_CTRADER_SOURCE_KEYS_STORAGE_KEY, JSON.stringify([...sourceKeys].sort()))', 'Deleted source keys are saved to localStorage.');
 });
+
+test('trade cards expose an edit flow for local journaling fields', () => {
+  assertIncludes(source, 'data-edit-trade="${escapeHtml(trade.id)}"', 'Each trade card renders an Edit button tied to that trade ID.');
+  assertIncludes(source, 'function editTradeForm(trade)', 'Editing renders a focused form on the selected trade card.');
+  assertIncludes(source, 'data-edit-trade-form="${escapeHtml(trade.id)}"', 'The edit form keeps a stable trade ID for saving changes.');
+  assertIncludes(source, "${field('Setup', `<input name=\"setup\"", 'The edit form allows setup changes.');
+  assertIncludes(source, "${field('Emotion', `<input name=\"emotion\"", 'The edit form allows emotion changes.');
+  assertIncludes(source, "${field('Tags', `<input name=\"tags\"", 'The edit form allows tag changes.');
+  assertIncludes(source, "${field('Notes', `<textarea name=\"notes\"", 'The edit form allows notes changes.');
+  assertIncludes(source, "form.addEventListener('submit', submitTradeEdit);", 'Edit forms are wired to the save handler.');
+});
+
+test('saving trade edits only updates journaling fields and preserves imported execution data', () => {
+  assertIncludes(source, 'const journalingUpdates = {', 'The edit save handler creates a restricted journaling update object.');
+  assertIncludes(source, "setup: String(formData.get('setup')).trim() || 'Uncategorized setup'", 'Saving edits updates setup.');
+  assertIncludes(source, "emotion: String(formData.get('emotion')).trim()", 'Saving edits updates emotion.');
+  assertIncludes(source, "tags: String(formData.get('tags')).trim()", 'Saving edits updates tags.');
+  assertIncludes(source, "notes: String(formData.get('notes')).trim()", 'Saving edits updates notes.');
+  assertIncludes(source, '? { ...trade, ...journalingUpdates }', 'Saving edits spreads the existing trade first, preserving cTrader fields not in the journaling update.');
+  assertIncludes(source, 'persistTrades(trades.map((trade) => (', 'Saving edits persists the updated journal to localStorage through the existing storage path.');
+  assertIncludes(source, 'Imported cTrader execution fields are read-only and will be preserved when journaling edits are saved.', 'The edit UI tells users imported cTrader execution fields remain read-only.');
+});
