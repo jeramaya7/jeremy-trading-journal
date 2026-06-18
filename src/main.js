@@ -711,27 +711,7 @@ function render() {
           </p>
         </div>
         <div class="hero-actions">
-          <label class="auto-sync-toggle">
-            <input type="checkbox" id="autoSyncCTrader" ${isCTraderAutoSyncEnabled ? 'checked' : ''} />
-            <span>Auto Sync ${isCTraderAutoSyncEnabled ? 'ON' : 'OFF'}</span>
-          </label>
-          ${renderCTraderConnectionSummary()}
-          ${renderCTraderAccountSelector()}
-${cTraderSyncStatus ? `<p class="import-status ${escapeHtml(cTraderSyncStatus.tone)}" role="status">${escapeHtml(cTraderSyncStatus.message)}</p>` : ''}
-${!isCTraderConnected ? `<button class="connect-button" type="button" id="connectCTrader" ${isCheckingCTraderConnection ? 'disabled' : ''}>
- Connect cTrader
-</button>` : ''}
-          <button class="secondary-button" type="button" id="syncCTrader" ${isSyncingCTrader || isCheckingCTraderConnection ? 'disabled' : ''}>
-            ${icon('refresh')} ${isSyncingCTrader ? 'Syncing cTrader...' : 'Sync cTrader'}
-          </button>
-          <button class="secondary-button" type="button" id="deleteAllCTraderImports">
-            ${icon('trash')} Delete All cTrader Imports
-          </button>
-          <button class="secondary-button" type="button" id="exportTrades">${icon('download')} Export JSON</button>
-          <label class="secondary-button upload-button">
-            ${icon('upload')} Import JSON
-            <input type="file" accept="application/json" id="importTrades" />
-          </label>
+          ${renderCTraderConnectionCard()}
         </div>
       </section>
 
@@ -1083,31 +1063,68 @@ function setCTraderBackendDiagnostics(overrides = {}) {
   cTraderBackendDiagnostics = getCTraderBackendDiagnostics(overrides);
 }
 
-function renderCTraderConnectionSummary() {
+function renderCTraderConnectionCard() {
   const selectedAccount = getSelectedCTraderAccount();
   const selectedAccountLabel = selectedAccount
     ? formatCTraderAccountLabel(selectedAccount)
     : (selectedCTraderAccountId ? `Selected account ID ${selectedCTraderAccountId}` : 'No account selected');
 
+  const options = cTraderAccounts.map((account) => {
+    const accountId = String(getCTraderAccountId(account));
+    return `<option value="${escapeHtml(accountId)}" ${accountId === String(selectedCTraderAccountId) ? 'selected' : ''}>${escapeHtml(formatCTraderAccountLabel(account))}</option>`;
+  }).join('');
+
   return `
-    <dl class="ctrader-connection-summary" aria-label="cTrader connection summary">
-      <div>
-        <dt>cTrader</dt>
-        <dd class="connection-${isCTraderConnected ? 'connected' : 'disconnected'}">${isCTraderConnected ? 'Connected' : 'Not Connected'}</dd>
+    <section class="ctrader-connection-card" aria-label="cTrader connection">
+      <div class="ctrader-card-header">
+        <label class="auto-sync-toggle">
+          <input type="checkbox" id="autoSyncCTrader" ${isCTraderAutoSyncEnabled ? 'checked' : ''} />
+          <span>Auto Sync ${isCTraderAutoSyncEnabled ? 'ON' : 'OFF'}</span>
+        </label>
+        ${!isCTraderConnected ? `<button class="connect-button" type="button" id="connectCTrader" ${isCheckingCTraderConnection ? 'disabled' : ''}>Connect cTrader</button>` : ''}
       </div>
-      <div>
-        <dt>Selected Account</dt>
-        <dd>${escapeHtml(selectedAccountLabel)}</dd>
+      <dl class="ctrader-connection-summary" aria-label="cTrader connection summary">
+        <div>
+          <dt>cTrader</dt>
+          <dd class="connection-${isCTraderConnected ? 'connected' : 'disconnected'}">${isCTraderConnected ? 'Connected' : 'Not Connected'}</dd>
+        </div>
+        <div>
+          <dt>Selected Account</dt>
+          <dd>${escapeHtml(selectedAccountLabel)}</dd>
+        </div>
+        <div>
+          <dt>Account Balance</dt>
+          <dd>${escapeHtml(formatCTraderAccountBalance())}</dd>
+        </div>
+        <div>
+          <dt>Last Sync Time</dt>
+          <dd>${escapeHtml(formatSyncTime(cTraderLastSyncAt))}</dd>
+        </div>
+      </dl>
+      <div class="ctrader-account-selector">
+        <label class="field" for="cTraderAccountSelect">
+          <span>Account selector</span>
+          <select id="cTraderAccountSelect" ${isLoadingCTraderAccounts || !cTraderAccounts.length ? 'disabled' : ''}>
+            ${cTraderAccounts.length ? options : '<option value="">Connect cTrader to load accounts</option>'}
+          </select>
+        </label>
+        <button class="secondary-button" type="button" id="refreshCTraderAccounts" ${isLoadingCTraderAccounts ? 'disabled' : ''}>${isLoadingCTraderAccounts ? 'Loading accounts...' : 'Refresh Accounts'}</button>
       </div>
-      <div>
-        <dt>Account Balance</dt>
-        <dd>${escapeHtml(formatCTraderAccountBalance())}</dd>
+      ${cTraderSyncStatus ? `<p class="import-status ${escapeHtml(cTraderSyncStatus.tone)}" role="status">${escapeHtml(cTraderSyncStatus.message)}</p>` : ''}
+      <div class="ctrader-card-actions">
+        <button class="secondary-button" type="button" id="syncCTrader" ${isSyncingCTrader || isCheckingCTraderConnection ? 'disabled' : ''}>
+          ${icon('refresh')} ${isSyncingCTrader ? 'Syncing cTrader...' : 'Sync cTrader'}
+        </button>
+        <button class="secondary-button" type="button" id="deleteAllCTraderImports">
+          ${icon('trash')} Delete All cTrader Imports
+        </button>
+        <button class="secondary-button" type="button" id="exportTrades">${icon('download')} Export JSON</button>
+        <label class="secondary-button upload-button">
+          ${icon('upload')} Import JSON
+          <input type="file" accept="application/json" id="importTrades" />
+        </label>
       </div>
-      <div>
-        <dt>Last Sync Time</dt>
-        <dd>${escapeHtml(formatSyncTime(cTraderLastSyncAt))}</dd>
-      </div>
-    </dl>
+    </section>
   `;
 }
 
@@ -1187,24 +1204,6 @@ function applyCTraderAccounts(accounts) {
     const defaultAccount = chooseDefaultCTraderAccount(cTraderAccounts);
     persistSelectedCTraderAccountId(getCTraderAccountId(defaultAccount) || '');
   }
-}
-
-function renderCTraderAccountSelector() {
-  const options = cTraderAccounts.map((account) => {
-    const accountId = String(getCTraderAccountId(account));
-    return `<option value="${escapeHtml(accountId)}" ${accountId === String(selectedCTraderAccountId) ? 'selected' : ''}>${escapeHtml(formatCTraderAccountLabel(account))}</option>`;
-  }).join('');
-  return `
-    <div class="ctrader-account-selector">
-      <label class="field" for="cTraderAccountSelect">
-        <span>cTrader account</span>
-        <select id="cTraderAccountSelect" ${isLoadingCTraderAccounts || !cTraderAccounts.length ? 'disabled' : ''}>
-          ${cTraderAccounts.length ? options : '<option value="">Connect cTrader to load accounts</option>'}
-        </select>
-      </label>
-      <button class="secondary-button" type="button" id="refreshCTraderAccounts" ${isLoadingCTraderAccounts ? 'disabled' : ''}>${isLoadingCTraderAccounts ? 'Loading accounts...' : 'Refresh Accounts'}</button>
-    </div>
-  `;
 }
 
 function getCTraderOAuthReturnUrl() {
