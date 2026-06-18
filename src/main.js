@@ -220,6 +220,60 @@ function formatSyncTime(value) {
   });
 }
 
+
+function formatTradeTimestamp(value) {
+  if (!value) {
+    return '—';
+  }
+
+  const timestamp = new Date(value);
+  if (Number.isNaN(timestamp.getTime())) {
+    return '—';
+  }
+
+  return timestamp.toLocaleString([], {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+}
+
+function formatTradeDuration(openTime, closeTime) {
+  const openTimestamp = Date.parse(openTime || '');
+  const closeTimestamp = Date.parse(closeTime || '');
+  if (!Number.isFinite(openTimestamp) || !Number.isFinite(closeTimestamp) || closeTimestamp < openTimestamp) {
+    return '—';
+  }
+
+  const totalMinutes = Math.round((closeTimestamp - openTimestamp) / (60 * 1000));
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
+  const parts = [];
+
+  if (days) {
+    parts.push(`${days}d`);
+  }
+  if (hours) {
+    parts.push(`${hours}h`);
+  }
+  if (minutes || !parts.length) {
+    parts.push(`${minutes}m`);
+  }
+
+  return parts.join(' ');
+}
+
+function cTraderTimeDetails(trade) {
+  if (!isCTraderImportedTrade(trade)) {
+    return '';
+  }
+
+  return `
+        <span>Opened: ${escapeHtml(formatTradeTimestamp(trade.openTime))}</span>
+        <span>Closed: ${escapeHtml(formatTradeTimestamp(trade.closeTime))}</span>
+        <span>Duration: ${escapeHtml(formatTradeDuration(trade.openTime, trade.closeTime))}</span>`;
+}
+
 function calculateRiskDollars(trade) {
   const entry = toOptionalNumber(trade.entry);
   const stopLoss = toOptionalNumber(trade.stopLoss);
@@ -368,6 +422,7 @@ function tradeCard(trade) {
   const rMultiple = calculateRMultiple(trade);
   const tone = pnl >= 0 ? 'positive' : 'negative';
   const rTone = rMultiple === null || rMultiple >= 0 ? 'positive' : 'negative';
+  const importedTimeDetail = cTraderTimeDetails(trade);
   const emotionDetail = isCTraderImportedTrade(trade) ? '' : `<span>Emotion: ${escapeHtml(trade.emotion)}</span>`;
   return `
     <article class="trade-card">
@@ -386,6 +441,7 @@ function tradeCard(trade) {
         <span>Risk $: ${riskDollars === null ? '—' : currency(riskDollars)}</span>
         <span>Risk %: ${formatPercent(riskPercent)}</span>
         <span class="${rTone}">R: ${formatRMultiple(rMultiple)}</span>
+        ${importedTimeDetail}
         ${emotionDetail}
       </div>
       ${trade.tags ? `<p class="tags">${escapeHtml(trade.tags)}</p>` : ''}
