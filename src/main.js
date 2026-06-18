@@ -640,6 +640,43 @@ function screenshotLink(screenshot, label) {
   `;
 }
 
+function openScreenshotLink(event) {
+  const link = event.target.closest('.screenshot-link');
+  if (!link) {
+    return;
+  }
+
+  const imageUrl = link.getAttribute('href');
+  if (!imageUrl?.startsWith('data:image/')) {
+    return;
+  }
+
+  event.preventDefault();
+
+  const fullSizeWindow = window.open('', '_blank');
+  if (!fullSizeWindow) {
+    return;
+  }
+
+  fullSizeWindow.opener = null;
+  fullSizeWindow.document.write(`<!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>${escapeHtml(link.getAttribute('aria-label') || 'Trade screenshot')}</title>
+        <style>
+          body { margin: 0; min-height: 100vh; background: #0f172a; display: grid; place-items: center; }
+          img { max-width: 100%; height: auto; display: block; }
+        </style>
+      </head>
+      <body>
+        <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(link.querySelector('img')?.alt || 'Trade screenshot')}" />
+      </body>
+    </html>`);
+  fullSizeWindow.document.close();
+}
+
 function screenshotPreview(trade) {
   return screenshotLink(trade.screenshot, trade.symbol);
 }
@@ -869,6 +906,9 @@ function bindEvents() {
   const screenshotInput = tradeForm?.querySelector('input[name="screenshot"]');
 
   document.querySelector('#toggleManualTrade').addEventListener('click', toggleManualTradeForm);
+  document.querySelectorAll('.screenshot-link').forEach((link) => {
+    link.addEventListener('click', openScreenshotLink);
+  });
 
   if (tradeForm) {
     tradeForm.addEventListener('submit', submitTrade);
