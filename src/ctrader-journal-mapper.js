@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 
-export const CTRADER_JOURNAL_MAPPER_TRACE_VERSION = 'symbol-metadata-by-id-v4-stop-loss';
+export const CTRADER_JOURNAL_MAPPER_TRACE_VERSION = 'symbol-metadata-by-id-v5-order-stop-loss';
 
 const BROKER_SYMBOL_FALLBACKS_BY_ID = {
   41: 'XAUUSD',
@@ -56,7 +56,15 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
       ?? openingDeal?.filledVolume
       ?? openingDeal?.volume,
   );
-  const stopLoss = getCtraderStopLoss(deal, openingDeal);
+  const stopLossSelection = getCtraderStopLossSelection(deal, openingDeal, options);
+  const stopLoss = stopLossSelection.stopLoss;
+  logCtraderOrderStopLossSelection(options, {
+    dealId: deal.dealId ?? null,
+    positionId: deal.positionId ?? openingDeal?.positionId ?? null,
+    ordersFound: stopLossSelection.ordersFound,
+    selectedStopLoss: stopLoss,
+    selectedOrderId: stopLossSelection.selectedOrderId,
+  });
   const symbolMetadata = options.symbolMetadata || getCtraderSymbolMetadataForDeal(deal, openingDeal, options);
   const symbol = getCtraderDealSymbol(deal, openingDeal, symbolMetadata);
   const symbolId = getCtraderDealSymbolId(deal, openingDeal);
@@ -166,8 +174,8 @@ function getCtraderDealSymbolId(deal, openingDeal = null) {
   );
 }
 
-function getCtraderStopLoss(deal, openingDeal = null) {
-  return toFiniteNumber(firstDefined(
+function getCtraderStopLossSelection(deal, openingDeal = null, options = {}) {
+  const dealStopLoss = toFiniteNumber(firstDefined(
     deal?.stopLoss,
     deal?.stopLossPrice,
     deal?.slPrice,
@@ -193,6 +201,36 @@ function getCtraderStopLoss(deal, openingDeal = null) {
     openingDeal?.position?.stopLoss,
     openingDeal?.position?.stopLossPrice,
   ));
+  if (dealStopLoss !== null) {
+    return { stopLoss: dealStopLoss, ordersFound: getCtraderOrdersForPosition(options.ordersByPositionId, deal?.positionId ?? openingDeal?.positionId).length, selectedOrderId: null };
+  }
+
+  const orders = getCtraderOrdersForPosition(options.ordersByPositionId, deal?.positionId ?? openingDeal?.positionId);
+  const selectedOrder = orders.find((order) => getCtraderOrderStopLoss(order) !== null) || null;
+  return {
+    stopLoss: selectedOrder ? getCtraderOrderStopLoss(selectedOrder) : null,
+    ordersFound: orders.length,
+    selectedOrderId: selectedOrder?.orderId ?? selectedOrder?.id ?? null,
+  };
+}
+
+function getCtraderOrdersForPosition(ordersByPositionId, positionId) {
+  if (positionId === undefined || positionId === null || positionId === '' || !ordersByPositionId) {
+    return [];
+  }
+  const orders = ordersByPositionId[String(positionId)] ?? ordersByPositionId[positionId];
+  return Array.isArray(orders) ? orders : [];
+}
+
+function getCtraderOrderStopLoss(order) {
+  return toFiniteNumber(firstDefined(
+    order?.stopLoss,
+    order?.stopLossPrice,
+    order?.slPrice,
+    order?.sl,
+    order?.position?.stopLoss,
+    order?.position?.stopLossPrice,
+  ));
 }
 
 function firstDefined(...values) {
@@ -205,6 +243,15 @@ function roundJournalSize(value) {
 
 function roundCurrency(value) {
   return Number(value.toFixed(2));
+}
+
+function logCtraderOrderStopLossSelection(options, selection) {
+  const logger = options.logger || console;
+  if (!options.ordersByPositionId || typeof logger.info !== 'function') {
+    return;
+  }
+
+  logger.info('[cTrader journal mapper] Order stop loss selected', selection);
 }
 
 function logCtraderVolumeMapping(options, mapping) {
