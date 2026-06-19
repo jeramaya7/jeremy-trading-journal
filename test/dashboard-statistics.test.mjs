@@ -43,6 +43,14 @@ test('R and risk calculations remain available outside the dashboard summary', (
   assert.ok(source.includes('${setupAnalyticsHeader(\'averageR\', \'Average R\')}'), 'Setup Analytics should still show Average R.');
 });
 
+test('R and risk percent display with one decimal place without changing calculations', () => {
+  assert.ok(source.includes('return calculatePnl(trade) / riskDollars;'), 'R calculation should continue to use the raw calculated values.');
+  assert.ok(source.includes('return (riskDollars / accountSize) * 100;'), 'Risk % calculation should continue to return the raw calculated value.');
+  assert.ok(source.includes("`${value.toFixed(1)}R`"), 'R display values should render with one decimal place.');
+  assert.ok(source.includes("`${value.toFixed(1)}%`"), 'Risk % display values should render with one decimal place.');
+  assert.ok(source.includes("riskPercentInput.value = riskPercent === null ? '' : riskPercent.toFixed(1);"), 'Readonly form Risk % display should render with one decimal place.');
+});
+
 
 test('dashboard renders twelve cards in three balanced 4-column rows', () => {
   assert.ok(source.includes('const dashboardCardRows = ['), 'Dashboard cards should be assembled in grouped rows.');
