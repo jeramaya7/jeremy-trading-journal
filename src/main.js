@@ -129,9 +129,13 @@ function loadTrades() {
   return Array.isArray(parsedTrades) ? parsedTrades : starterTrades;
 }
 
-function persistTrades(nextTrades) {
+function persistTrades(nextTrades, options = {}) {
   trades = nextTrades;
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));
+  if (options.preserveTradeId) {
+    renderPreservingTradePosition(options.preserveTradeId, options.renderOptions);
+    return;
+  }
   render();
 }
 
@@ -142,12 +146,42 @@ function isTradeEditLocked() {
 function openTradeEdit(tradeId) {
   editingTradeId = tradeId;
   scheduleCTraderAutoSync();
-  render({ force: true });
+  renderPreservingTradePosition(tradeId, { force: true });
 }
 
 function closeTradeEdit() {
   editingTradeId = null;
   scheduleCTraderAutoSync();
+}
+
+function getTradeCardElement(tradeId) {
+  return [...document.querySelectorAll('[data-trade-card]')]
+    .find((tradeCard) => tradeCard.dataset.tradeCard === String(tradeId)) || null;
+}
+
+function captureTradeScrollAnchor(tradeId) {
+  const tradeCard = getTradeCardElement(tradeId);
+  return {
+    scrollY: window.scrollY,
+    top: tradeCard?.getBoundingClientRect().top ?? null,
+  };
+}
+
+function restoreTradeScrollAnchor(tradeId, anchor) {
+  const tradeCard = getTradeCardElement(tradeId);
+  if (!tradeCard || anchor.top === null) {
+    window.scrollTo({ top: anchor.scrollY, left: window.scrollX });
+    return;
+  }
+
+  const nextTop = tradeCard.getBoundingClientRect().top;
+  window.scrollTo({ top: window.scrollY + nextTop - anchor.top, left: window.scrollX });
+}
+
+function renderPreservingTradePosition(tradeId, renderOptions = {}) {
+  const anchor = captureTradeScrollAnchor(tradeId);
+  render(renderOptions);
+  restoreTradeScrollAnchor(tradeId, anchor);
 }
 
 function loadCTraderAutoSyncSetting() {
@@ -766,7 +800,7 @@ function tradeCard(trade) {
   const setupBadge = setupName ? `<p class="trade-setup-row"><span class="trade-setup-badge">${escapeHtml(setupName)}</span></p>` : '';
   const isEditing = editingTradeId === trade.id;
   return `
-    <article class="trade-card">
+    <article class="trade-card" data-trade-card="${escapeHtml(trade.id)}">
       <div class="trade-card-header">
         <div class="trade-card-heading">
           <div class="trade-title-row">
@@ -1139,10 +1173,11 @@ function bindEvents() {
 
   document.querySelectorAll('[data-cancel-edit-trade]').forEach((button) => {
     button.addEventListener('click', () => {
-      if (editingTradeId === button.dataset.cancelEditTrade) {
+      const tradeId = button.dataset.cancelEditTrade;
+      if (editingTradeId === tradeId) {
         closeTradeEdit();
       }
-      render();
+      renderPreservingTradePosition(tradeId, { force: true });
     });
   });
 
@@ -1291,7 +1326,7 @@ async function submitTradeEdit(event) {
     trade.id === tradeId
       ? { ...trade, ...journalingUpdates, ...screenshotUpdate }
       : trade
-  )));
+  )), { preserveTradeId: tradeId, renderOptions: { force: true } });
 }
 
 function updateRiskPercentField(event) {

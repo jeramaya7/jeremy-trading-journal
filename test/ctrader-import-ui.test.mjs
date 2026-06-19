@@ -159,7 +159,9 @@ test('trade edit form changes stay local until the user saves', () => {
 test('trade edit mode locks rendering and Auto Sync until save or cancel', () => {
   assertIncludes(source, 'function isTradeEditLocked()', 'The frontend exposes a dedicated edit lock state.');
   assertIncludes(source, 'function openTradeEdit(tradeId)', 'Opening edit mode goes through a dedicated edit-state transition.');
-  assertIncludes(source, 'render({ force: true });', 'Opening edit mode is the only forced render while the lock is active.');
+  assertIncludes(source, 'renderPreservingTradePosition(tradeId, { force: true });', 'Opening edit mode forces a render while preserving the selected trade position.');
+  assertIncludes(source, 'function renderPreservingTradePosition(tradeId, renderOptions = {})', 'Edit renders use a dedicated scroll-preserving render wrapper.');
+  assertIncludes(source, 'restoreTradeScrollAnchor(tradeId, anchor);', 'Edit renders restore the selected trade position after React-style DOM replacement.');
   assertIncludes(source, 'if (isTradeEditLocked() && !options.force) {', 'Normal renders are skipped while a trade edit is open.');
   assertIncludes(source, 'if (!isCTraderAutoSyncEnabled || isTradeEditLocked()) {', 'Auto Sync timers are not scheduled during an edit session.');
   assertIncludes(source, `async function syncCTraderOnStartup() {\n  if (isTradeEditLocked()) {`, 'Startup and interval Auto Sync exits without UI updates during edit mode.');
