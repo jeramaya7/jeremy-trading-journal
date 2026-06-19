@@ -64,7 +64,7 @@ test('risk metrics render on trade cards and focused dashboard summary', () => {
   assertIncludes(source, 'Original SL: ${stopLoss === null ?', 'Trade cards render the original stop loss for auditing.');
   assertIncludes(source, 'Adjusted SL: ${currency(adjustedStopLoss)}', 'Trade cards render adjusted stop loss when present.');
   assertIncludes(source, 'Risk $: ${riskDollars === null ?', 'Trade cards render risk dollars with blank-field fallback.');
-  assertIncludes(source, 'Risk %: ${formatPercent(riskPercent)}', 'Trade cards render risk percent.');
+  assertIncludes(source, 'Risk %: ${formatRiskPercent(riskPercent)}', 'Trade cards render risk percent.');
   assertIncludes(source, 'R: ${formatRMultiple(rMultiple)}', 'Trade cards render R multiple.');
   assert.equal(source.includes("statCard('target', 'Total R'"), false, 'The dashboard summary omits Total R.');
   assertIncludes(source, "statCard('target', 'Average Risk $'", 'The summary includes average risk dollars.');

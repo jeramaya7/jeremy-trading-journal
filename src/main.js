@@ -306,6 +306,10 @@ function formatPercent(value) {
   return value === null || value === undefined ? '—' : `${value.toFixed(2)}%`;
 }
 
+function formatRiskPercent(value) {
+  return value === null || value === undefined ? '—' : `${value.toFixed(1)}%`;
+}
+
 function formatRMultiple(value) {
   return value === null || value === undefined ? '—' : `${value.toFixed(2)}R`;
 }
@@ -327,8 +331,36 @@ function formatSyncTime(value) {
 }
 
 
+function formatTradeTime(value) {
+  if (!value) {
+    return '—';
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+    return '—';
+  }
+
+  const timestamp = new Date(value);
+  if (Number.isNaN(timestamp.getTime())) {
+    return '—';
+  }
+
+  return timestamp.toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function getTradeTimeDisplay(trade) {
+  return formatTradeTime(trade.openTime || trade.time || trade.date);
+}
+
 function formatTradeTimestamp(value) {
   if (!value) {
+    return '—';
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
     return '—';
   }
 
@@ -815,6 +847,7 @@ function tradeCard(trade) {
   const tone = pnl >= 0 ? 'positive' : 'negative';
   const rTone = rMultiple === null || rMultiple >= 0 ? 'positive' : 'negative';
   const importedTimeDetail = cTraderTimeDetails(trade);
+  const tradeTime = getTradeTimeDisplay(trade);
   const setupName = String(trade.setup || '').trim();
   const setupBadge = setupName ? `<p class="trade-setup-row"><span class="trade-setup-badge">${escapeHtml(setupName)}</span></p>` : '';
   const isEditing = editingTradeId === trade.id;
@@ -827,7 +860,11 @@ function tradeCard(trade) {
             <strong class="trade-pnl-badge ${tone}" aria-label="P&L ${currency(pnl)}">${currency(pnl)}</strong>
           </div>
           ${setupBadge}
-          <p class="trade-meta">${escapeHtml(trade.date)} • ${escapeHtml(trade.direction)}</p>
+          <p class="trade-meta trade-time-meta">
+            <span>Date: ${escapeHtml(trade.date || '—')}</span>
+            <span>Time: ${escapeHtml(tradeTime)}</span>
+            <span>${escapeHtml(trade.direction)}</span>
+          </p>
         </div>
       </div>
       <div class="trade-details">
@@ -837,7 +874,7 @@ function tradeCard(trade) {
         <span>Original SL: ${stopLoss === null ? '—' : currency(stopLoss)}</span>
         ${adjustedStopLoss === null ? '' : `<span>Adjusted SL: ${currency(adjustedStopLoss)}</span>`}
         <span>Risk $: ${riskDollars === null ? '—' : currency(riskDollars)}</span>
-        <span>Risk %: ${formatPercent(riskPercent)}</span>
+        <span>Risk %: ${formatRiskPercent(riskPercent)}</span>
         <span class="${rTone}">R: ${formatRMultiple(rMultiple)}</span>
         ${importedTimeDetail}
       </div>
@@ -1035,7 +1072,7 @@ function render(options = {}) {
         statCard('line', 'Average Win / Loss', `${currency(stats.averageWin)} / ${currency(stats.averageLoss)}`),
         statCard('line', 'Average R', formatRMultiple(stats.averageR), stats.averageR === null || stats.averageR >= 0 ? 'positive' : 'negative'),
         statCard('target', 'Average Risk $', stats.averageRiskDollars === null ? '—' : currency(stats.averageRiskDollars)),
-        statCard('target', 'Average Risk %', formatPercent(stats.averageRiskPercent)),
+        statCard('target', 'Average Risk %', formatRiskPercent(stats.averageRiskPercent)),
       ],
     },
     {

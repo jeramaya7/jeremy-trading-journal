@@ -37,7 +37,7 @@ test('R and risk calculations remain available outside the dashboard summary', (
   assert.ok(source.includes('function calculateRiskPercent(trade)'), 'Risk percent calculation helper should remain.');
   assert.ok(source.includes('<span>Risk $: ${riskDollars === null ?'), 'Trade cards should still show Risk $ values.');
   assert.ok(source.includes('function getActiveStopLoss(trade)'), 'Risk statistics should use the active adjusted-or-original stop loss helper.');
-  assert.ok(source.includes('<span>Risk %: ${formatPercent(riskPercent)}</span>'), 'Trade cards should still show Risk % values.');
+  assert.ok(source.includes('<span>Risk %: ${formatRiskPercent(riskPercent)}</span>'), 'Trade cards should still show Risk % values.');
   assert.ok(source.includes('<span class="${rTone}">R: ${formatRMultiple(rMultiple)}</span>'), 'Trade cards should still show R values.');
   assert.ok(source.includes('const rMultiple = calculateRMultiple(trade);'), 'Setup Analytics should still reuse R calculations.');
   assert.ok(source.includes('${setupAnalyticsHeader(\'averageR\', \'Average R\')}'), 'Setup Analytics should still show Average R.');
