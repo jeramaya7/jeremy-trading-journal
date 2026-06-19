@@ -139,6 +139,7 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(source, "const customValue = selectedSetup === CUSTOM_SETUP_OPTION ? currentSetup : '';", 'Existing custom setup values are preserved in the custom setup input.');
   assert.ok(!source.includes("${field('Emotion'"), 'The edit form does not render an emotion field.');
   assertIncludes(source, "${field('Loss Reason', renderLossReasonSelect(trade))}", 'The edit form allows an optional loss reason selection.');
+  assertIncludes(source, "${field('Close Reason', renderCloseReasonSelect(trade))}", 'The edit form allows an optional close reason selection.');
   assertIncludes(source, "${field('Tags', `<input name=\"tags\"", 'The edit form allows tag changes.');
   assertIncludes(source, "${field('Notes', `<textarea name=\"notes\"", 'The edit form allows notes changes.');
   assertIncludes(source, "form.addEventListener('submit', submitTradeEdit);", 'Edit forms are wired to the save handler.');
@@ -160,6 +161,7 @@ test('saving trade edits only updates journaling fields and preserves imported e
   assertIncludes(source, "if (setupChoice === CUSTOM_SETUP_OPTION)", 'Saving edits supports custom setup names.');
   assert.ok(!source.includes("formData.get('emotion')"), 'Saving edits does not update emotion.');
   assertIncludes(source, "lossReason: String(formData.get('lossReason')).trim()", 'Saving edits stores the selected loss reason.');
+  assertIncludes(source, "closeReason: String(formData.get('closeReason')).trim()", 'Saving edits stores the selected close reason.');
   assertIncludes(source, "tags: String(formData.get('tags')).trim()", 'Saving edits updates tags.');
   assertIncludes(source, "notes: String(formData.get('notes')).trim()", 'Saving edits updates notes.');
   assertIncludes(source, '? { ...trade, ...journalingUpdates }', 'Saving edits spreads the existing trade first, preserving cTrader fields not in the journaling update.');
@@ -170,9 +172,25 @@ test('saving trade edits only updates journaling fields and preserves imported e
 test('loss reason dropdown is optional and only renders on trade cards when filled', () => {
   assertIncludes(source, 'const LOSS_REASON_OPTIONS = [', 'Loss reason options are centralized for the edit dropdown.');
   assertIncludes(source, "'Bad Entry'", 'Loss reason includes Bad Entry.');
+  assertIncludes(source, "'Ignored Rules'", 'Loss reason includes Ignored Rules.');
+  assertIncludes(source, "'News Event'", 'Loss reason includes News Event.');
   assertIncludes(source, "'Good Trade, Normal Loss'", 'Loss reason includes Good Trade, Normal Loss.');
+  assert.ok(!source.includes("'Entered Too Late'"), 'Loss reason excludes removed detailed timing options.');
   assertIncludes(source, '<option value="">No loss reason</option>', 'Loss reason can be left blank for existing or winning trades.');
   assertIncludes(source, '${trade.lossReason ? `<p class="loss-reason"><strong>Loss Reason:</strong> ${escapeHtml(trade.lossReason)}</p>` : \'\'}', 'Trade cards only show loss reason when a saved value exists.');
+});
+
+
+test('close reason dropdown is optional and only renders on trade cards when filled', () => {
+  assertIncludes(source, 'const CLOSE_REASON_OPTIONS = [', 'Close reason options are centralized for the edit dropdown.');
+  assertIncludes(source, "'Take Profit'", 'Close reason includes Take Profit.');
+  assertIncludes(source, "'Stop Loss'", 'Close reason includes Stop Loss.');
+  assertIncludes(source, "'Trailed Stop'", 'Close reason includes Trailed Stop.');
+  assertIncludes(source, "'Trend Change'", 'Close reason includes Trend Change.');
+  assertIncludes(source, "'Manual Close'", 'Close reason includes Manual Close.');
+  assertIncludes(source, "'Break Even'", 'Close reason includes Break Even.');
+  assertIncludes(source, '<option value="">No close reason</option>', 'Close reason can be left blank for existing trades.');
+  assertIncludes(source, '${trade.closeReason ? `<p class="close-reason"><strong>Close Reason:</strong> ${escapeHtml(trade.closeReason)}</p>` : \'\'}', 'Trade cards only show close reason when a saved value exists.');
 });
 
 test('imported cTrader edit flow supports screenshot attachments', () => {
