@@ -121,7 +121,7 @@ test('cTrader deleted source keys are persisted and used during sync', () => {
   assertIncludes(source, "const DELETED_CTRADER_SOURCE_KEYS_STORAGE_KEY = 'deletedCTraderSourceKeys';", 'Deleted cTrader source keys use the requested localStorage key.');
   assertIncludes(source, 'function loadDeletedCTraderSourceKeys()', 'Deleted cTrader source keys can be loaded before syncing.');
   assertIncludes(source, 'function rememberDeletedCTraderSourceKey(trade)', 'Single cTrader trade deletion persists its source key.');
-  assertIncludes(source, 'const deletedTrade = trades.find((trade) => trade.id === button.dataset.deleteTrade);', 'Delete handlers identify the removed trade before filtering it out.');
+  assertIncludes(source, 'const deletedTrade = getTradeById(button.dataset.deleteTrade);', 'Delete handlers identify the removed trade before filtering it out.');
   assertIncludes(source, 'rememberDeletedCTraderSourceKey(deletedTrade);', 'Delete handlers remember cTrader source keys before removing the trade.');
   assertIncludes(source, 'window.localStorage.setItem(DELETED_CTRADER_SOURCE_KEYS_STORAGE_KEY, JSON.stringify([...sourceKeys].sort()))', 'Deleted source keys are saved to localStorage.');
 });
@@ -159,9 +159,11 @@ test('trade edit form changes stay local until the user saves', () => {
 test('trade edit mode locks rendering and Auto Sync until save or cancel', () => {
   assertIncludes(source, 'function isTradeEditLocked()', 'The frontend exposes a dedicated edit lock state.');
   assertIncludes(source, 'function openTradeEdit(tradeId)', 'Opening edit mode goes through a dedicated edit-state transition.');
-  assertIncludes(source, 'renderPreservingTradePosition(tradeId, { force: true });', 'Opening edit mode forces a render while preserving the selected trade position.');
+  assertIncludes(source, 'renderTradeCardInPlace(tradeId);', 'Opening edit mode updates only the selected trade card instead of remounting the journal.');
+  assertIncludes(source, 'function renderTradeCardInPlace(tradeId)', 'Edit renders replace only the selected trade card to keep the selected entry visible.');
+  assertIncludes(source, 'currentTradeCard.outerHTML = tradeCard(trade);', 'The selected trade card is swapped in place without re-sorting or remounting the journal list.');
   assertIncludes(source, 'function renderPreservingTradePosition(tradeId, renderOptions = {})', 'Edit renders use a dedicated scroll-preserving render wrapper.');
-  assertIncludes(source, 'restoreTradeScrollAnchor(tradeId, anchor);', 'Edit renders restore the selected trade position after React-style DOM replacement.');
+  assertIncludes(source, 'restoreTradeScrollAnchor(tradeId, anchor);', 'Save renders restore the selected trade position after data-driven DOM replacement.');
   assertIncludes(source, 'if (isTradeEditLocked() && !options.force) {', 'Normal renders are skipped while a trade edit is open.');
   assertIncludes(source, 'if (!isCTraderAutoSyncEnabled || isTradeEditLocked()) {', 'Auto Sync timers are not scheduled during an edit session.');
   assertIncludes(source, `async function syncCTraderOnStartup() {\n  if (isTradeEditLocked()) {`, 'Startup and interval Auto Sync exits without UI updates during edit mode.');
