@@ -856,8 +856,11 @@ h2 {
 
 .trade-card-actions .icon-button,
 .trade-card-actions .edit-button,
+.edit-form-actions .icon-button,
 .edit-form-actions .primary-button,
-.edit-form-actions .secondary-button {
+.edit-form-actions .secondary-button,
+.edit-save-actions .primary-button,
+.edit-save-actions .secondary-button {
   margin-top: 0;
 }
 
@@ -877,19 +880,22 @@ h2 {
   padding: 0.9rem;
 }
 
-.edit-trade-form .form-grid,
-.edit-compact-grid {
+.edit-form-row {
+  display: grid;
+  gap: 0.75rem;
   margin: 0;
 }
 
-.edit-compact-grid {
-  display: grid;
-  gap: 0.75rem;
+.edit-price-row {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.edit-classification-row {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.edit-compact-grid .field:last-child {
-  grid-column: 1 / -1;
+.edit-tags-row {
+  grid-template-columns: 1fr;
 }
 
 .edit-collapsible {
@@ -934,9 +940,35 @@ h2 {
   gap: 0.75rem;
 }
 
-@media (max-width: 860px) {
-  .edit-compact-grid {
+.edit-form-actions {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.edit-save-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+@media (max-width: 980px) {
+  .edit-price-row,
+  .edit-classification-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .edit-price-row,
+  .edit-classification-row {
     grid-template-columns: 1fr;
+  }
+
+  .edit-form-actions,
+  .edit-save-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 
