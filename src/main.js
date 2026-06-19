@@ -790,12 +790,13 @@ function tradeCard(trade) {
       </div>
       ${isEditing ? editTradeForm(trade) : tradeJournalDetails(trade)}
       ${!isEditing ? screenshotPreview(trade) : ''}
-      <div class="trade-card-actions">
-        ${isEditing ? '' : `<button class="edit-button" type="button" data-edit-trade="${escapeHtml(trade.id)}" aria-label="Edit journaling fields for ${escapeHtml(displaySymbol)} trade">${icon('edit')} Edit</button>`}
-        <button class="icon-button" type="button" data-delete-trade="${escapeHtml(trade.id)}" aria-label="Delete ${escapeHtml(trade.symbol)} trade">
-          ${icon('trash')} Delete
-        </button>
-      </div>
+      ${!isEditing ? `
+        <div class="trade-card-actions">
+          <button class="edit-button" type="button" data-edit-trade="${escapeHtml(trade.id)}" aria-label="Edit journaling fields for ${escapeHtml(displaySymbol)} trade">${icon('edit')} Edit</button>
+          <button class="icon-button" type="button" data-delete-trade="${escapeHtml(trade.id)}" aria-label="Delete ${escapeHtml(trade.symbol)} trade">
+            ${icon('trash')} Delete
+          </button>
+        </div>` : ''}
     </article>
   `;
 }
@@ -871,14 +872,18 @@ function editTradeForm(trade) {
     : '';
   return `
       <form class="edit-trade-form" data-edit-trade-form="${escapeHtml(trade.id)}">
-        <div class="edit-compact-grid">
+        <div class="edit-form-row edit-price-row" aria-label="Trade prices">
           ${field('Entry Price', `<input name="entry" type="number" value="${escapeHtml(trade.entry)}" readonly />`)}
-          ${field('Original Stop Loss', `<input name="stopLoss" type="number" value="${escapeHtml(trade.stopLoss ?? '')}" readonly />`)}
-          ${field('Adjusted Stop Loss', `<input name="adjustedStopLoss" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedStopLoss ?? '')}" placeholder="Optional" />`)}
           ${field('Exit Price', `<input name="exit" type="number" value="${escapeHtml(trade.exit)}" readonly />`)}
+          ${field('Original Stop Loss', `<input name="stopLoss" type="number" value="${escapeHtml(trade.stopLoss ?? '')}" readonly />`)}
+          ${field('Risk Stop', `<input name="adjustedStopLoss" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedStopLoss ?? '')}" placeholder="Optional" />`)}
+        </div>
+        <div class="edit-form-row edit-classification-row" aria-label="Trade classification">
           ${field('Setup', renderPlayBookSetupSelect(trade))}
           ${field('Close Reason', renderCloseReasonSelect(trade))}
           ${field('Loss Reason', renderLossReasonSelect(trade))}
+        </div>
+        <div class="edit-form-row edit-tags-row">
           ${field('Tags', `<input name="tags" value="${escapeHtml(trade.tags)}" placeholder="gap, reversal, A+" />`)}
         </div>
         <details class="edit-collapsible">
@@ -897,13 +902,18 @@ function editTradeForm(trade) {
             <div class="screenshot-field-preview" data-edit-screenshot-preview="${escapeHtml(trade.id)}" aria-live="polite">
               ${currentScreenshot ? screenshotLink(currentScreenshot, `${getTradeDisplaySymbol(trade)} trade screenshot`) : ''}
             </div>
+            ${removeButton}
           </div>
         </details>
         <p class="edit-import-note">Imported cTrader execution fields are read-only and will be preserved when journaling edits are saved.</p>
         <div class="edit-form-actions">
-          <button class="primary-button" type="submit">${icon('save')} Save edits</button>
-          ${removeButton}
-          <button class="secondary-button" type="button" data-cancel-edit-trade="${escapeHtml(trade.id)}">Cancel</button>
+          <button class="icon-button" type="button" data-delete-trade="${escapeHtml(trade.id)}" aria-label="Delete ${escapeHtml(trade.symbol)} trade">
+            ${icon('trash')} Delete
+          </button>
+          <div class="edit-save-actions">
+            <button class="secondary-button" type="button" data-cancel-edit-trade="${escapeHtml(trade.id)}">Cancel</button>
+            <button class="primary-button" type="submit">${icon('save')} Save Changes</button>
+          </div>
         </div>
       </form>`;
 }
