@@ -303,11 +303,11 @@ function toOptionalNumber(value) {
 }
 
 function formatPercent(value) {
-  return value === null || value === undefined ? '—' : `${value.toFixed(2)}%`;
+  return value === null || value === undefined ? '—' : `${value.toFixed(1)}%`;
 }
 
 function formatRiskPercent(value) {
-  return value === null || value === undefined ? '—' : `${value.toFixed(1)}%`;
+  return formatPercent(value);
 }
 
 function formatRMultiple(value) {
@@ -695,7 +695,7 @@ function getStats() {
 
   return {
     totalPnl,
-    winRate: trades.length ? Math.round((wins.length / trades.length) * 100) : 0,
+    winRate: trades.length ? (wins.length / trades.length) * 100 : 0,
     tradeCount: trades.length,
     averageWin,
     averageLoss,
@@ -1062,7 +1062,7 @@ function render(options = {}) {
       label: 'Overall Performance',
       cards: [
         statCard('trend', 'Net P&L', currency(stats.totalPnl), stats.totalPnl >= 0 ? 'positive' : 'negative'),
-        statCard('target', 'Win Rate', `${stats.winRate}%`),
+        statCard('target', 'Win Rate', formatPercent(stats.winRate)),
         statCard('chart', 'Trades Logged', stats.tradeCount),
         statCard('trend', 'Biggest Winner', stats.biggestWinner === null ? '—' : currency(stats.biggestWinner), stats.biggestWinner === null || stats.biggestWinner >= 0 ? 'positive' : 'negative'),
       ],
