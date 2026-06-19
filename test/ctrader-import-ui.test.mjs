@@ -144,6 +144,16 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(source, "form.addEventListener('submit', submitTradeEdit);", 'Edit forms are wired to the save handler.');
 });
 
+
+test('trade edit form changes stay local until the user saves', () => {
+  assertIncludes(source, "button.addEventListener('click', removeEditScreenshot);", 'Removing an edit screenshot uses a local DOM update handler instead of re-rendering the form.');
+  assertIncludes(source, 'function removeEditScreenshot(event)', 'Screenshot removal has a dedicated edit-session handler.');
+  assertIncludes(source, 'updateEditScreenshotFieldPreview(tradeId);', 'Screenshot removal updates only the preview area, preserving scroll and cursor position.');
+  assert.ok(!source.includes('data-remove-edit-screenshot]') || !source.includes('removeEditScreenshot;\n      });\n      render();'), 'Removing a screenshot during edit does not call render.');
+  assertIncludes(source, 'customSetupInput.hidden = event.currentTarget.value !== CUSTOM_SETUP_OPTION;', 'Setup dropdown changes only reveal or hide the custom setup input locally.');
+  assertIncludes(source, 'persistTrades(trades.map((trade) => (', 'Trade edit values are persisted only by the explicit save submit handler.');
+});
+
 test('saving trade edits only updates journaling fields and preserves imported execution data', () => {
   assertIncludes(source, 'const journalingUpdates = {', 'The edit save handler creates a restricted journaling update object.');
   assertIncludes(source, "setup: getSetupFormValue(formData)", 'Saving edits updates setup from the dropdown or custom setup input.');
