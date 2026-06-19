@@ -66,7 +66,9 @@ let trades = loadTrades();
 let searchQuery = '';
 let selectedScreenshot = null;
 let pastedScreenshotFile = null;
+let editTradeDrafts = {};
 let editScreenshotDrafts = {};
+let hasPendingRenderAfterEdit = false;
 let isPasteListenerBound = false;
 let cTraderSyncStatus = null;
 let isSyncingCTrader = false;
@@ -133,6 +135,16 @@ function loadTrades() {
 function persistTrades(nextTrades) {
   trades = nextTrades;
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));
+  refreshApp();
+}
+
+function refreshApp({ force = false } = {}) {
+  if (editingTradeId && !force) {
+    hasPendingRenderAfterEdit = true;
+    return;
+  }
+
+  hasPendingRenderAfterEdit = false;
   render();
 }
 
@@ -144,7 +156,7 @@ function persistCTraderAutoSyncSetting(isEnabled) {
   isCTraderAutoSyncEnabled = isEnabled;
   window.localStorage.setItem(AUTO_SYNC_STORAGE_KEY, isEnabled ? 'on' : 'off');
   scheduleCTraderAutoSync();
-  render();
+  refreshApp();
 }
 
 function loadCTraderLastSyncTime() {
@@ -797,6 +809,39 @@ function isPlayBookSetup(setup) {
   return PLAY_BOOK_SETUP_OPTIONS.includes(String(setup || '').trim());
 }
 
+function getEditTradeDraft(trade) {
+  if (!trade?.id) {
+    return {};
+  }
+
+  return editTradeDrafts[trade.id] || {};
+}
+
+function getEditableTradeValues(trade) {
+  return {
+    ...trade,
+    ...getEditTradeDraft(trade),
+  };
+}
+
+function setEditTradeDraftFromForm(form) {
+  const tradeId = form?.dataset?.editTradeForm;
+  if (!tradeId) {
+    return;
+  }
+
+  const formData = new FormData(form);
+  editTradeDrafts = {
+    ...editTradeDrafts,
+    [tradeId]: {
+      setup: getSetupFormValue(formData),
+      lossReason: String(formData.get('lossReason')).trim(),
+      tags: String(formData.get('tags')).trim(),
+      notes: String(formData.get('notes')).trim(),
+    },
+  };
+}
+
 function renderPlayBookSetupSelect(trade) {
   const currentSetup = String(trade.setup || '').trim();
   const selectedSetup = isPlayBookSetup(currentSetup) ? currentSetup : CUSTOM_SETUP_OPTION;
@@ -831,6 +876,7 @@ function getSetupFormValue(formData) {
 }
 
 function editTradeForm(trade) {
+  const editableTrade = getEditableTradeValues(trade);
   const currentScreenshot = getEditScreenshotPreview(trade);
   const removeButton = currentScreenshot
     ? `<button class="secondary-button" type="button" data-remove-edit-screenshot="${escapeHtml(trade.id)}">${icon('trash')} Remove screenshot</button>`
@@ -838,11 +884,11 @@ function editTradeForm(trade) {
   return `
       <form class="edit-trade-form" data-edit-trade-form="${escapeHtml(trade.id)}">
         <div class="form-grid">
-          ${field('Setup', renderPlayBookSetupSelect(trade))}
-          ${field('Loss Reason', renderLossReasonSelect(trade))}
-          ${field('Tags', `<input name="tags" value="${escapeHtml(trade.tags)}" placeholder="gap, reversal, A+" />`)}
+          ${field('Setup', renderPlayBookSetupSelect(editableTrade))}
+          ${field('Loss Reason', renderLossReasonSelect(editableTrade))}
+          ${field('Tags', `<input name="tags" value="${escapeHtml(editableTrade.tags)}" placeholder="gap, reversal, A+" />`)}
         </div>
-        ${field('Notes', `<textarea name="notes" rows="5" placeholder="What was the plan? What happened? What will you repeat or avoid?">${escapeHtml(trade.notes)}</textarea>`)}
+        ${field('Notes', `<textarea name="notes" rows="5" placeholder="What was the plan? What happened? What will you repeat or avoid?">${escapeHtml(editableTrade.notes)}</textarea>`)}
         <div class="screenshot-upload-field">
           <label class="screenshot-upload">
             <span>${icon('image')} Trade screenshot</span>
@@ -1045,8 +1091,8 @@ function bindEvents() {
   }
   document.querySelector('#searchInput').addEventListener('input', (event) => {
     searchQuery = event.target.value;
-    render();
-    document.querySelector('#searchInput').focus();
+    refreshApp();
+    document.querySelector('#searchInput')?.focus();
   });
   document.querySelector('#autoSyncCTrader').addEventListener('change', changeCTraderAutoSyncSetting);
   document.querySelector('#cTraderAccountSelect')?.addEventListener('change', changeCTraderAccountSelection);
@@ -1062,7 +1108,7 @@ function bindEvents() {
         key: button.dataset.setupSortKey,
         direction: button.dataset.setupSortDirection,
       };
-      render();
+      refreshApp();
     });
   });
 
@@ -1074,21 +1120,36 @@ function bindEvents() {
   document.querySelectorAll('[data-edit-trade]').forEach((button) => {
     button.addEventListener('click', () => {
       editingTradeId = button.dataset.editTrade;
-      render();
+      const trade = trades.find((candidate) => candidate.id === editingTradeId);
+      if (trade) {
+        editTradeDrafts = {
+          ...editTradeDrafts,
+          [editingTradeId]: {
+            setup: String(trade.setup || '').trim(),
+            lossReason: String(trade.lossReason || '').trim(),
+            tags: String(trade.tags || '').trim(),
+            notes: String(trade.notes || '').trim(),
+          },
+        };
+      }
+      refreshApp({ force: true });
     });
   });
 
   document.querySelectorAll('[data-cancel-edit-trade]').forEach((button) => {
     button.addEventListener('click', () => {
       if (editingTradeId === button.dataset.cancelEditTrade) {
+        delete editTradeDrafts[button.dataset.cancelEditTrade];
         editingTradeId = null;
       }
-      render();
+      refreshApp({ force: true });
     });
   });
 
   document.querySelectorAll('[data-edit-trade-form]').forEach((form) => {
     form.addEventListener('submit', submitTradeEdit);
+    form.addEventListener('input', () => setEditTradeDraftFromForm(form));
+    form.addEventListener('change', () => setEditTradeDraftFromForm(form));
   });
 
   document.querySelectorAll('[data-setup-choice]').forEach((select) => {
@@ -1135,6 +1196,7 @@ function changeEditSetupChoice(event) {
     return;
   }
 
+  setEditTradeDraftFromForm(event.currentTarget.closest('form'));
   customSetupInput.hidden = event.currentTarget.value !== CUSTOM_SETUP_OPTION;
   if (!customSetupInput.hidden) {
     customSetupInput.focus();
@@ -1221,6 +1283,7 @@ async function submitTradeEdit(event) {
     : {};
 
   editingTradeId = null;
+  delete editTradeDrafts[tradeId];
   delete editScreenshotDrafts[tradeId];
   persistTrades(trades.map((trade) => (
     // Keep the existing cTrader execution payload first: ? { ...trade, ...journalingUpdates }
@@ -1549,7 +1612,7 @@ function startCTraderOAuthFlow() {
   authStartUrl.searchParams.set('returnTo', getCTraderOAuthReturnUrl());
   cTraderSyncStatus = { tone: 'pending', message: 'Opening cTrader OAuth on the Render backend...' };
   setCTraderBackendDiagnostics({ connectionStatus: 'Starting cTrader OAuth flow...', tone: 'pending' });
-  render();
+  refreshApp();
   window.location.assign(authStartUrl.toString());
 }
 
@@ -1574,7 +1637,7 @@ async function handleCTraderOAuthReturn() {
   hasHandledCTraderOAuthReturn = true;
   clearCTraderOAuthReturnQuery();
   cTraderSyncStatus = { tone: 'pending', message: 'Authorization complete. Checking cTrader connection status...' };
-  render();
+  refreshApp();
 
   try {
     await checkCTraderConnection();
@@ -1586,7 +1649,7 @@ async function handleCTraderOAuthReturn() {
       message: error.message || 'Authorization finished, but cTrader connection status could not be confirmed.',
     };
   } finally {
-    render();
+    refreshApp();
   }
 
   return true;
@@ -1598,7 +1661,7 @@ function changeCTraderAutoSyncSetting(event) {
     tone: event.target.checked ? 'success' : 'pending',
     message: `Auto Sync ${event.target.checked ? 'enabled' : 'disabled'}.`,
   };
-  render();
+  refreshApp();
 
   if (event.target.checked) {
     syncCTraderOnStartup();
@@ -1635,7 +1698,7 @@ async function loadCTraderAccounts(options = {}) {
   }
 
   isLoadingCTraderAccounts = true;
-  render();
+  refreshApp();
   try {
     const { response, body } = await fetchBackendJson(`${CTRADER_ENDPOINTS.accounts}?maxRows=1`);
     if (!response.ok) {
@@ -1652,7 +1715,7 @@ async function loadCTraderAccounts(options = {}) {
     return cTraderAccounts;
   } finally {
     isLoadingCTraderAccounts = false;
-    render();
+    refreshApp();
   }
 }
 
@@ -1661,7 +1724,7 @@ function changeCTraderAccountSelection(event) {
   cTraderAccountBalance = null;
   cTraderSyncStatus = { tone: 'success', message: `Selected cTrader account: ${formatCTraderAccountLabel(getSelectedCTraderAccount())}.` };
   setCTraderBackendDiagnostics({ connectionStatus: describeCTraderConnectionStatus({ connected: true }), tone: 'success' });
-  render();
+  refreshApp();
 }
 
 async function checkCTraderConnection() {
@@ -1689,7 +1752,7 @@ async function syncCTrader(options = {}) {
   isSyncingCTrader = true;
   const isAutoSync = options.source === 'auto';
   cTraderSyncStatus = { tone: 'pending', message: isAutoSync ? 'Auto Sync checking cTrader trades...' : 'Syncing cTrader trades...' };
-  render();
+  refreshApp();
 
   try {
     await loadCTraderAccounts();
@@ -1747,7 +1810,7 @@ async function syncCTrader(options = {}) {
     };
   } finally {
     isSyncingCTrader = false;
-    render();
+    refreshApp();
   }
 }
 
@@ -1830,7 +1893,7 @@ function scheduleCTraderAutoSync() {
 async function syncCTraderOnStartup() {
   if (!isCTraderAutoSyncEnabled) {
     cTraderSyncStatus = { tone: 'pending', message: 'Auto Sync is off.' };
-    render();
+    refreshApp();
     return;
   }
 
@@ -1840,7 +1903,7 @@ async function syncCTraderOnStartup() {
 
   isCheckingCTraderConnection = true;
   cTraderSyncStatus = { tone: 'pending', message: 'Checking cTrader connection for Auto Sync...' };
-  render();
+  refreshApp();
 
   try {
     await checkCTraderConnection();
@@ -1854,7 +1917,7 @@ async function syncCTraderOnStartup() {
     return;
   } finally {
     isCheckingCTraderConnection = false;
-    render();
+    refreshApp();
   }
 
   await syncCTrader({ source: 'auto' });

@@ -130,7 +130,7 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(source, 'data-edit-trade="${escapeHtml(trade.id)}"', 'Each trade card renders an Edit button tied to that trade ID.');
   assertIncludes(source, 'function editTradeForm(trade)', 'Editing renders a focused form on the selected trade card.');
   assertIncludes(source, 'data-edit-trade-form="${escapeHtml(trade.id)}"', 'The edit form keeps a stable trade ID for saving changes.');
-  assertIncludes(source, "${field('Setup', renderPlayBookSetupSelect(trade))}", 'The edit form allows setup changes through the Play Book dropdown.');
+  assertIncludes(source, "${field('Setup', renderPlayBookSetupSelect(editableTrade))}", 'The edit form allows setup changes through the Play Book dropdown.');
   assertIncludes(source, 'const PLAY_BOOK_SETUP_OPTIONS = [', 'The Play Book setup dropdown has a fixed setup list.');
   assertIncludes(source, "'Elephant Bar'", 'The Play Book setup dropdown includes Elephant Bar.');
   assertIncludes(source, "'Ride the 🐋'", 'The Play Book setup dropdown includes Ride the whale.');
@@ -138,10 +138,11 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(source, "const selectedSetup = isPlayBookSetup(currentSetup) ? currentSetup : CUSTOM_SETUP_OPTION;", 'Existing non-Play Book setup values open as Custom.');
   assertIncludes(source, "const customValue = selectedSetup === CUSTOM_SETUP_OPTION ? currentSetup : '';", 'Existing custom setup values are preserved in the custom setup input.');
   assert.ok(!source.includes("${field('Emotion'"), 'The edit form does not render an emotion field.');
-  assertIncludes(source, "${field('Loss Reason', renderLossReasonSelect(trade))}", 'The edit form allows an optional loss reason selection.');
+  assertIncludes(source, "${field('Loss Reason', renderLossReasonSelect(editableTrade))}", 'The edit form allows an optional loss reason selection.');
   assertIncludes(source, "${field('Tags', `<input name=\"tags\"", 'The edit form allows tag changes.');
   assertIncludes(source, "${field('Notes', `<textarea name=\"notes\"", 'The edit form allows notes changes.');
   assertIncludes(source, "form.addEventListener('submit', submitTradeEdit);", 'Edit forms are wired to the save handler.');
+  assertIncludes(source, 'const editableTrade = getEditableTradeValues(trade);', 'Editing renders from an edit-session draft when one exists.');
 });
 
 
@@ -151,6 +152,9 @@ test('trade edit form changes stay local until the user saves', () => {
   assertIncludes(source, 'updateEditScreenshotFieldPreview(tradeId);', 'Screenshot removal updates only the preview area, preserving scroll and cursor position.');
   assert.ok(!source.includes('data-remove-edit-screenshot]') || !source.includes('removeEditScreenshot;\n      });\n      render();'), 'Removing a screenshot during edit does not call render.');
   assertIncludes(source, 'customSetupInput.hidden = event.currentTarget.value !== CUSTOM_SETUP_OPTION;', 'Setup dropdown changes only reveal or hide the custom setup input locally.');
+  assertIncludes(source, "form.addEventListener('input', () => setEditTradeDraftFromForm(form));", 'Typing in edit fields updates only the in-memory draft.');
+  assertIncludes(source, "form.addEventListener('change', () => setEditTradeDraftFromForm(form));", 'Dropdown changes update only the in-memory draft.');
+  assertIncludes(source, 'if (editingTradeId && !force)', 'Background refreshes are deferred while editing to preserve scroll and field state.');
   assertIncludes(source, 'persistTrades(trades.map((trade) => (', 'Trade edit values are persisted only by the explicit save submit handler.');
 });
 
@@ -162,7 +166,7 @@ test('saving trade edits only updates journaling fields and preserves imported e
   assertIncludes(source, "lossReason: String(formData.get('lossReason')).trim()", 'Saving edits stores the selected loss reason.');
   assertIncludes(source, "tags: String(formData.get('tags')).trim()", 'Saving edits updates tags.');
   assertIncludes(source, "notes: String(formData.get('notes')).trim()", 'Saving edits updates notes.');
-  assertIncludes(source, '? { ...trade, ...journalingUpdates }', 'Saving edits spreads the existing trade first, preserving cTrader fields not in the journaling update.');
+  assertIncludes(source, '? { ...trade, ...journalingUpdates, ...screenshotUpdate }', 'Saving edits spreads the existing trade first, preserving cTrader fields not in the journaling update.');
   assertIncludes(source, 'persistTrades(trades.map((trade) => (', 'Saving edits persists the updated journal to localStorage through the existing storage path.');
   assertIncludes(source, 'Imported cTrader execution fields are read-only and will be preserved when journaling edits are saved.', 'The edit UI tells users imported cTrader execution fields remain read-only.');
 });
