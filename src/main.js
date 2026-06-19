@@ -102,19 +102,18 @@ const CUSTOM_SETUP_OPTION = 'Custom';
 const LOSS_REASON_OPTIONS = [
   'Bad Entry',
   'Chased Price',
-  'Entered Too Late',
-  'Entered Too Early',
-  'Stop Too Tight',
-  'Stop Too Wide',
-  'Ignored Trend',
-  'Against 200 MA',
-  'News Spike',
-  'No Clear Setup',
-  'Moved Stop',
-  'Took Profit Too Late',
-  'Revenge Trade',
-  'Overtraded',
+  'Ignored Rules',
+  'News Event',
   'Good Trade, Normal Loss',
+  'Other',
+];
+const CLOSE_REASON_OPTIONS = [
+  'Take Profit',
+  'Stop Loss',
+  'Trailed Stop',
+  'Trend Change',
+  'Manual Close',
+  'Break Even',
   'Other',
 ];
 
@@ -780,6 +779,7 @@ function tradeCard(trade) {
 function tradeJournalDetails(trade) {
   return `
       ${trade.lossReason ? `<p class="loss-reason"><strong>Loss Reason:</strong> ${escapeHtml(trade.lossReason)}</p>` : ''}
+      ${trade.closeReason ? `<p class="close-reason"><strong>Close Reason:</strong> ${escapeHtml(trade.closeReason)}</p>` : ''}
       ${trade.tags ? `<p class="tags">${escapeHtml(trade.tags)}</p>` : ''}
       ${trade.notes ? `<p class="notes">${escapeHtml(trade.notes)}</p>` : ''}`;
 }
@@ -821,6 +821,16 @@ function renderLossReasonSelect(trade) {
   `;
 }
 
+function renderCloseReasonSelect(trade) {
+  const currentCloseReason = String(trade.closeReason || '').trim();
+  return `
+    <select name="closeReason" aria-label="Close Reason">
+      <option value="">No close reason</option>
+      ${CLOSE_REASON_OPTIONS.map((option) => renderSelectOption(option, currentCloseReason)).join('')}
+    </select>
+  `;
+}
+
 function getSetupFormValue(formData) {
   const setupChoice = String(formData.get('setupChoice') || '').trim();
   if (setupChoice === CUSTOM_SETUP_OPTION) {
@@ -840,6 +850,7 @@ function editTradeForm(trade) {
         <div class="form-grid">
           ${field('Setup', renderPlayBookSetupSelect(trade))}
           ${field('Loss Reason', renderLossReasonSelect(trade))}
+          ${field('Close Reason', renderCloseReasonSelect(trade))}
           ${field('Tags', `<input name="tags" value="${escapeHtml(trade.tags)}" placeholder="gap, reversal, A+" />`)}
         </div>
         ${field('Notes', `<textarea name="notes" rows="5" placeholder="What was the plan? What happened? What will you repeat or avoid?">${escapeHtml(trade.notes)}</textarea>`)}
@@ -1210,6 +1221,7 @@ async function submitTradeEdit(event) {
   const journalingUpdates = {
     setup: getSetupFormValue(formData),
     lossReason: String(formData.get('lossReason')).trim(),
+    closeReason: String(formData.get('closeReason')).trim(),
     tags: String(formData.get('tags')).trim(),
     notes: String(formData.get('notes')).trim(),
   };
