@@ -146,7 +146,7 @@ function isTradeEditLocked() {
 function openTradeEdit(tradeId) {
   editingTradeId = tradeId;
   scheduleCTraderAutoSync();
-  renderPreservingTradePosition(tradeId, { force: true });
+  renderTradeCardInPlace(tradeId);
 }
 
 function closeTradeEdit() {
@@ -157,6 +157,25 @@ function closeTradeEdit() {
 function getTradeCardElement(tradeId) {
   return [...document.querySelectorAll('[data-trade-card]')]
     .find((tradeCard) => tradeCard.dataset.tradeCard === String(tradeId)) || null;
+}
+
+function getTradeById(tradeId) {
+  return trades.find((trade) => String(trade.id) === String(tradeId)) || null;
+}
+
+function renderTradeCardInPlace(tradeId) {
+  const trade = getTradeById(tradeId);
+  const currentTradeCard = getTradeCardElement(tradeId);
+  if (!trade || !currentTradeCard) {
+    render({ force: true });
+    return;
+  }
+
+  currentTradeCard.outerHTML = tradeCard(trade);
+  const nextTradeCard = getTradeCardElement(tradeId);
+  if (nextTradeCard) {
+    bindTradeCardEvents(nextTradeCard);
+  }
 }
 
 function captureTradeScrollAnchor(tradeId) {
@@ -1123,10 +1142,6 @@ function bindEvents() {
   const screenshotInput = tradeForm?.querySelector('input[name="screenshot"]');
 
   document.querySelector('#toggleManualTrade').addEventListener('click', toggleManualTradeForm);
-  document.querySelectorAll('.screenshot-link').forEach((link) => {
-    link.addEventListener('click', openScreenshotLink);
-  });
-
   if (tradeForm) {
     tradeForm.addEventListener('submit', submitTrade);
     tradeForm.addEventListener('input', updateRiskPercentField);
@@ -1165,46 +1180,54 @@ function bindEvents() {
     updateRiskPercentField({ currentTarget: tradeForm });
   }
 
-  document.querySelectorAll('[data-edit-trade]').forEach((button) => {
+  document.querySelectorAll('[data-trade-card]').forEach(bindTradeCardEvents);
+}
+
+function bindTradeCardEvents(tradeCardElement) {
+  tradeCardElement.querySelectorAll('.screenshot-link').forEach((link) => {
+    link.addEventListener('click', openScreenshotLink);
+  });
+
+  tradeCardElement.querySelectorAll('[data-edit-trade]').forEach((button) => {
     button.addEventListener('click', () => {
       openTradeEdit(button.dataset.editTrade);
     });
   });
 
-  document.querySelectorAll('[data-cancel-edit-trade]').forEach((button) => {
+  tradeCardElement.querySelectorAll('[data-cancel-edit-trade]').forEach((button) => {
     button.addEventListener('click', () => {
       const tradeId = button.dataset.cancelEditTrade;
-      if (editingTradeId === tradeId) {
+      if (String(editingTradeId) === String(tradeId)) {
         closeTradeEdit();
       }
-      renderPreservingTradePosition(tradeId, { force: true });
+      renderTradeCardInPlace(tradeId);
     });
   });
 
-  document.querySelectorAll('[data-edit-trade-form]').forEach((form) => {
+  tradeCardElement.querySelectorAll('[data-edit-trade-form]').forEach((form) => {
     form.addEventListener('submit', submitTradeEdit);
   });
 
-  document.querySelectorAll('[data-setup-choice]').forEach((select) => {
+  tradeCardElement.querySelectorAll('[data-setup-choice]').forEach((select) => {
     select.addEventListener('change', changeEditSetupChoice);
   });
 
-  document.querySelectorAll('[data-edit-screenshot-input]').forEach((input) => {
+  tradeCardElement.querySelectorAll('[data-edit-screenshot-input]').forEach((input) => {
     input.addEventListener('change', changeEditScreenshot);
   });
 
-  document.querySelectorAll('[data-remove-edit-screenshot]').forEach((button) => {
+  tradeCardElement.querySelectorAll('[data-remove-edit-screenshot]').forEach((button) => {
     button.addEventListener('click', removeEditScreenshot);
   });
 
-  document.querySelectorAll('[data-delete-trade]').forEach((button) => {
+  tradeCardElement.querySelectorAll('[data-delete-trade]').forEach((button) => {
     button.addEventListener('click', () => {
-      const deletedTrade = trades.find((trade) => trade.id === button.dataset.deleteTrade);
+      const deletedTrade = getTradeById(button.dataset.deleteTrade);
       rememberDeletedCTraderSourceKey(deletedTrade);
-      if (editingTradeId === button.dataset.deleteTrade) {
+      if (String(editingTradeId) === String(button.dataset.deleteTrade)) {
         editingTradeId = null;
       }
-      persistTrades(trades.filter((trade) => trade.id !== button.dataset.deleteTrade));
+      persistTrades(trades.filter((trade) => String(trade.id) !== String(button.dataset.deleteTrade)));
     });
   });
 }
@@ -1323,7 +1346,7 @@ async function submitTradeEdit(event) {
   delete editScreenshotDrafts[tradeId];
   persistTrades(trades.map((trade) => (
     // Keep the existing cTrader execution payload first: ? { ...trade, ...journalingUpdates }
-    trade.id === tradeId
+    String(trade.id) === String(tradeId)
       ? { ...trade, ...journalingUpdates, ...screenshotUpdate }
       : trade
   )), { preserveTradeId: tradeId, renderOptions: { force: true } });
@@ -1439,7 +1462,7 @@ function updateScreenshotFieldPreview() {
 
 function updateEditScreenshotFieldPreview(tradeId) {
   const preview = document.querySelector(`[data-edit-screenshot-preview="${cssEscape(tradeId)}"]`);
-  const trade = trades.find((candidate) => candidate.id === tradeId);
+  const trade = getTradeById(tradeId);
   if (!preview || !trade) {
     return;
   }
