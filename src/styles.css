@@ -877,8 +877,67 @@ h2 {
   padding: 0.9rem;
 }
 
-.edit-trade-form .form-grid {
+.edit-trade-form .form-grid,
+.edit-compact-grid {
   margin: 0;
+}
+
+.edit-compact-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.edit-compact-grid .field:last-child {
+  grid-column: 1 / -1;
+}
+
+.edit-collapsible {
+  background: #ffffff;
+  border: 1px solid #d8e1ee;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.edit-collapsible summary {
+  align-items: center;
+  color: #31517c;
+  cursor: pointer;
+  display: flex;
+  font-weight: 900;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0.7rem 0.8rem;
+}
+
+.edit-collapsible summary::-webkit-details-marker {
+  display: none;
+}
+
+.edit-collapsible summary::after {
+  content: '+';
+  margin-left: auto;
+}
+
+.edit-collapsible[open] summary::after {
+  content: '−';
+}
+
+.edit-collapsible .field,
+.edit-collapsible .screenshot-upload-field {
+  margin: 0;
+  padding: 0 0.8rem 0.8rem;
+}
+
+.edit-collapsible .screenshot-upload-field {
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (max-width: 860px) {
+  .edit-compact-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .edit-trade-form .primary-button {

@@ -862,24 +862,30 @@ function editTradeForm(trade) {
     : '';
   return `
       <form class="edit-trade-form" data-edit-trade-form="${escapeHtml(trade.id)}">
-        <div class="form-grid">
+        <div class="edit-compact-grid">
           ${field('Setup', renderPlayBookSetupSelect(trade))}
-          ${field('Loss Reason', renderLossReasonSelect(trade))}
           ${field('Close Reason', renderCloseReasonSelect(trade))}
+          ${field('Loss Reason', renderLossReasonSelect(trade))}
           ${field('Tags', `<input name="tags" value="${escapeHtml(trade.tags)}" placeholder="gap, reversal, A+" />`)}
         </div>
-        ${field('Notes', `<textarea name="notes" rows="5" placeholder="What was the plan? What happened? What will you repeat or avoid?">${escapeHtml(trade.notes)}</textarea>`)}
-        <div class="screenshot-upload-field">
-          <label class="screenshot-upload">
-            <span>${icon('image')} Trade screenshot</span>
-            <input name="editScreenshot" type="file" accept="image/*" data-edit-screenshot-input="${escapeHtml(trade.id)}" />
-            <small>Optional. Upload or paste an image to attach it to this imported trade.</small>
-            <small>Tip: Paste a screenshot with Ctrl+V / Cmd+V</small>
-          </label>
-          <div class="screenshot-field-preview" data-edit-screenshot-preview="${escapeHtml(trade.id)}" aria-live="polite">
-            ${currentScreenshot ? screenshotLink(currentScreenshot, `${getTradeDisplaySymbol(trade)} trade screenshot`) : ''}
+        <details class="edit-collapsible">
+          <summary>${icon('book')} Notes</summary>
+          ${field('Notes', `<textarea name="notes" rows="5" placeholder="What was the plan? What happened? What will you repeat or avoid?">${escapeHtml(trade.notes)}</textarea>`)}
+        </details>
+        <details class="edit-collapsible">
+          <summary>${icon('image')} Screenshot Attachment</summary>
+          <div class="screenshot-upload-field">
+            <label class="screenshot-upload">
+              <span>${icon('image')} Trade screenshot</span>
+              <input name="editScreenshot" type="file" accept="image/*" data-edit-screenshot-input="${escapeHtml(trade.id)}" />
+              <small>Optional. Upload or paste an image to attach it to this imported trade.</small>
+              <small>Tip: Paste a screenshot with Ctrl+V / Cmd+V</small>
+            </label>
+            <div class="screenshot-field-preview" data-edit-screenshot-preview="${escapeHtml(trade.id)}" aria-live="polite">
+              ${currentScreenshot ? screenshotLink(currentScreenshot, `${getTradeDisplaySymbol(trade)} trade screenshot`) : ''}
+            </div>
           </div>
-        </div>
+        </details>
         <p class="edit-import-note">Imported cTrader execution fields are read-only and will be preserved when journaling edits are saved.</p>
         <div class="edit-form-actions">
           <button class="primary-button" type="submit">${icon('save')} Save edits</button>
