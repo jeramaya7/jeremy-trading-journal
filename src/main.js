@@ -103,8 +103,8 @@ const LOSS_REASON_OPTIONS = [
   'Bad Entry',
   'Chased Price',
   'Ignored Rules',
-  'News Event',
   'Good Trade, Normal Loss',
+  'Stop Too Tight',
   'Other',
 ];
 const CLOSE_REASON_OPTIONS = [
@@ -891,10 +891,14 @@ function renderPlayBookSetupSelect(trade) {
 
 function renderLossReasonSelect(trade) {
   const currentLossReason = String(trade.lossReason || '').trim();
+  const legacyLossReasonOption = currentLossReason && !LOSS_REASON_OPTIONS.includes(currentLossReason)
+    ? renderSelectOption(currentLossReason, currentLossReason)
+    : '';
   return `
     <select name="lossReason" aria-label="Loss Reason">
       <option value="">No loss reason</option>
       ${LOSS_REASON_OPTIONS.map((option) => renderSelectOption(option, currentLossReason)).join('')}
+      ${legacyLossReasonOption}
     </select>
   `;
 }
