@@ -1100,19 +1100,7 @@ function bindEvents() {
   });
 
   document.querySelectorAll('[data-remove-edit-screenshot]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const tradeId = button.dataset.removeEditScreenshot;
-      editScreenshotDrafts = {
-        ...editScreenshotDrafts,
-        [tradeId]: {
-          ...getEditScreenshotDraft(tradeId),
-          selectedScreenshot: null,
-          pastedScreenshotFile: null,
-          removeScreenshot: true,
-        },
-      };
-      render();
-    });
+    button.addEventListener('click', removeEditScreenshot);
   });
 
   document.querySelectorAll('[data-delete-trade]').forEach((button) => {
@@ -1125,6 +1113,20 @@ function bindEvents() {
       persistTrades(trades.filter((trade) => trade.id !== button.dataset.deleteTrade));
     });
   });
+}
+
+function removeEditScreenshot(event) {
+  const tradeId = event.currentTarget.dataset.removeEditScreenshot;
+  editScreenshotDrafts = {
+    ...editScreenshotDrafts,
+    [tradeId]: {
+      ...getEditScreenshotDraft(tradeId),
+      selectedScreenshot: null,
+      pastedScreenshotFile: null,
+      removeScreenshot: true,
+    },
+  };
+  updateEditScreenshotFieldPreview(tradeId);
 }
 
 function changeEditSetupChoice(event) {
