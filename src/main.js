@@ -135,6 +135,21 @@ function persistTrades(nextTrades) {
   render();
 }
 
+function isTradeEditLocked() {
+  return editingTradeId !== null;
+}
+
+function openTradeEdit(tradeId) {
+  editingTradeId = tradeId;
+  scheduleCTraderAutoSync();
+  render({ force: true });
+}
+
+function closeTradeEdit() {
+  editingTradeId = null;
+  scheduleCTraderAutoSync();
+}
+
 function loadCTraderAutoSyncSetting() {
   return window.localStorage.getItem(AUTO_SYNC_STORAGE_KEY) !== 'off';
 }
@@ -910,7 +925,11 @@ function isCTraderImportedTrade(trade) {
   return trade?.provider === 'ctrader' || String(trade?.tags || '').toLowerCase().includes('ctrader');
 }
 
-function render() {
+function render(options = {}) {
+  if (isTradeEditLocked() && !options.force) {
+    return;
+  }
+
   const stats = getStats();
   const pnlReports = getPnlReports();
   const [dailyPnl, weeklyPnl, monthlyPnl, yearlyPnl] = pnlReports;
@@ -1084,15 +1103,14 @@ function bindEvents() {
 
   document.querySelectorAll('[data-edit-trade]').forEach((button) => {
     button.addEventListener('click', () => {
-      editingTradeId = button.dataset.editTrade;
-      render();
+      openTradeEdit(button.dataset.editTrade);
     });
   });
 
   document.querySelectorAll('[data-cancel-edit-trade]').forEach((button) => {
     button.addEventListener('click', () => {
       if (editingTradeId === button.dataset.cancelEditTrade) {
-        editingTradeId = null;
+        closeTradeEdit();
       }
       render();
     });
@@ -1232,7 +1250,7 @@ async function submitTradeEdit(event) {
     ? { screenshot: resolvedScreenshot }
     : {};
 
-  editingTradeId = null;
+  closeTradeEdit();
   delete editScreenshotDrafts[tradeId];
   persistTrades(trades.map((trade) => (
     // Keep the existing cTrader execution payload first: ? { ...trade, ...journalingUpdates }
@@ -1830,7 +1848,7 @@ function scheduleCTraderAutoSync() {
     cTraderAutoSyncTimer = null;
   }
 
-  if (!isCTraderAutoSyncEnabled) {
+  if (!isCTraderAutoSyncEnabled || isTradeEditLocked()) {
     return;
   }
 
@@ -1840,6 +1858,10 @@ function scheduleCTraderAutoSync() {
 }
 
 async function syncCTraderOnStartup() {
+  if (isTradeEditLocked()) {
+    return;
+  }
+
   if (!isCTraderAutoSyncEnabled) {
     cTraderSyncStatus = { tone: 'pending', message: 'Auto Sync is off.' };
     render();

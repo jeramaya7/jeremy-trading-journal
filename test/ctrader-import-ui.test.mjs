@@ -155,6 +155,18 @@ test('trade edit form changes stay local until the user saves', () => {
   assertIncludes(source, 'persistTrades(trades.map((trade) => (', 'Trade edit values are persisted only by the explicit save submit handler.');
 });
 
+
+test('trade edit mode locks rendering and Auto Sync until save or cancel', () => {
+  assertIncludes(source, 'function isTradeEditLocked()', 'The frontend exposes a dedicated edit lock state.');
+  assertIncludes(source, 'function openTradeEdit(tradeId)', 'Opening edit mode goes through a dedicated edit-state transition.');
+  assertIncludes(source, 'render({ force: true });', 'Opening edit mode is the only forced render while the lock is active.');
+  assertIncludes(source, 'if (isTradeEditLocked() && !options.force) {', 'Normal renders are skipped while a trade edit is open.');
+  assertIncludes(source, 'if (!isCTraderAutoSyncEnabled || isTradeEditLocked()) {', 'Auto Sync timers are not scheduled during an edit session.');
+  assertIncludes(source, `async function syncCTraderOnStartup() {\n  if (isTradeEditLocked()) {`, 'Startup and interval Auto Sync exits without UI updates during edit mode.');
+  assertIncludes(source, 'function closeTradeEdit()', 'Save and cancel share a dedicated edit-state exit.');
+  assertIncludes(source, `closeTradeEdit();\n  delete editScreenshotDrafts[tradeId];`, 'Saving closes the edit lock before persisting and re-rendering the final card.');
+});
+
 test('saving trade edits only updates journaling fields and preserves imported execution data', () => {
   assertIncludes(source, 'const journalingUpdates = {', 'The edit save handler creates a restricted journaling update object.');
   assertIncludes(source, "setup: getSetupFormValue(formData)", 'Saving edits updates setup from the dropdown or custom setup input.');
