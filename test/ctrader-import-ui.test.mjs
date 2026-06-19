@@ -189,8 +189,10 @@ test('loss reason dropdown is optional and only renders on trade cards when fill
   assertIncludes(source, 'const LOSS_REASON_OPTIONS = [', 'Loss reason options are centralized for the edit dropdown.');
   assertIncludes(source, "'Bad Entry'", 'Loss reason includes Bad Entry.');
   assertIncludes(source, "'Ignored Rules'", 'Loss reason includes Ignored Rules.');
-  assertIncludes(source, "'News Event'", 'Loss reason includes News Event.');
+  assert.ok(!source.includes("'News Event'"), 'Loss reason excludes News Event from selectable options.');
   assertIncludes(source, "'Good Trade, Normal Loss'", 'Loss reason includes Good Trade, Normal Loss.');
+  assertIncludes(source, "'Stop Too Tight'", 'Loss reason includes Stop Too Tight.');
+  assertIncludes(source, 'const legacyLossReasonOption = currentLossReason && !LOSS_REASON_OPTIONS.includes(currentLossReason)', 'Loss reason dropdown preserves legacy saved values that are no longer selectable for new trades.');
   assert.ok(!source.includes("'Entered Too Late'"), 'Loss reason excludes removed detailed timing options.');
   assertIncludes(source, '<option value="">No loss reason</option>', 'Loss reason can be left blank for existing or winning trades.');
   assertIncludes(source, '${trade.lossReason ? `<p class="loss-reason"><strong>Loss Reason:</strong> ${escapeHtml(trade.lossReason)}</p>` : \'\'}', 'Trade cards only show loss reason when a saved value exists.');
