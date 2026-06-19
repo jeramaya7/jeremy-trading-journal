@@ -327,16 +327,23 @@ function cTraderTimeDetails(trade) {
         <span>Duration: ${escapeHtml(formatTradeDuration(trade.openTime, trade.closeTime))}</span>`;
 }
 
+function getActiveStopLoss(trade) {
+  return toOptionalNumber(trade.adjustedStopLoss) ?? toOptionalNumber(trade.stopLoss);
+}
+
 function calculateRiskDollars(trade) {
   const entry = toOptionalNumber(trade.entry);
-  const stopLoss = toOptionalNumber(trade.stopLoss);
+  const activeStopLoss = getActiveStopLoss(trade);
   const size = toOptionalNumber(trade.size);
 
-  if (entry === null || stopLoss === null || size === null) {
+  if (entry === null || activeStopLoss === null || size === null) {
     return null;
   }
 
-  const riskDollars = Math.abs(entry - stopLoss) * size * getTradeContractSize(trade);
+  const riskPerUnit = trade.direction === 'Short'
+    ? activeStopLoss - entry
+    : entry - activeStopLoss;
+  const riskDollars = riskPerUnit * size * getTradeContractSize(trade);
   return riskDollars > 0 ? riskDollars : null;
 }
 
@@ -748,6 +755,7 @@ function tradeCard(trade) {
   const displaySymbol = getTradeDisplaySymbol(trade);
   const pnl = calculatePnl(trade);
   const stopLoss = toOptionalNumber(trade.stopLoss);
+  const adjustedStopLoss = toOptionalNumber(trade.adjustedStopLoss);
   const riskDollars = calculateRiskDollars(trade);
   const riskPercent = calculateRiskPercent(trade);
   const rMultiple = calculateRMultiple(trade);
@@ -773,7 +781,8 @@ function tradeCard(trade) {
         <span>Entry: ${currency(Number(trade.entry))}</span>
         <span>Exit: ${currency(Number(trade.exit))}</span>
         <span>Size: ${escapeHtml(trade.size)}</span>
-        <span>Stop Loss: ${stopLoss === null ? '—' : currency(stopLoss)}</span>
+        <span>Original SL: ${stopLoss === null ? '—' : currency(stopLoss)}</span>
+        ${adjustedStopLoss === null ? '' : `<span>Adjusted SL: ${currency(adjustedStopLoss)}</span>`}
         <span>Risk $: ${riskDollars === null ? '—' : currency(riskDollars)}</span>
         <span>Risk %: ${formatPercent(riskPercent)}</span>
         <span class="${rTone}">R: ${formatRMultiple(rMultiple)}</span>
@@ -863,6 +872,10 @@ function editTradeForm(trade) {
   return `
       <form class="edit-trade-form" data-edit-trade-form="${escapeHtml(trade.id)}">
         <div class="edit-compact-grid">
+          ${field('Entry Price', `<input name="entry" type="number" value="${escapeHtml(trade.entry)}" readonly />`)}
+          ${field('Original Stop Loss', `<input name="stopLoss" type="number" value="${escapeHtml(trade.stopLoss ?? '')}" readonly />`)}
+          ${field('Adjusted Stop Loss', `<input name="adjustedStopLoss" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedStopLoss ?? '')}" placeholder="Optional" />`)}
+          ${field('Exit Price', `<input name="exit" type="number" value="${escapeHtml(trade.exit)}" readonly />`)}
           ${field('Setup', renderPlayBookSetupSelect(trade))}
           ${field('Close Reason', renderCloseReasonSelect(trade))}
           ${field('Loss Reason', renderLossReasonSelect(trade))}
@@ -1035,7 +1048,8 @@ function renderManualTradeForm(today) {
         ${field('Entry', '<input name="entry" type="number" min="0" step="0.01" required />')}
         ${field('Exit', '<input name="exit" type="number" min="0" step="0.01" required />')}
         ${field('Size', '<input name="size" type="number" min="0.01" step="0.01" required />')}
-        ${field('Stop Loss', '<input name="stopLoss" type="number" min="0" step="0.01" placeholder="Optional" />')}
+        ${field('Original Stop Loss', '<input name="stopLoss" type="number" min="0" step="0.01" placeholder="Optional" />')}
+        ${field('Adjusted Stop Loss', '<input name="adjustedStopLoss" type="number" min="0" step="0.01" placeholder="Optional" />')}
         ${field('Account Size', '<input name="accountSize" type="number" min="0" step="0.01" placeholder="Optional" />')}
         ${field('Risk %', '<input name="riskPercent" type="number" min="0" step="0.01" placeholder="Calculated" readonly />')}
         ${field('Fees', '<input name="fees" type="number" min="0" step="0.01" value="0" />')}
@@ -1217,10 +1231,13 @@ async function submitTrade(event) {
     exit: Number(formData.get('exit')),
     size: Number(formData.get('size')),
     stopLoss: toOptionalNumber(formData.get('stopLoss')),
+    adjustedStopLoss: toOptionalNumber(formData.get('adjustedStopLoss')),
     accountSize: toOptionalNumber(formData.get('accountSize')),
     riskPercent: calculateRiskPercent({
+      direction: formData.get('direction'),
       entry: formData.get('entry'),
       stopLoss: formData.get('stopLoss'),
+      adjustedStopLoss: formData.get('adjustedStopLoss'),
       size: formData.get('size'),
       accountSize: formData.get('accountSize'),
     }),
@@ -1248,6 +1265,7 @@ async function submitTradeEdit(event) {
     closeReason: String(formData.get('closeReason')).trim(),
     tags: String(formData.get('tags')).trim(),
     notes: String(formData.get('notes')).trim(),
+    adjustedStopLoss: toOptionalNumber(formData.get('adjustedStopLoss')),
   };
   const resolvedScreenshot = screenshotDraft.removeScreenshot
     ? null
@@ -1275,8 +1293,10 @@ function updateRiskPercentField(event) {
 
   const formData = new FormData(form);
   const riskPercent = calculateRiskPercent({
+    direction: formData.get('direction'),
     entry: formData.get('entry'),
     stopLoss: formData.get('stopLoss'),
+    adjustedStopLoss: formData.get('adjustedStopLoss'),
     size: formData.get('size'),
     accountSize: formData.get('accountSize'),
   });
