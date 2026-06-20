@@ -50,7 +50,7 @@ test('risk fields and calculations are available for trade logging', () => {
   assertIncludes(source, 'input name="accountSize" type="number"', 'The trade form includes an Account Size field.');
   assertIncludes(source, 'input name="riskPercent" type="number"', 'The trade form includes a calculated Risk % field.');
   assertIncludes(source, 'function getActiveStopLoss(trade)', 'Risk calculations resolve the active stop loss through a helper.');
-  assertIncludes(source, 'return toOptionalNumber(trade.adjustedStopLoss) ?? toOptionalNumber(trade.stopLoss);', 'Adjusted Stop Loss overrides Original Stop Loss when present.');
+  assertIncludes(source, 'return getStopLossHitPrice(trade) ?? toOptionalNumber(trade.adjustedStopLoss) ?? toOptionalNumber(trade.stopLoss);', 'Adjusted Stop Loss overrides Original Stop Loss when present.');
   assertIncludes(source, "const riskPerUnit = trade.direction === 'Short'", 'Risk dollars are calculated from direction-aware entry and active stop distance.');
   assertIncludes(source, "if (symbol === 'XAUUSD' || symbol.includes('GOLD')) {", 'XAUUSD risk calculations infer the 100-ounce gold contract for lot-sized manual and imported trades.');
   assertIncludes(source, 'const explicitContractSize = toOptionalNumber(trade.contractSize ?? trade.lotSizeInUnits);', 'Imported cTrader trades can use broker metadata for contract-size risk calculations.');
@@ -62,7 +62,7 @@ test('risk fields and calculations are available for trade logging', () => {
 
 test('risk metrics render on trade cards and focused dashboard summary', () => {
   assertIncludes(source, 'Original SL: ${stopLoss === null ?', 'Trade cards render the original stop loss for auditing.');
-  assertIncludes(source, 'Adjusted SL: ${currency(adjustedStopLoss)}', 'Trade cards render adjusted stop loss when present.');
+  assertIncludes(source, 'Risk Stop: ${currency(activeStopLoss)}', 'Trade cards render the active risk stop when it differs from the original stop loss.');
   assertIncludes(source, 'Risk $: ${riskDollars === null ?', 'Trade cards render risk dollars with blank-field fallback.');
   assertIncludes(source, 'Risk %: ${formatRiskPercent(riskPercent)}', 'Trade cards render risk percent.');
   assertIncludes(source, 'R: ${formatRMultiple(rMultiple)}', 'Trade cards render R multiple.');
