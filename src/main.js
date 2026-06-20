@@ -1262,6 +1262,11 @@ function render(options = {}) {
         </div>
       </section>
 
+      <section class="hero-equity-section" aria-label="Equity curve">
+        ${renderEquityCurveCard()}
+      </section>
+      ${renderHeroStatsRow(stats)}
+
       <section class="dashboard-snapshot" id="dashboardSnapshot" aria-label="Dashboard share snapshot">
         <div class="dashboard-snapshot-header">
           <div>
@@ -1279,11 +1284,6 @@ function render(options = {}) {
 
         ${setupAnalyticsSection}
       </section>
-
-      <section class="hero-equity-section" aria-label="Equity curve">
-        ${renderEquityCurveCard()}
-      </section>
-      ${renderHeroStatsRow(stats)}
 
       <section class="workspace-grid">
         <section class="panel journal-panel">

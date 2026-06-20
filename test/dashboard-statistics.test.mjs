@@ -20,6 +20,7 @@ test('dashboard renders hero stats row below the equity curve with requested per
   assert.ok(dashboardStats.includes('dashboardCardRows.map'), 'Dashboard card rows should render as a balanced grouped grid.');
   assert.ok(source.includes('function renderHeroStatsRow(stats)'), 'Hero stats row should render below the equity curve.');
   assert.ok(source.indexOf('${renderEquityCurveCard()}') < source.indexOf('${renderHeroStatsRow(stats)}'), 'The equity curve should render before the hero stats row.');
+  assert.ok(source.indexOf('${renderHeroStatsRow(stats)}') < source.indexOf('<h2>DNA Results</h2>'), 'DNA Results should render below the hero stats row.');
   assert.ok(source.includes("statCard('chart', 'Trades Analyzed', stats.tradeCount)"), 'Trades Analyzed should render in the hero stats row.');
   assert.ok(source.includes('totalR: rValues.length ? totalR : null,'), 'Total R calculation should remain available for the hero stats row.');
   assert.ok(source.includes("statCard('line', 'Total R', formatRMultiple(stats.totalR)"), 'Total R should render in the hero stats row.');
