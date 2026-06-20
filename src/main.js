@@ -1224,7 +1224,7 @@ function render(options = {}) {
     {
       label: 'Risk Metrics',
       cards: [
-        statCard('line', 'Average Win / Loss', `<span class="split-performance average-win-loss"><em class="${getPerformanceTone(stats.averageWin)}"><b>Average Win:</b> ${signedCurrency(stats.averageWin)}</em><em class="${getPerformanceTone(stats.averageLoss)}"><b>Average Loss:</b> ${signedCurrency(stats.averageLoss)}</em></span>`),
+        statCard('line', 'Average Win / Loss', `<span class="split-performance average-win-loss"><em class="${getPerformanceTone(stats.averageWin)}">${signedCurrency(stats.averageWin)}</em><i>/</i><em class="${getPerformanceTone(stats.averageLoss)}">${signedCurrency(stats.averageLoss)}</em></span>`),
         statCard('line', 'Average R', formatRMultiple(stats.averageR), getPerformanceTone(stats.averageR)),
         statCard('target', 'Average Risk $', stats.averageRiskDollars === null ? '—' : currency(stats.averageRiskDollars)),
         statCard('target', 'Average Risk %', formatRiskPercent(stats.averageRiskPercent)),
