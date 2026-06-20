@@ -823,7 +823,6 @@ function icon(name) {
     refresh: '<svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>',
     edit: '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
     save: '<svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>',
-    share: '<svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98"/><path d="M15.41 6.51L8.59 10.49"/></svg>',
   };
   return icons[name] ?? '';
 }
@@ -1245,15 +1244,14 @@ function render(options = {}) {
           ${renderEquityCurveCard()}
         </div>
         <div class="hero-actions">
-          <button class="share-dashboard-button" type="button" id="shareDashboard">${icon('share')} Share Dashboard</button>
           ${renderCTraderConnectionCard()}
         </div>
       </section>
 
-      <section class="dashboard-snapshot" id="dashboardSnapshot" aria-label="Dashboard share snapshot">
+      <section class="dashboard-snapshot" id="dashboardSnapshot" aria-label="Performance Snapshot">
         <div class="dashboard-snapshot-header">
           <div>
-            <p class="eyebrow">${icon('share')} Dashboard Snapshot</p>
+            <p class="eyebrow">Performance Snapshot</p>
             <h2>DNA Results</h2>
           </div>
           <p>Generated ${new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
@@ -1329,103 +1327,6 @@ function renderManualTradeForm(today) {
   `;
 }
 
-function getInlineStylesheetText() {
-  return [...document.styleSheets]
-    .map((styleSheet) => {
-      try {
-        return [...styleSheet.cssRules].map((rule) => rule.cssText).join('\n');
-      } catch {
-        return '';
-      }
-    })
-    .join('\n');
-}
-
-function downloadBlob(blob, filename) {
-  const objectUrl = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = objectUrl;
-  link.download = filename;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(objectUrl);
-}
-
-function loadImage(src) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('Dashboard snapshot image could not be generated.'));
-    image.src = src;
-  });
-}
-
-function canvasToPngBlob(canvas) {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob) {
-        resolve(blob);
-        return;
-      }
-
-      reject(new Error('Dashboard snapshot PNG could not be created.'));
-    }, 'image/png');
-  });
-}
-
-async function shareDashboardSnapshot() {
-  const dashboard = document.querySelector('#dashboardSnapshot');
-  const shareButton = document.querySelector('#shareDashboard');
-  if (!dashboard || !shareButton) {
-    return;
-  }
-
-  const originalButtonText = shareButton.innerHTML;
-  shareButton.disabled = true;
-  shareButton.innerHTML = `${icon('download')} Preparing PNG...`;
-
-  try {
-    const exportWidth = 1200;
-    const scale = 2;
-    const clonedDashboard = dashboard.cloneNode(true);
-    clonedDashboard.removeAttribute('id');
-    clonedDashboard.classList.add('dashboard-snapshot-export');
-
-    const wrapper = document.createElement('div');
-    wrapper.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-    wrapper.append(clonedDashboard);
-
-    const height = Math.ceil(dashboard.scrollHeight * (exportWidth / dashboard.getBoundingClientRect().width));
-    const serializedHtml = new XMLSerializer().serializeToString(wrapper);
-    const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="${exportWidth}" height="${height}" viewBox="0 0 ${exportWidth} ${height}">
-        <foreignObject width="100%" height="100%">
-          <div xmlns="http://www.w3.org/1999/xhtml">
-            <style>${getInlineStylesheetText()}</style>
-            ${serializedHtml}
-          </div>
-        </foreignObject>
-      </svg>`;
-
-    const image = await loadImage(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
-    const canvas = document.createElement('canvas');
-    canvas.width = exportWidth * scale;
-    canvas.height = height * scale;
-    const context = canvas.getContext('2d');
-    context.fillStyle = '#eef3fb';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.scale(scale, scale);
-    context.drawImage(image, 0, 0);
-
-    const pngBlob = await canvasToPngBlob(canvas);
-    downloadBlob(pngBlob, `jeremy-dashboard-snapshot-${new Date().toISOString().slice(0, 10)}.png`);
-  } finally {
-    shareButton.disabled = false;
-    shareButton.innerHTML = originalButtonText;
-  }
-}
-
 function field(label, control) {
   return `<label class="field"><span>${label}</span>${control}</label>`;
 }
@@ -1435,7 +1336,6 @@ function bindEvents() {
   const screenshotInput = tradeForm?.querySelector('input[name="screenshot"]');
 
   document.querySelector('#toggleManualTrade').addEventListener('click', toggleManualTradeForm);
-  document.querySelector('#shareDashboard').addEventListener('click', shareDashboardSnapshot);
   if (tradeForm) {
     tradeForm.addEventListener('submit', submitTrade);
     tradeForm.addEventListener('input', updateRiskPercentField);

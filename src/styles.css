@@ -128,7 +128,6 @@ h2 {
   margin: 0;
 }
 
-
 .hero-branding {
   flex: 1 1 560px;
   min-width: 0;
@@ -207,15 +206,6 @@ h2 {
 .secondary-button {
   background: #172033;
   color: #ffffff;
-  white-space: nowrap;
-}
-
-.share-dashboard-button {
-  background: linear-gradient(135deg, #25d366, #128c7e);
-  box-shadow: 0 14px 28px rgba(18, 140, 126, 0.22);
-  color: #ffffff;
-  min-height: 48px;
-  padding: 0.85rem 1.1rem;
   white-space: nowrap;
 }
 
@@ -332,17 +322,6 @@ h2 {
   color: #64748b;
   font-weight: 900;
   margin: 0;
-}
-
-.dashboard-snapshot-export {
-  border-radius: 0;
-  margin: 0;
-  padding: 24px;
-  width: 1200px;
-}
-
-.dashboard-snapshot-export .setup-analytics-table-wrap {
-  overflow: visible;
 }
 
 .dashboard-card-groups {
@@ -490,7 +469,6 @@ h2 {
   font-size: clamp(1.25rem, 2vw, 1.8rem);
   overflow-wrap: anywhere;
 }
-
 
 .report-card-header {
   align-items: center;
@@ -880,7 +858,6 @@ h2 {
 
   .hero-actions,
   .secondary-button,
-  .share-dashboard-button,
   .connect-button,
   .upload-button,
   .auto-sync-toggle,
