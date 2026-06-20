@@ -83,10 +83,10 @@ button:disabled {
   align-items: center;
   border-radius: 32px;
   display: flex;
-  gap: clamp(1.25rem, 4vw, 2.5rem);
+  gap: clamp(1.75rem, 5vw, 3.75rem);
   justify-content: space-between;
   overflow: hidden;
-  padding: clamp(1.25rem, 3vw, 2rem);
+  padding: clamp(1.5rem, 3.5vw, 2.6rem);
   position: relative;
 }
 
@@ -118,7 +118,7 @@ h1 {
   font-size: clamp(2.25rem, 5vw, 5rem);
   letter-spacing: -0.07em;
   line-height: 0.95;
-  margin: 0.75rem 0 1rem;
+  margin: 0.95rem 0 1rem;
   max-width: 800px;
 }
 
@@ -129,12 +129,69 @@ h2 {
 }
 
 
+.hero-branding {
+  flex: 1 1 560px;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-brand-name {
+  color: var(--dna-navy);
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  letter-spacing: 0.16em;
+  margin-top: 1rem;
+}
+
+.dna-logo-placeholder {
+  align-items: center;
+  aspect-ratio: 1;
+  background: linear-gradient(145deg, rgba(23, 32, 51, 0.96), rgba(49, 81, 124, 0.92));
+  border: 1px solid rgba(216, 167, 45, 0.5);
+  border-radius: 24px;
+  box-shadow: 0 18px 42px rgba(23, 32, 51, 0.16);
+  color: #ffffff;
+  display: grid;
+  font-size: clamp(0.72rem, 1.5vw, 0.95rem);
+  font-weight: 900;
+  gap: 0.05rem;
+  height: clamp(76px, 9vw, 104px);
+  justify-items: center;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  padding: 0.85rem;
+  position: relative;
+  text-transform: uppercase;
+}
+
+.dna-logo-placeholder::before,
+.dna-logo-placeholder::after {
+  background: rgba(216, 167, 45, 0.78);
+  border-radius: 999px;
+  content: "";
+  height: 72%;
+  left: 50%;
+  position: absolute;
+  top: 14%;
+  transform: translateX(-50%) rotate(24deg);
+  width: 2px;
+}
+
+.dna-logo-placeholder::after {
+  transform: translateX(-50%) rotate(-24deg);
+}
+
+.dna-logo-placeholder span {
+  position: relative;
+  z-index: 1;
+}
+
 .hero-subtitle {
   color: var(--dna-gold);
-  font-size: clamp(0.95rem, 1.8vw, 1.1rem);
+  font-size: clamp(1.1rem, 2.1vw, 1.3rem);
   font-weight: 800;
   letter-spacing: 0.08em;
-  margin: -0.35rem 0 0.75rem;
+  margin: 0.35rem 0 0;
   text-transform: uppercase;
 }
 
@@ -158,10 +215,10 @@ h2 {
 .hero-actions {
   align-items: stretch;
   display: flex;
-  flex: 0 0 auto;
+  flex: 0 1 440px;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  max-width: 560px;
+  gap: 0.65rem;
+  max-width: 460px;
   justify-content: flex-end;
   position: relative;
   z-index: 1;
