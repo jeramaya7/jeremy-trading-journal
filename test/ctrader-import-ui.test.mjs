@@ -47,7 +47,8 @@ test('trade cards show clean details without emotion', () => {
   assertIncludes(source, 'function formatTradeDuration(openTime, closeTime)', 'Imported cTrader open and close timestamps are used to calculate duration.');
   assertIncludes(source, '<span>Opened: ${escapeHtml(formatTradeTimestamp(trade.openTime))}</span>', 'Imported trade cards show the cTrader open time.');
   assertIncludes(source, '<span>Closed: ${escapeHtml(formatTradeTimestamp(trade.closeTime))}</span>', 'Imported trade cards show the cTrader close time.');
-  assertIncludes(source, '<span>Duration: ${escapeHtml(formatTradeDuration(trade.openTime, trade.closeTime))}</span>', 'Imported trade cards show the trade duration.');
+  assertIncludes(source, 'const tradeDuration = formatTradeDuration(trade.openTime, trade.closeTime);', 'Trade cards calculate holding duration automatically from open and close times.');
+  assertIncludes(source, '<span>Duration: ${escapeHtml(tradeDuration)}</span>', 'Every trade card has a visible duration field in its summary metadata.');
   assert.ok(!source.includes('Emotion:'), 'Trade cards do not display emotion details.');
   assertIncludes(source, "return trade?.provider === 'ctrader' || String(trade?.tags || '').toLowerCase().includes('ctrader');", 'The card cleanup only targets cTrader imports.');
 });

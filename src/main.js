@@ -24,6 +24,8 @@ const starterTrades = [
     fees: 2,
     emotion: 'Patient',
     tags: 'breakout, large-cap',
+    openTime: '2026-06-03T13:30:00.000Z',
+    closeTime: '2026-06-03T13:35:00.000Z',
     notes: 'Waited for a clean retest of the opening range before entering.',
   },
   {
@@ -41,6 +43,8 @@ const starterTrades = [
     fees: 2.5,
     emotion: 'Focused',
     tags: 'vwap, momentum',
+    openTime: '2026-06-05T14:00:00.000Z',
+    closeTime: '2026-06-05T15:15:00.000Z',
     notes: 'Covered into the first flush instead of getting greedy.',
   },
   {
@@ -58,6 +62,8 @@ const starterTrades = [
     fees: 1.5,
     emotion: 'Impatient',
     tags: 'pullback, lesson',
+    openTime: '2026-06-08T16:12:00.000Z',
+    closeTime: '2026-06-08T18:20:00.000Z',
     notes: 'Entered before confirmation. Need the candle to close above the trigger level.',
   },
 ];
@@ -391,22 +397,14 @@ function formatTradeDuration(openTime, closeTime) {
   }
 
   const totalMinutes = Math.round((closeTimestamp - openTimestamp) / (60 * 1000));
-  const days = Math.floor(totalMinutes / (24 * 60));
-  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
-  const parts = [];
 
-  if (days) {
-    parts.push(`${days}d`);
-  }
   if (hours) {
-    parts.push(`${hours}h`);
-  }
-  if (minutes || !parts.length) {
-    parts.push(`${minutes}m`);
+    return `${hours}h ${minutes}m`;
   }
 
-  return parts.join(' ');
+  return `${minutes}m`;
 }
 
 function cTraderTimeDetails(trade) {
@@ -416,8 +414,7 @@ function cTraderTimeDetails(trade) {
 
   return `
         <span>Opened: ${escapeHtml(formatTradeTimestamp(trade.openTime))}</span>
-        <span>Closed: ${escapeHtml(formatTradeTimestamp(trade.closeTime))}</span>
-        <span>Duration: ${escapeHtml(formatTradeDuration(trade.openTime, trade.closeTime))}</span>`;
+        <span>Closed: ${escapeHtml(formatTradeTimestamp(trade.closeTime))}</span>`;
 }
 
 function isStopLossCloseReason(closeReason) {
@@ -865,6 +862,7 @@ function tradeCard(trade) {
   const rTone = rMultiple === null || rMultiple >= 0 ? 'positive' : 'negative';
   const importedTimeDetail = cTraderTimeDetails(trade);
   const tradeTime = getTradeTimeDisplay(trade);
+  const tradeDuration = formatTradeDuration(trade.openTime, trade.closeTime);
   const setupName = String(trade.setup || '').trim();
   const setupBadge = setupName ? `<p class="trade-setup-row"><span class="trade-setup-badge">${escapeHtml(setupName)}</span></p>` : '';
   const isEditing = editingTradeId === trade.id;
@@ -880,6 +878,7 @@ function tradeCard(trade) {
           <p class="trade-meta trade-time-meta">
             <span>Date: ${escapeHtml(trade.date || '—')}</span>
             <span>Time: ${escapeHtml(tradeTime)}</span>
+            <span>Duration: ${escapeHtml(tradeDuration)}</span>
             <span>${escapeHtml(trade.direction)}</span>
           </p>
         </div>
