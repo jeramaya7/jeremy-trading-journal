@@ -47,8 +47,9 @@ test('R and risk percent display with one decimal place without changing calcula
   assert.ok(source.includes('return calculatePnl(trade) / riskDollars;'), 'R calculation should continue to use the raw calculated values.');
   assert.ok(source.includes('return (riskDollars / accountSize) * 100;'), 'Risk % calculation should continue to return the raw calculated value.');
   assert.ok(source.includes("`${value.toFixed(1)}R`"), 'R display values should render with one decimal place.');
-  assert.ok(source.includes("`${value.toFixed(1)}%`"), 'Risk % display values should render with one decimal place.');
-  assert.ok(source.includes("riskPercentInput.value = riskPercent === null ? '' : riskPercent.toFixed(1);"), 'Readonly form Risk % display should render with one decimal place.');
+  assert.ok(source.includes("return `${value.toFixed(1)}%`;"), 'Risk % display values should render with one decimal place.');
+  assert.ok(source.includes("if (value > 0 && value < 0.1)"), 'Risk % display should not round non-zero calculated risk down to 0.0%.');
+  assert.ok(source.includes("riskPercentInput.value = riskPercent === null ? '' : formatRiskPercent(riskPercent).replace('%', '');"), 'Readonly form Risk % display should use the shared one-decimal Risk % formatter.');
 });
 
 
