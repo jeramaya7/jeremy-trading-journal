@@ -1244,10 +1244,6 @@ function render(options = {}) {
           <button class="share-dashboard-button" type="button" id="shareDashboard">${icon('share')} Share Dashboard</button>
           ${renderCTraderConnectionCard()}
         </div>
-        <div class="hero-equity-section">
-          ${renderEquityCurveCard()}
-        </div>
-        ${renderHeroStatsRow(stats)}
       </section>
 
       <section class="dashboard-snapshot" id="dashboardSnapshot" aria-label="Dashboard share snapshot">
@@ -1267,6 +1263,11 @@ function render(options = {}) {
 
         ${setupAnalyticsSection}
       </section>
+
+      <section class="hero-equity-section" aria-label="Equity curve">
+        ${renderEquityCurveCard()}
+      </section>
+      ${renderHeroStatsRow(stats)}
 
       <section class="workspace-grid">
         <section class="panel journal-panel">
