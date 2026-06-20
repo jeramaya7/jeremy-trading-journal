@@ -2275,7 +2275,11 @@ h1 {
   font-size: clamp(1.35rem, 6.8cqw, 2rem);
   font-weight: 700;
   line-height: 1;
-.average-win-loss em { font-style: normal; }
+.average-win-loss em {
+  font-style: normal;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
 
 @media (max-width: 1180px) {
   h1, .hero-tagline { white-space: normal; }
