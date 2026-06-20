@@ -841,7 +841,7 @@ function statCard(iconName, label, value, tone = '') {
 function renderKpiSummaryRow(stats) {
   return `
         <section class="stats-grid kpi-summary-row" aria-label="DNA KPI summary">
-          ${statCard('line', 'Total R', formatRMultiple(stats.totalR), stats.totalR === null || stats.totalR >= 0 ? 'positive' : 'negative')}
+          ${statCard('trend', 'Net P&L', currency(stats.totalPnl), stats.totalPnl >= 0 ? 'positive' : 'negative')}
           ${statCard('line', 'Average R', formatRMultiple(stats.averageR), stats.averageR === null || stats.averageR >= 0 ? 'positive' : 'negative')}
           ${statCard('target', 'Win Rate', formatPercent(stats.winRate))}
           ${statCard('trend', 'Profit Factor', formatProfitFactor(stats.profitFactor), stats.profitFactor === null || stats.profitFactor >= 1 ? 'positive' : 'negative')}
