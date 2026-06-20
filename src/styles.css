@@ -70,8 +70,8 @@ button:disabled {
 
 .app-shell {
   margin: 0 auto;
-  max-width: 1280px;
-  padding: clamp(1rem, 3vw, 2rem);
+  max-width: 1360px;
+  padding: clamp(1.25rem, 3.8vw, 3rem);
 }
 
 .hero-card,
@@ -85,13 +85,13 @@ button:disabled {
 }
 
 .hero-card {
-  align-items: flex-start;
+  align-items: stretch;
   border-radius: 32px;
   display: flex;
-  gap: clamp(1.25rem, 3.5vw, 3rem);
+  gap: clamp(2rem, 4.5vw, 4rem);
   justify-content: space-between;
   overflow: hidden;
-  padding: clamp(0.95rem, 2.1vw, 1.7rem) clamp(1.35rem, 3vw, 2.45rem) clamp(1.35rem, 3vw, 2.45rem);
+  padding: clamp(1.35rem, 2.7vw, 2.35rem) clamp(1.6rem, 3.6vw, 3rem) clamp(1.6rem, 3.6vw, 3rem);
   position: relative;
 }
 
@@ -99,7 +99,7 @@ button:disabled {
   background: linear-gradient(135deg, rgba(201, 148, 32, 0.22), rgba(16, 26, 46, 0.12));
   border-radius: 999px;
   content: "";
-  height: 220px;
+  height: 270px;
   pointer-events: none;
   position: absolute;
   right: -70px;
@@ -135,7 +135,7 @@ h2 {
 
 
 .hero-branding {
-  flex: 1 1 560px;
+  flex: 1 1 680px;
   min-width: 0;
   position: relative;
   z-index: 1;
@@ -172,7 +172,7 @@ h2 {
   font-weight: 700;
   line-height: 1.38;
   margin: 0 0 0.5rem;
-  max-width: 650px;
+  max-width: 720px;
 }
 
 .hero-copy {
@@ -180,19 +180,19 @@ h2 {
   font-size: clamp(1rem, 2vw, 1.12rem);
   line-height: 1.55;
   margin: 0;
-  max-width: 650px;
+  max-width: 760px;
 }
 
 .hero-actions {
   align-items: stretch;
-  align-self: flex-start;
+  align-self: stretch;
   display: flex;
-  flex: 0 1 380px;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  justify-content: flex-end;
-  margin-top: clamp(1.15rem, 3vw, 2.6rem);
-  max-width: 400px;
+  flex: 0 0 clamp(450px, 36vw, 500px);
+  flex-direction: column;
+  gap: 0.95rem;
+  justify-content: stretch;
+  margin-top: clamp(0.6rem, 1.5vw, 1.25rem);
+  max-width: 500px;
   position: relative;
   z-index: 1;
 }
@@ -327,7 +327,7 @@ h2 {
   border-radius: 24px;
   display: flex;
   justify-content: space-between;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
   padding: 1.1rem 1.25rem;
 }
 
@@ -360,17 +360,19 @@ h2 {
   margin: 1.25rem 0;
 }
 
-.kpi-summary-row {
-  margin: clamp(1.35rem, 2.8vw, 2.35rem) 0 0.85rem;
+.hero-stats-row {
+  gap: clamp(0.85rem, 1.5vw, 1.15rem);
+  margin: clamp(1rem, 2vw, 1.45rem) 0 0;
 }
 
-.kpi-summary-row .stat-card {
-  background: rgba(255, 255, 255, 0.72);
+.hero-stats-row .stat-card {
+  background: rgba(255, 255, 255, 0.76);
+  min-height: 7.4rem;
 }
 
 .equity-curve-card {
-  margin-top: 0.75rem;
-  padding: clamp(0.85rem, 1.7vw, 1.05rem);
+  margin-top: clamp(1.75rem, 3.4vw, 2.75rem);
+  padding: clamp(1.1rem, 2.1vw, 1.55rem);
 }
 
 .equity-curve-header {
@@ -428,14 +430,14 @@ h2 {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(234, 241, 255, 0.62));
   border: 1px solid rgba(89, 112, 149, 0.14);
   border-radius: 20px;
-  min-height: 230px;
+  min-height: 280px;
   overflow: hidden;
   padding: 0.5rem;
 }
 
 .equity-curve-chart svg {
   display: block;
-  height: 220px;
+  height: 270px;
   width: 100%;
 }
 
@@ -988,7 +990,7 @@ h2 {
   gap: 0.55rem;
   opacity: 0.92;
   padding: 0.7rem;
-  width: min(400px, 100%);
+  width: min(480px, 100%);
 }
 
 .ctrader-card-header,
@@ -1408,9 +1410,10 @@ h2,
     linear-gradient(145deg, rgba(16, 26, 46, 0.98), rgba(23, 36, 60, 0.96));
   border: 1px solid rgba(201, 148, 32, 0.42);
   box-shadow: 0 24px 60px rgba(16, 26, 46, 0.24), inset 0 1px 0 rgba(242, 210, 117, 0.16);
-  gap: 0.8rem;
+  gap: 1rem;
+  min-height: 100%;
   opacity: 1;
-  padding: 1rem;
+  padding: 1.15rem;
 }
 
 .ctrader-connection-card .section-title,

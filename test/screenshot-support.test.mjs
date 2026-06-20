@@ -66,7 +66,7 @@ test('risk metrics render on trade cards and focused dashboard summary', () => {
   assertIncludes(source, 'Risk $: ${riskDollars === null ?', 'Trade cards render risk dollars with blank-field fallback.');
   assertIncludes(source, 'Risk %: ${formatRiskPercent(riskPercent)}', 'Trade cards render risk percent.');
   assertIncludes(source, 'R: ${formatRMultiple(rMultiple)}', 'Trade cards render R multiple.');
-  assert.equal(source.includes("statCard('target', 'Total R'"), false, 'The dashboard summary omits Total R.');
+  assertIncludes(source, "statCard('line', 'Total R', formatRMultiple(stats.totalR)", 'The hero stats summary includes Total R.');
   assertIncludes(source, "statCard('target', 'Average Risk $'", 'The summary includes average risk dollars.');
   assertIncludes(source, "statCard('target', 'Average Risk %'", 'The summary includes average risk percent.');
   assertIncludes(source, "statCard('line', 'Average R'", 'The summary includes average R.');
