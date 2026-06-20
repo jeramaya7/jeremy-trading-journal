@@ -620,15 +620,15 @@ function getProfitFactor(winningPnlValues, losingPnlValues) {
 }
 
 function formatProfitFactor(value) {
-  if (value === null || value === undefined) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
     return '—';
   }
 
-  if (value === Infinity) {
+  if (!Number.isFinite(Number(value))) {
     return '∞';
   }
 
-  return value.toFixed(2);
+  return Number(value).toFixed(2);
 }
 
 function getSetupAnalytics() {
