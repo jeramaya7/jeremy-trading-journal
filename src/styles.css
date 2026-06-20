@@ -7,10 +7,7 @@
   --dna-cream: #fbf7ee;
   --dna-muted: #7b8798;
   color: var(--dna-navy);
-  background:
-    radial-gradient(circle at 16% 8%, rgba(201, 148, 32, 0.18), transparent 28%),
-    radial-gradient(circle at 84% 0%, rgba(16, 26, 46, 0.18), transparent 26%),
-    linear-gradient(180deg, #f8f4eb 0%, #edf1f7 48%, #e7edf6 100%);
+  background: #f8f8f6;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -94,7 +91,7 @@ button:disabled {
   gap: clamp(1.25rem, 3.5vw, 3rem);
   justify-content: space-between;
   overflow: hidden;
-  padding: clamp(1.35rem, 3vw, 2.45rem);
+  padding: clamp(0.95rem, 2.1vw, 1.7rem) clamp(1.35rem, 3vw, 2.45rem) clamp(1.35rem, 3vw, 2.45rem);
   position: relative;
 }
 
@@ -468,6 +465,8 @@ h2 {
 .stat-card,
 .report-card {
   border-radius: 24px;
+  container-type: inline-size;
+  min-height: 8.5rem;
   min-width: 0;
   padding: 1rem;
 }
@@ -495,7 +494,9 @@ h2 {
 .stat-card strong,
 .report-card strong {
   display: block;
-  font-size: clamp(1.45rem, 2.25vw, 2.05rem);
+  font-size: clamp(0.85rem, 12cqw, 2.05rem);
+  line-height: 1.08;
+  max-width: 100%;
   overflow-wrap: normal;
   white-space: nowrap;
 }
@@ -930,7 +931,8 @@ h2 {
     align-items: center;
     display: grid;
     gap: 0 0.85rem;
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto minmax(0, 1fr);
+    min-height: 6.5rem;
     padding: 1rem;
   }
 
@@ -1322,15 +1324,7 @@ h2 {
 
 /* Premium DNA trading terminal polish */
 body::before {
-  background:
-    linear-gradient(90deg, rgba(16, 26, 46, 0.04) 1px, transparent 1px),
-    linear-gradient(rgba(16, 26, 46, 0.035) 1px, transparent 1px);
-  background-size: 64px 64px;
-  content: "";
-  inset: 0;
-  pointer-events: none;
-  position: fixed;
-  z-index: -1;
+  content: none;
 }
 
 button,
