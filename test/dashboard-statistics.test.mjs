@@ -14,14 +14,26 @@ function getDashboardStatsTemplate() {
   return source.slice(start, end);
 }
 
-test('dashboard focuses R and risk statistics without Total R', () => {
+test('dashboard renders KPI summary row with requested performance analytics', () => {
   const dashboardStats = getDashboardStatsTemplate();
 
-  assert.equal(dashboardStats.includes("'Total R'"), false, 'Total R should not render as a dashboard card.');
   assert.ok(dashboardStats.includes('dashboardCardRows.map'), 'Dashboard card rows should render as a balanced grouped grid.');
+  assert.ok(source.includes('function renderKpiSummaryRow(stats)'), 'KPI summary row should render below the DNA description.');
+  assert.ok(source.includes("statCard('line', 'Total R'"), 'Total R should render in the KPI summary row.');
   assert.ok(source.includes("statCard('line', 'Average R'"), 'Average R should still render as a dashboard card.');
+  assert.ok(source.includes("statCard('target', 'Win Rate'"), 'Win Rate should render in the KPI summary row.');
+  assert.ok(source.includes("statCard('trend', 'Profit Factor'"), 'Profit Factor should render in the KPI summary row.');
   assert.ok(source.includes("statCard('target', 'Average Risk $'"), 'Average Risk $ should render as a dashboard card.');
   assert.ok(source.includes("statCard('target', 'Average Risk %'"), 'Average Risk % should render as a dashboard card.');
+});
+
+test('dashboard renders equity curve card with All Time Month Week toggles', () => {
+  assert.ok(source.includes('function getEquityCurve(period = equityCurvePeriod)'), 'Equity curve should be built from cumulative trade P&L.');
+  assert.ok(source.includes('function renderEquityCurveCard(period = equityCurvePeriod)'), 'Equity curve card should render on the dashboard.');
+  assert.ok(source.includes("all: 'All Time'"), 'Equity curve should include an All Time toggle.');
+  assert.ok(source.includes("month: 'Month'"), 'Equity curve should include a Month toggle.');
+  assert.ok(source.includes("week: 'Week'"), 'Equity curve should include a Week toggle.');
+  assert.ok(source.includes('[data-equity-period]'), 'Equity curve period controls should be bound for toggling.');
 });
 
 test('dashboard average risk metrics only use valid risk values', () => {
