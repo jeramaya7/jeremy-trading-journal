@@ -385,6 +385,100 @@ h2 {
   margin: 1.25rem 0;
 }
 
+.kpi-summary-row {
+  margin: 1.5rem 0 1rem;
+}
+
+.kpi-summary-row .stat-card {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.equity-curve-card {
+  margin-top: 1rem;
+  padding: clamp(1rem, 2vw, 1.25rem);
+}
+
+.equity-curve-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.equity-curve-toggle {
+  background: #eaf1ff;
+  border: 1px solid rgba(39, 110, 241, 0.14);
+  border-radius: 999px;
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+}
+
+.equity-period-button {
+  background: transparent;
+  border-radius: 999px;
+  color: #31517c;
+  font-size: 0.82rem;
+  min-height: 36px;
+  padding: 0.45rem 0.8rem;
+  white-space: nowrap;
+}
+
+.equity-period-button.active {
+  background: #172033;
+  box-shadow: 0 10px 24px rgba(23, 32, 51, 0.16);
+  color: #ffffff;
+}
+
+.equity-curve-metrics {
+  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.85rem;
+}
+
+.equity-curve-metrics span {
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.equity-curve-metrics strong {
+  font-size: clamp(1.4rem, 2.5vw, 2rem);
+}
+
+.equity-curve-chart {
+  background:
+    linear-gradient(rgba(100, 116, 139, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(100, 116, 139, 0.08) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(234, 241, 255, 0.62));
+  background-size: 100% 25%, 12.5% 100%, 100% 100%;
+  border: 1px solid rgba(89, 112, 149, 0.14);
+  border-radius: 20px;
+  min-height: 230px;
+  overflow: hidden;
+  padding: 0.5rem;
+}
+
+.equity-curve-chart svg {
+  display: block;
+  height: 220px;
+  width: 100%;
+}
+
+.equity-zero-line {
+  stroke: rgba(23, 32, 51, 0.18);
+  stroke-dasharray: 8 8;
+}
+
+.equity-curve-line {
+  filter: drop-shadow(0 8px 14px rgba(39, 110, 241, 0.24));
+  stroke: #276ef1;
+  stroke-width: 5;
+}
+
 .stats-grid,
 .reports-grid {
   display: grid;
@@ -761,7 +855,8 @@ h2 {
 @media (max-width: 980px) {
   .hero-card,
   .journal-header,
-  .dashboard-snapshot-header {
+  .dashboard-snapshot-header,
+  .equity-curve-header {
     align-items: stretch;
     flex-direction: column;
   }
@@ -837,6 +932,15 @@ h2 {
   .form-grid,
   .trade-details {
     grid-template-columns: 1fr;
+  }
+
+  .equity-curve-toggle {
+    border-radius: 18px;
+    flex-wrap: wrap;
+  }
+
+  .equity-period-button {
+    flex: 1 1 30%;
   }
 
   .stats-grid,

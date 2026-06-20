@@ -90,6 +90,7 @@ let hasHandledCTraderOAuthReturn = false;
 let editingTradeId = null;
 let isManualTradeFormOpen = false;
 let setupAnalyticsSort = { key: 'netPnl', direction: 'desc' };
+let equityCurvePeriod = 'all';
 
 const PLAY_BOOK_SETUP_OPTIONS = [
   'Elephant Bar',
@@ -570,6 +571,66 @@ function calculateBiggestWinner(tradeList) {
   return winningPnlValues.length ? Math.max(...winningPnlValues) : null;
 }
 
+function getEquityCurvePeriodStart(period, referenceDate = new Date()) {
+  if (period === 'all') {
+    return null;
+  }
+
+  return getReportPeriodStart(referenceDate, period);
+}
+
+function getEquityCurveTrades(period = equityCurvePeriod, referenceDate = new Date()) {
+  const periodStart = getEquityCurvePeriodStart(period, referenceDate);
+  const periodEnd = new Date(referenceDate);
+  periodEnd.setHours(23, 59, 59, 999);
+
+  return trades
+    .map((trade) => ({
+      trade,
+      date: getTradeReportDate(trade),
+      pnl: calculatePnl(trade),
+    }))
+    .filter(({ date, pnl }) => date !== null && Number.isFinite(pnl))
+    .filter(({ date }) => !periodStart || (date >= periodStart && date <= periodEnd))
+    .sort((firstTrade, secondTrade) => firstTrade.date - secondTrade.date);
+}
+
+function getEquityCurve(period = equityCurvePeriod) {
+  let cumulativePnl = 0;
+
+  return getEquityCurveTrades(period).map(({ date, pnl }) => {
+    cumulativePnl += pnl;
+    return {
+      date,
+      pnl,
+      cumulativePnl,
+    };
+  });
+}
+
+function getProfitFactor(winningPnlValues, losingPnlValues) {
+  const grossProfit = winningPnlValues.reduce((sum, value) => sum + value, 0);
+  const grossLoss = Math.abs(losingPnlValues.reduce((sum, value) => sum + value, 0));
+
+  if (grossLoss === 0) {
+    return grossProfit > 0 ? Infinity : null;
+  }
+
+  return grossProfit / grossLoss;
+}
+
+function formatProfitFactor(value) {
+  if (value === null || value === undefined) {
+    return '—';
+  }
+
+  if (value === Infinity) {
+    return '∞';
+  }
+
+  return value.toFixed(2);
+}
+
 function getSetupAnalytics() {
   const setupReports = new Map();
 
@@ -698,6 +759,7 @@ function getStats() {
   const averageLoss = losses.length ? losses.reduce((sum, value) => sum + value, 0) / losses.length : 0;
   const totalR = rValues.reduce((sum, value) => sum + value, 0);
   const averageR = rValues.length ? totalR / rValues.length : null;
+  const profitFactor = getProfitFactor(wins, losses);
   const averageRiskDollars = riskDollarValues.length
     ? riskDollarValues.reduce((sum, value) => sum + value, 0) / riskDollarValues.length
     : null;
@@ -714,6 +776,7 @@ function getStats() {
     averageLoss,
     totalR: rValues.length ? totalR : null,
     averageR,
+    profitFactor,
     averageRiskDollars,
     averageRiskPercent,
     biggestWinner,
@@ -773,6 +836,67 @@ function statCard(iconName, label, value, tone = '') {
       <strong class="${tone}">${value}</strong>
     </article>
   `;
+}
+
+function renderKpiSummaryRow(stats) {
+  return `
+        <section class="stats-grid kpi-summary-row" aria-label="DNA KPI summary">
+          ${statCard('line', 'Total R', formatRMultiple(stats.totalR), stats.totalR === null || stats.totalR >= 0 ? 'positive' : 'negative')}
+          ${statCard('line', 'Average R', formatRMultiple(stats.averageR), stats.averageR === null || stats.averageR >= 0 ? 'positive' : 'negative')}
+          ${statCard('target', 'Win Rate', formatPercent(stats.winRate))}
+          ${statCard('trend', 'Profit Factor', formatProfitFactor(stats.profitFactor), stats.profitFactor === null || stats.profitFactor >= 1 ? 'positive' : 'negative')}
+        </section>`;
+}
+
+function renderEquityCurveCard(period = equityCurvePeriod) {
+  const equityCurve = getEquityCurve(period);
+  const cumulativeValues = equityCurve.map((point) => point.cumulativePnl);
+  const minValue = Math.min(0, ...cumulativeValues);
+  const maxValue = Math.max(0, ...cumulativeValues);
+  const valueRange = maxValue - minValue || 1;
+  const chartWidth = 720;
+  const chartHeight = 220;
+  const chartPadding = 20;
+  const chartInnerWidth = chartWidth - (chartPadding * 2);
+  const chartInnerHeight = chartHeight - (chartPadding * 2);
+  const zeroY = chartPadding + ((maxValue - 0) / valueRange) * chartInnerHeight;
+  const points = equityCurve.map((point, index) => {
+    const x = equityCurve.length === 1
+      ? chartPadding + (chartInnerWidth / 2)
+      : chartPadding + (index / (equityCurve.length - 1)) * chartInnerWidth;
+    const y = chartPadding + ((maxValue - point.cumulativePnl) / valueRange) * chartInnerHeight;
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  }).join(' ');
+  const endingPnl = cumulativeValues.at(-1) ?? 0;
+  const endingTone = endingPnl >= 0 ? 'positive' : 'negative';
+  const periodLabels = { all: 'All Time', month: 'Month', week: 'Week' };
+
+  return `
+      <section class="panel equity-curve-card" aria-label="Equity curve analytics">
+        <div class="equity-curve-header">
+          <div>
+            <div class="section-title">${icon('line')}<h2>Equity Curve</h2></div>
+            <p class="section-helper">Running cumulative P&L built from imported and logged trade history.</p>
+          </div>
+          <div class="equity-curve-toggle" role="group" aria-label="Equity curve period">
+            ${Object.entries(periodLabels).map(([value, label]) => `
+              <button class="equity-period-button ${period === value ? 'active' : ''}" type="button" data-equity-period="${value}" aria-pressed="${period === value ? 'true' : 'false'}">${label}</button>
+            `).join('')}
+          </div>
+        </div>
+        <div class="equity-curve-metrics">
+          <span>${equityCurve.length} ${equityCurve.length === 1 ? 'trade' : 'trades'}</span>
+          <strong class="${endingTone}">${currency(endingPnl)}</strong>
+        </div>
+        <div class="equity-curve-chart" role="img" aria-label="${escapeHtml(periodLabels[period])} cumulative equity curve ending at ${escapeHtml(currency(endingPnl))}">
+          ${equityCurve.length ? `
+            <svg viewBox="0 0 ${chartWidth} ${chartHeight}" preserveAspectRatio="none">
+              <line class="equity-zero-line" x1="${chartPadding}" y1="${zeroY.toFixed(2)}" x2="${chartWidth - chartPadding}" y2="${zeroY.toFixed(2)}"></line>
+              <polyline class="equity-curve-line" points="${points}"></polyline>
+            </svg>
+          ` : '<p class="empty-state">Import or log closed trades to build your equity curve.</p>'}
+        </div>
+      </section>`;
 }
 
 
@@ -1121,6 +1245,8 @@ function render(options = {}) {
           <p class="hero-copy">
             DNA is a trader performance analysis system designed to uncover patterns, strengths, weaknesses, habits, and edge through the study of Decisions, Numbers, and Analysis.
           </p>
+          ${renderKpiSummaryRow(stats)}
+          ${renderEquityCurveCard()}
         </div>
         <div class="hero-actions">
           <button class="share-dashboard-button" type="button" id="shareDashboard">${icon('share')} Share Dashboard</button>
@@ -1343,6 +1469,12 @@ function bindEvents() {
         key: button.dataset.setupSortKey,
         direction: button.dataset.setupSortDirection,
       };
+      render();
+    });
+  });
+  document.querySelectorAll('[data-equity-period]').forEach((button) => {
+    button.addEventListener('click', () => {
+      equityCurvePeriod = button.dataset.equityPeriod;
       render();
     });
   });
