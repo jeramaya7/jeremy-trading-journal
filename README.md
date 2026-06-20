@@ -1,6 +1,6 @@
-# Jeremy Trading Journal
+# DNA
 
-A local-first trading journal built with plain HTML, CSS, and JavaScript. Log trades, track realized P&L, calculate win rate, search entries, and import/export your journal as JSON. A minimal Node backend is included for initiating cTrader OAuth connection setup and syncing closed cTrader deals into the journal.
+DNA is a local-first trader performance analysis system built with plain HTML, CSS, and JavaScript. Log trades, track realized P&L, calculate win rate, search entries, and import/export your journal as JSON. A minimal Node backend is included for initiating cTrader OAuth connection setup and syncing closed cTrader deals into the journal.
 
 ## Features
 
