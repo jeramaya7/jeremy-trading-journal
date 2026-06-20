@@ -829,11 +829,13 @@ function icon(name) {
 }
 
 function statCard(iconName, label, value, tone = '') {
+  const valueText = String(value);
+  const valueClass = [tone, valueText.length > 13 ? 'long-value' : ''].filter(Boolean).join(' ');
   return `
     <article class="stat-card">
       <div class="stat-icon">${icon(iconName)}</div>
       <span>${label}</span>
-      <strong class="${tone}">${value}</strong>
+      <strong class="${valueClass}">${value}</strong>
     </article>
   `;
 }
@@ -1233,7 +1235,13 @@ function render(options = {}) {
     <main class="app-shell">
       <section class="hero-card">
         <div class="hero-branding">
-          <img class="dna-logo" src="./ChatGPT%20Image%20Jun%2020%2C%202026%2C%2006_45_24%20AM.png" alt="DNA logo" />
+          <div class="dna-brand-lockup" aria-label="DNA Decisions Numbers Analysis">
+            <img class="dna-logo" src="./ChatGPT%20Image%20Jun%2020%2C%202026%2C%2006_45_24%20AM.png" alt="DNA logo" />
+            <div class="dna-wordmark" aria-hidden="true">
+              <span class="dna-wordmark-main">DNA</span>
+              <span class="dna-wordmark-sub">Decisions <b>•</b> Numbers <b>•</b> Analysis</span>
+            </div>
+          </div>
           <h1>Discover your edge.</h1>
           <p class="hero-tagline">Every trade leaves clues. DNA helps you find them.</p>
           <p class="hero-copy">
