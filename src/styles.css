@@ -2124,8 +2124,9 @@ h1 {
 }
 
 .dna-logo {
-  background: #fffdf8;
+  background: transparent;
   border: 0;
+  border-radius: 0;
   box-shadow: none;
   height: clamp(104px, 10.3vw, 158px);
   padding: 0;
