@@ -1108,10 +1108,15 @@ function render(options = {}) {
   app.innerHTML = `
     <main class="app-shell">
       <section class="hero-card">
-        <div>
-          <p class="eyebrow">${icon('book')} DNA</p>
-          <h1>Discover your edge.</h1>
+        <div class="hero-branding">
+          <div class="dna-logo-placeholder" aria-label="DNA logo placeholder">
+            <span>D</span>
+            <span>N</span>
+            <span>A</span>
+          </div>
+          <p class="eyebrow hero-brand-name">DNA</p>
           <p class="hero-subtitle">Decisions • Numbers • Analysis</p>
+          <h1>Discover your edge.</h1>
           <p class="hero-tagline">Every trade leaves clues. DNA helps you find them.</p>
           <p class="hero-copy">
             DNA is a trader performance analysis system designed to uncover patterns, strengths, weaknesses, habits, and edge through the study of Decisions, Numbers, and Analysis.
