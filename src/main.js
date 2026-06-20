@@ -836,9 +836,9 @@ function getPerformanceTone(value) {
   return Number(value) > 0 ? 'positive' : 'negative';
 }
 
-function statCard(iconName, label, value, tone = '') {
+function statCard(iconName, label, value, tone = '', options = {}) {
   const valueText = String(value);
-  const valueClass = [tone, valueText.length > 13 ? 'long-value' : ''].filter(Boolean).join(' ');
+  const valueClass = [tone, !options.keepValueSize && valueText.length > 13 ? 'long-value' : ''].filter(Boolean).join(' ');
   return `
     <article class="stat-card">
       <div class="stat-icon">${icon(iconName)}</div>
@@ -851,6 +851,10 @@ function statCard(iconName, label, value, tone = '') {
 function signedCurrency(value) {
   const amount = Number(value) || 0;
   return `${amount > 0 ? '+' : ''}${currency(amount)}`;
+}
+
+function averageWinLossValue(stats) {
+  return `<span class="split-performance average-win-loss"><em class="${getPerformanceTone(stats.averageWin)}">${signedCurrency(stats.averageWin)}</em><i>/</i><em class="${getPerformanceTone(stats.averageLoss)}">${signedCurrency(stats.averageLoss)}</em></span>`;
 }
 
 function renderHeroStatsRow(stats) {
@@ -1224,7 +1228,7 @@ function render(options = {}) {
     {
       label: 'Risk Metrics',
       cards: [
-        statCard('line', 'Average Win / Loss', `<span class="split-performance average-win-loss"><em class="${getPerformanceTone(stats.averageWin)}">${signedCurrency(stats.averageWin)}</em><i>/</i><em class="${getPerformanceTone(stats.averageLoss)}">${signedCurrency(stats.averageLoss)}</em></span>`),
+        statCard('line', 'Average Win / Loss', averageWinLossValue(stats), '', { keepValueSize: true }),
         statCard('line', 'Average R', formatRMultiple(stats.averageR), getPerformanceTone(stats.averageR)),
         statCard('target', 'Average Risk $', stats.averageRiskDollars === null ? '—' : currency(stats.averageRiskDollars)),
         statCard('target', 'Average Risk %', formatRiskPercent(stats.averageRiskPercent)),

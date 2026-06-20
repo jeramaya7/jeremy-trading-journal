@@ -7,7 +7,7 @@
   --dna-cream: #fbf7ee;
   --dna-muted: #7b8798;
   --performance-positive: var(--dna-navy);
-  --performance-negative: #7f1d1d;
+  --performance-negative: #8F1D1D;
   --performance-neutral: var(--dna-navy);
   color: var(--dna-navy);
   background: #f8f8f6;
@@ -2265,10 +2265,10 @@ h1 {
 
 .stat-card strong { font-size: clamp(1.35rem, 6.8cqw, 2rem); }
 .stat-card strong.long-value { font-size: clamp(0.96rem, 5.2cqw, 1.45rem); letter-spacing: -0.04em; }
-.split-performance { align-items: baseline; display: flex; flex-wrap: nowrap; gap: 0.3rem; white-space: nowrap; }
+.split-performance { align-items: baseline; display: inline-flex; flex-wrap: nowrap; gap: 0.3rem; max-width: 100%; min-width: 0; white-space: nowrap; }
 .split-performance em { font-style: normal; }
-.split-performance i { color: #94a3b8; font-style: normal; }
-.average-win-loss { max-width: 100%; }
+.split-performance i { color: #334155; font-style: normal; }
+.average-win-loss { max-width: 100%; overflow: visible; }
 .average-win-loss em { font-style: normal; }
 
 @media (max-width: 1180px) {
