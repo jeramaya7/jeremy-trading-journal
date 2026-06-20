@@ -2095,3 +2095,174 @@ h1 {
     white-space: normal;
   }
 }
+
+/* Reference-aligned premium dashboard refresh. */
+.app-shell {
+  max-width: 1580px;
+  padding: clamp(0.7rem, 1.4vw, 1.25rem);
+}
+
+.hero-card {
+  background: linear-gradient(135deg, #ffffff 0%, #fdfbf7 58%, #f9fbff 100%);
+  border: 1px solid rgba(16, 26, 46, 0.1);
+  border-radius: 18px;
+  box-shadow: 0 28px 80px rgba(16, 26, 46, 0.18);
+  gap: clamp(2rem, 4.8vw, 4.7rem);
+  grid-template-columns: minmax(0, 0.92fr) minmax(390px, 0.78fr);
+  min-height: 0;
+  overflow: visible;
+  padding: clamp(1.75rem, 3.4vw, 3.9rem) clamp(1.75rem, 3.4vw, 3.9rem) clamp(1.45rem, 2.5vw, 2.5rem);
+}
+
+.hero-card::after { display: none; }
+
+.hero-branding { padding-top: 0; }
+
+.dna-brand-lockup {
+  gap: clamp(0.95rem, 1.8vw, 1.55rem);
+  margin-bottom: clamp(2.05rem, 3.5vw, 3.7rem);
+}
+
+.dna-logo {
+  background: #fffdf8;
+  border: 0;
+  box-shadow: none;
+  height: clamp(104px, 10.3vw, 158px);
+  padding: 0;
+}
+
+.dna-wordmark-main {
+  font-size: clamp(4.1rem, 6.7vw, 6.5rem);
+  letter-spacing: 0.18em;
+}
+
+.dna-wordmark-main::first-letter { color: var(--dna-navy); }
+.dna-wordmark-main { color: var(--dna-navy); }
+.dna-wordmark-main::after { content: "A"; color: var(--dna-gold); margin-left: -0.03em; }
+.dna-wordmark-main { font-size: 0; }
+.dna-wordmark-main::before { content: "DN"; color: var(--dna-navy); font-size: clamp(4.1rem, 6.7vw, 6.5rem); }
+.dna-wordmark-main::after { font-size: clamp(4.1rem, 6.7vw, 6.5rem); }
+
+.dna-wordmark-sub {
+  font-size: clamp(0.65rem, 0.8vw, 0.84rem);
+  letter-spacing: 0.24em;
+  margin-top: 0.5rem;
+}
+
+h1 {
+  font-size: clamp(3rem, 4.7vw, 5rem);
+  letter-spacing: -0.06em;
+  line-height: 0.98;
+  margin-bottom: 1rem;
+  white-space: nowrap;
+}
+
+.hero-tagline {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.2rem, 1.55vw, 1.65rem);
+  font-weight: 700;
+  line-height: 1.25;
+  margin-bottom: 1.25rem;
+  white-space: nowrap;
+}
+
+.hero-copy {
+  color: var(--dna-navy);
+  font-size: clamp(1.02rem, 1.35vw, 1.26rem);
+  line-height: 1.55;
+  max-width: 720px;
+}
+
+.hero-actions {
+  gap: 1.15rem;
+  padding-top: 0;
+}
+
+.hero-actions .share-dashboard-button {
+  align-self: flex-end;
+  background: linear-gradient(135deg, #d9a238, #c78b21);
+  border-radius: 10px;
+  color: #061226;
+  min-height: 62px;
+  padding-inline: 1.65rem;
+  width: auto;
+}
+
+.ctrader-connection-card {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(16, 26, 46, 0.11);
+  border-radius: 24px;
+  box-shadow: 0 18px 50px rgba(16, 26, 46, 0.08);
+  gap: 1rem;
+  opacity: 1;
+  padding: clamp(1rem, 1.55vw, 1.5rem);
+  width: 100%;
+}
+
+.auto-sync-toggle {
+  background: #fff;
+  border-color: rgba(16, 26, 46, 0.12);
+  box-shadow: 0 8px 18px rgba(16, 26, 46, 0.05);
+}
+
+.connect-button {
+  background: linear-gradient(110deg, var(--dna-navy), #0c1a32 70%, #d9a238);
+  border-radius: 14px;
+  min-height: 58px;
+}
+
+.ctrader-connection-summary {
+  color: var(--dna-navy);
+  font-size: 0.88rem;
+  gap: 1.05rem 1.2rem;
+}
+
+.ctrader-connection-summary div:nth-child(2n) {
+  border-left: 1px solid rgba(16, 26, 46, 0.1);
+  padding-left: 1rem;
+}
+
+.ctrader-connection-summary dd { font-size: 1rem; }
+.ctrader-account-selector { grid-template-columns: minmax(0, 1fr) minmax(145px, auto); }
+.ctrader-card-actions { gap: 0.75rem; }
+.ctrader-card-actions .secondary-button,
+.ctrader-card-actions .upload-button {
+  background: linear-gradient(135deg, #07172d, #112747);
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(16, 26, 46, 0.12);
+  min-height: 54px;
+}
+
+.hero-equity-section {
+  margin: clamp(0.8rem, 1.4vw, 1.2rem) auto 0;
+  max-width: 1580px;
+}
+
+.equity-curve-card {
+  border-color: rgba(16, 26, 46, 0.11);
+  border-radius: 18px;
+  box-shadow: 0 18px 50px rgba(16, 26, 46, 0.08);
+  padding: clamp(1rem, 1.8vw, 1.6rem);
+}
+
+.equity-curve-chart { min-height: clamp(250px, 22vw, 360px); }
+.equity-curve-chart svg { height: clamp(235px, 20vw, 345px); }
+.equity-curve-line { stroke: var(--dna-navy); stroke-width: 4; }
+
+.hero-stats-row {
+  margin: 0.9rem auto 0;
+  max-width: 1580px;
+}
+
+.stat-card strong { font-size: clamp(1.35rem, 6.8cqw, 2rem); }
+.stat-card strong.long-value { font-size: clamp(0.96rem, 5.2cqw, 1.45rem); letter-spacing: -0.04em; }
+.split-performance { align-items: baseline; display: flex; flex-wrap: nowrap; gap: 0.3rem; white-space: nowrap; }
+.split-performance em { font-style: normal; }
+.split-performance i { color: #94a3b8; font-style: normal; }
+.neutral { color: #64748b; }
+
+@media (max-width: 1180px) {
+  h1, .hero-tagline { white-space: normal; }
+  .hero-card { grid-template-columns: 1fr; }
+  .hero-actions .share-dashboard-button { align-self: stretch; }
+}

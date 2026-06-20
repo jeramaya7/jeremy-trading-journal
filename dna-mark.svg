@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220" role="img" aria-labelledby="title">
+  <title id="title">DNA icon</title>
+  <defs>
+    <linearGradient id="gold" x1="60" y1="24" x2="164" y2="196" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f0bc49"/>
+      <stop offset="1" stop-color="#b98217"/>
+    </linearGradient>
+  </defs>
+  <circle cx="110" cy="110" r="100" fill="#fffdf8" stroke="#101a2e" stroke-width="5"/>
+  <path d="M95 42c42 24 42 112 0 136" stroke="url(#gold)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M125 42c-42 24-42 112 0 136" stroke="#101a2e" stroke-width="8" stroke-linecap="round"/>
+  <g stroke="#101a2e" stroke-width="5" stroke-linecap="round">
+    <path d="M84 72h52"/><path d="M78 94h64"/><path d="M78 116h64"/><path d="M84 138h52"/><path d="M96 160h28"/>
+  </g>
+  <g stroke="url(#gold)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M145 151l16-16 12 7 20-26"/>
+    <path d="M190 116h-17v17"/>
+    <path d="M151 166v-14M166 166v-22M181 166v-34"/>
+  </g>
+  <g stroke="#101a2e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="58" cy="141" r="13"/>
+    <path d="M52 140l5 5 10-12"/>
+    <path d="M44 104v-16h16M44 88l20 20M69 92l12-12 12 12M81 80v28M100 104l16-16h-12M116 88v16"/>
+  </g>
+</svg>

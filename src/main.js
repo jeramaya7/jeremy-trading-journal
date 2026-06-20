@@ -734,8 +734,8 @@ function setupAnalyticsHeader(key, label) {
 }
 
 function setupAnalyticsRow(report) {
-  const pnlTone = report.netPnl >= 0 ? 'positive' : 'negative';
-  const rTone = report.averageR === null || report.averageR >= 0 ? 'positive' : 'negative';
+  const pnlTone = getPerformanceTone(report.netPnl);
+  const rTone = getPerformanceTone(report.averageR);
 
   return `
               <tr>
@@ -828,6 +828,14 @@ function icon(name) {
   return icons[name] ?? '';
 }
 
+function getPerformanceTone(value) {
+  if (value === null || value === undefined || Number(value) === 0 || Number.isNaN(Number(value))) {
+    return 'neutral';
+  }
+
+  return Number(value) > 0 ? 'positive' : 'negative';
+}
+
 function statCard(iconName, label, value, tone = '') {
   const valueText = String(value);
   const valueClass = [tone, valueText.length > 13 ? 'long-value' : ''].filter(Boolean).join(' ');
@@ -844,9 +852,9 @@ function renderHeroStatsRow(stats) {
   return `
         <section class="stats-grid hero-stats-row" aria-label="DNA trading statistics">
           ${statCard('chart', 'Trades Analyzed', stats.tradeCount)}
-          ${statCard('line', 'Total R', formatRMultiple(stats.totalR), stats.totalR === null || stats.totalR >= 0 ? 'positive' : 'negative')}
+          ${statCard('line', 'Total R', formatRMultiple(stats.totalR), getPerformanceTone(stats.totalR))}
           ${statCard('target', 'Win Rate', formatPercent(stats.winRate))}
-          ${statCard('trend', 'Expectancy', formatRMultiple(stats.averageR), stats.averageR === null || stats.averageR >= 0 ? 'positive' : 'negative')}
+          ${statCard('trend', 'Expectancy', formatRMultiple(stats.averageR), getPerformanceTone(stats.averageR))}
         </section>`;
 }
 
@@ -870,7 +878,7 @@ function renderEquityCurveCard(period = equityCurvePeriod) {
     return `${x.toFixed(2)},${y.toFixed(2)}`;
   }).join(' ');
   const endingPnl = cumulativeValues.at(-1) ?? 0;
-  const endingTone = endingPnl >= 0 ? 'positive' : 'negative';
+  const endingTone = getPerformanceTone(endingPnl);
   const periodLabels = { all: 'All Time', month: 'Month', week: 'Week' };
 
   return `
@@ -903,7 +911,7 @@ function renderEquityCurveCard(period = equityCurvePeriod) {
 
 
 function reportCard(report) {
-  const tone = report.pnl >= 0 ? 'positive' : 'negative';
+  const tone = getPerformanceTone(report.pnl);
   const tradeLabel = report.tradeCount === 1 ? 'trade' : 'trades';
 
   return `
@@ -984,8 +992,8 @@ function tradeCard(trade) {
   const riskDollars = calculateRiskDollars(trade);
   const riskPercent = calculateRiskPercent(trade);
   const rMultiple = calculateRMultiple(trade);
-  const tone = pnl >= 0 ? 'positive' : 'negative';
-  const rTone = rMultiple === null || rMultiple >= 0 ? 'positive' : 'negative';
+  const tone = getPerformanceTone(pnl);
+  const rTone = getPerformanceTone(rMultiple);
   const importedTimeDetail = cTraderTimeDetails(trade);
   const tradeTime = getTradeTimeDisplay(trade);
   const tradeDuration = formatTradeDuration(trade.openTime, trade.closeTime);
@@ -1202,17 +1210,17 @@ function render(options = {}) {
     {
       label: 'Overall Performance',
       cards: [
-        statCard('trend', 'Net P&L', currency(stats.totalPnl), stats.totalPnl >= 0 ? 'positive' : 'negative'),
+        statCard('trend', 'Net P&L', currency(stats.totalPnl), getPerformanceTone(stats.totalPnl)),
         statCard('target', 'Win Rate', formatPercent(stats.winRate)),
         statCard('chart', 'Trades Logged', stats.tradeCount),
-        statCard('trend', 'Biggest Winner', stats.biggestWinner === null ? '—' : currency(stats.biggestWinner), stats.biggestWinner === null || stats.biggestWinner >= 0 ? 'positive' : 'negative'),
+        statCard('trend', 'Biggest Winner', stats.biggestWinner === null ? '—' : currency(stats.biggestWinner), getPerformanceTone(stats.biggestWinner)),
       ],
     },
     {
       label: 'Risk Metrics',
       cards: [
-        statCard('line', 'Average Win / Loss', `${currency(stats.averageWin)} / ${currency(stats.averageLoss)}`),
-        statCard('line', 'Average R', formatRMultiple(stats.averageR), stats.averageR === null || stats.averageR >= 0 ? 'positive' : 'negative'),
+        statCard('line', 'Average Win / Loss', `<span class="split-performance"><em class="${getPerformanceTone(stats.averageWin)}">${currency(stats.averageWin)}</em><i>/</i><em class="${getPerformanceTone(stats.averageLoss)}">${currency(stats.averageLoss)}</em></span>`),
+        statCard('line', 'Average R', formatRMultiple(stats.averageR), getPerformanceTone(stats.averageR)),
         statCard('target', 'Average Risk $', stats.averageRiskDollars === null ? '—' : currency(stats.averageRiskDollars)),
         statCard('target', 'Average Risk %', formatRiskPercent(stats.averageRiskPercent)),
       ],
@@ -1220,10 +1228,10 @@ function render(options = {}) {
     {
       label: 'Time Performance',
       cards: [
-        statCard('calendar', 'Daily P&L', currency(dailyPnl.pnl), dailyPnl.pnl >= 0 ? 'positive' : 'negative'),
-        statCard('calendar', 'Weekly P&L', currency(weeklyPnl.pnl), weeklyPnl.pnl >= 0 ? 'positive' : 'negative'),
-        statCard('calendar', 'Monthly P&L', currency(monthlyPnl.pnl), monthlyPnl.pnl >= 0 ? 'positive' : 'negative'),
-        statCard('calendar', 'Yearly P&L', currency(yearlyPnl.pnl), yearlyPnl.pnl >= 0 ? 'positive' : 'negative'),
+        statCard('calendar', 'Daily P&L', currency(dailyPnl.pnl), getPerformanceTone(dailyPnl.pnl)),
+        statCard('calendar', 'Weekly P&L', currency(weeklyPnl.pnl), getPerformanceTone(weeklyPnl.pnl)),
+        statCard('calendar', 'Monthly P&L', currency(monthlyPnl.pnl), getPerformanceTone(monthlyPnl.pnl)),
+        statCard('calendar', 'Yearly P&L', currency(yearlyPnl.pnl), getPerformanceTone(yearlyPnl.pnl)),
       ],
     },
   ];
@@ -1236,7 +1244,7 @@ function render(options = {}) {
       <section class="hero-card">
         <div class="hero-branding">
           <div class="dna-brand-lockup" aria-label="DNA Decisions Numbers Analysis">
-            <img class="dna-logo" src="./ChatGPT%20Image%20Jun%2020%2C%202026%2C%2006_45_24%20AM.png" alt="DNA logo" />
+            <img class="dna-logo" src="./dna-mark.svg" alt="DNA icon" />
             <div class="dna-wordmark" aria-hidden="true">
               <span class="dna-wordmark-main">DNA</span>
               <span class="dna-wordmark-sub">Decisions <b>•</b> Numbers <b>•</b> Analysis</span>
