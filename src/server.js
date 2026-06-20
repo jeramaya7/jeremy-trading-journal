@@ -25,6 +25,7 @@ const contentTypes = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
 };
 
 export function createAppServer(options = {}) {
@@ -975,7 +976,7 @@ async function completeCtraderAuth(request, response, url, options = {}) {
 }
 
 async function serveStaticFile(response, pathname) {
-  const normalizedPath = pathname === '/' ? '/index.html' : pathname;
+  const normalizedPath = pathname === '/' ? '/index.html' : decodeURIComponent(pathname);
   const candidatePath = normalize(join(ROOT_DIR, normalizedPath));
   if (!candidatePath.startsWith(ROOT_DIR)) {
     sendJson(response, 403, { error: 'Forbidden' });
