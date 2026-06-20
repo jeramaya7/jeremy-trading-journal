@@ -1234,8 +1234,6 @@ function render(options = {}) {
       <section class="hero-card">
         <div class="hero-branding">
           <img class="dna-logo" src="./ChatGPT%20Image%20Jun%2020%2C%202026%2C%2006_45_24%20AM.png" alt="DNA logo" />
-          <p class="eyebrow hero-brand-name">DNA</p>
-          <p class="hero-subtitle">Decisions • Numbers • Analysis</p>
           <h1>Discover your edge.</h1>
           <p class="hero-tagline">Every trade leaves clues. DNA helps you find them.</p>
           <p class="hero-copy">
