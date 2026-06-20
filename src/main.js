@@ -1239,13 +1239,15 @@ function render(options = {}) {
           <p class="hero-copy">
             DNA is a trader performance analysis system designed to uncover patterns, strengths, weaknesses, habits, and edge through the study of Decisions, Numbers, and Analysis.
           </p>
-          ${renderEquityCurveCard()}
-          ${renderHeroStatsRow(stats)}
         </div>
         <div class="hero-actions">
           <button class="share-dashboard-button" type="button" id="shareDashboard">${icon('share')} Share Dashboard</button>
           ${renderCTraderConnectionCard()}
         </div>
+        <div class="hero-equity-section">
+          ${renderEquityCurveCard()}
+        </div>
+        ${renderHeroStatsRow(stats)}
       </section>
 
       <section class="dashboard-snapshot" id="dashboardSnapshot" aria-label="Dashboard share snapshot">
