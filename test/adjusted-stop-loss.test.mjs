@@ -26,10 +26,19 @@ test('adjusted stop loss persists through reload using the existing journal stor
 });
 
 test('analytics use the adjusted stop through shared risk and R helpers', () => {
-  assertIncludes(source, 'return toOptionalNumber(trade.adjustedStopLoss) ?? toOptionalNumber(trade.stopLoss);', 'Risk helpers prefer adjusted stop loss and fall back to original stop loss.');
+  assertIncludes(source, 'return getStopLossHitPrice(trade) ?? toOptionalNumber(trade.adjustedStopLoss) ?? toOptionalNumber(trade.stopLoss);', 'Risk helpers prefer the stop-loss hit price, then adjusted stop loss, and fall back to original stop loss.');
   assertIncludes(source, 'return calculatePnl(trade) / riskDollars;', 'R multiple is derived from active-stop Risk $.');
   assertIncludes(source, 'const rMultiple = calculateRMultiple(trade);', 'Setup analytics consumes the shared adjusted-stop R calculation.');
   assertIncludes(source, 'const rValues = trades.map(calculateRMultiple).filter(Number.isFinite);', 'Dashboard Average R consumes the shared adjusted-stop R calculation.');
   assertIncludes(source, 'const riskDollarValues = trades.map(calculateRiskDollars).filter(Number.isFinite);', 'Dashboard Average Risk $ consumes the shared adjusted-stop risk calculation.');
   assertIncludes(source, 'const riskPercentValues = trades.map(calculateRiskPercent).filter(Number.isFinite);', 'Dashboard Average Risk % consumes the shared adjusted-stop risk calculation.');
+});
+
+
+test('stop loss close reason uses exit price as the active risk stop', () => {
+  assertIncludes(source, "function isStopLossCloseReason(closeReason) {", 'Stop Loss close reason detection is centralized.');
+  assertIncludes(source, "return isStopLossCloseReason(trade.closeReason) ? toOptionalNumber(trade.exit) : null;", 'Stop Loss trades use the exit price as the stop that was hit.');
+  assertIncludes(source, "return getStopLossHitPrice(trade) ?? toOptionalNumber(trade.adjustedStopLoss) ?? toOptionalNumber(trade.stopLoss);", 'Risk calculations prefer the stop-loss hit price over stale stored risk stops.');
+  assertIncludes(source, "? toOptionalNumber(formData.get('exit'))", 'Saving a Stop Loss edit stores the readonly exit as the risk stop.');
+  assertIncludes(source, "`<span>Risk Stop: ${currency(activeStopLoss)}</span>`", 'Trade cards display the active Risk Stop used for risk and R calculations.');
 });

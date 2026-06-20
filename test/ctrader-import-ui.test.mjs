@@ -177,7 +177,7 @@ test('saving trade edits only updates journaling fields and preserves imported e
   assertIncludes(source, "if (setupChoice === CUSTOM_SETUP_OPTION)", 'Saving edits supports custom setup names.');
   assert.ok(!source.includes("formData.get('emotion')"), 'Saving edits does not update emotion.');
   assertIncludes(source, "lossReason: String(formData.get('lossReason')).trim()", 'Saving edits stores the selected loss reason.');
-  assertIncludes(source, "closeReason: String(formData.get('closeReason')).trim()", 'Saving edits stores the selected close reason.');
+  assertIncludes(source, "const closeReason = String(formData.get('closeReason')).trim();", 'Saving edits stores the selected close reason.');
   assertIncludes(source, "tags: String(formData.get('tags')).trim()", 'Saving edits updates tags.');
   assertIncludes(source, "notes: String(formData.get('notes')).trim()", 'Saving edits updates notes.');
   assertIncludes(source, '? { ...trade, ...journalingUpdates }', 'Saving edits spreads the existing trade first, preserving cTrader fields not in the journaling update.');

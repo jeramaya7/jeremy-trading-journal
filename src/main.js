@@ -412,8 +412,16 @@ function cTraderTimeDetails(trade) {
         <span>Duration: ${escapeHtml(formatTradeDuration(trade.openTime, trade.closeTime))}</span>`;
 }
 
+function isStopLossCloseReason(closeReason) {
+  return String(closeReason || '').trim().toLowerCase() === 'stop loss';
+}
+
+function getStopLossHitPrice(trade) {
+  return isStopLossCloseReason(trade.closeReason) ? toOptionalNumber(trade.exit) : null;
+}
+
 function getActiveStopLoss(trade) {
-  return toOptionalNumber(trade.adjustedStopLoss) ?? toOptionalNumber(trade.stopLoss);
+  return getStopLossHitPrice(trade) ?? toOptionalNumber(trade.adjustedStopLoss) ?? toOptionalNumber(trade.stopLoss);
 }
 
 function calculateRiskDollars(trade) {
@@ -841,7 +849,7 @@ function tradeCard(trade) {
   const displaySymbol = getTradeDisplaySymbol(trade);
   const pnl = calculatePnl(trade);
   const stopLoss = toOptionalNumber(trade.stopLoss);
-  const adjustedStopLoss = toOptionalNumber(trade.adjustedStopLoss);
+  const activeStopLoss = getActiveStopLoss(trade);
   const riskDollars = calculateRiskDollars(trade);
   const riskPercent = calculateRiskPercent(trade);
   const rMultiple = calculateRMultiple(trade);
@@ -873,7 +881,7 @@ function tradeCard(trade) {
         <span>Exit: ${currency(Number(trade.exit))}</span>
         <span>Size: ${escapeHtml(trade.size)}</span>
         <span>Original SL: ${stopLoss === null ? '—' : currency(stopLoss)}</span>
-        ${adjustedStopLoss === null ? '' : `<span>Adjusted SL: ${currency(adjustedStopLoss)}</span>`}
+        ${activeStopLoss === null || activeStopLoss === stopLoss ? '' : `<span>Risk Stop: ${currency(activeStopLoss)}</span>`}
         <span>Risk $: ${riskDollars === null ? '—' : currency(riskDollars)}</span>
         <span>Risk %: ${formatRiskPercent(riskPercent)}</span>
         <span class="${rTone}">R: ${formatRMultiple(rMultiple)}</span>
@@ -1477,13 +1485,17 @@ async function submitTradeEdit(event) {
   const formData = new FormData(form);
   const screenshotDraft = getEditScreenshotDraft(tradeId);
   const uploadedScreenshot = formData.get('editScreenshot');
+  const closeReason = String(formData.get('closeReason')).trim();
+  const adjustedStopLoss = isStopLossCloseReason(closeReason)
+    ? toOptionalNumber(formData.get('exit'))
+    : toOptionalNumber(formData.get('adjustedStopLoss'));
   const journalingUpdates = {
     setup: getSetupFormValue(formData),
     lossReason: String(formData.get('lossReason')).trim(),
-    closeReason: String(formData.get('closeReason')).trim(),
+    closeReason,
     tags: String(formData.get('tags')).trim(),
     notes: String(formData.get('notes')).trim(),
-    adjustedStopLoss: toOptionalNumber(formData.get('adjustedStopLoss')),
+    adjustedStopLoss,
   };
   const resolvedScreenshot = screenshotDraft.removeScreenshot
     ? null
