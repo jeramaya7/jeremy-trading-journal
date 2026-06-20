@@ -1233,11 +1233,7 @@ function render(options = {}) {
     <main class="app-shell">
       <section class="hero-card">
         <div class="hero-branding">
-          <div class="dna-logo-placeholder" aria-label="DNA logo placeholder">
-            <span>D</span>
-            <span>N</span>
-            <span>A</span>
-          </div>
+          <img class="dna-logo" src="./ChatGPT%20Image%20Jun%2020%2C%202026%2C%2006_45_24%20AM.png" alt="DNA logo" />
           <p class="eyebrow hero-brand-name">DNA</p>
           <p class="hero-subtitle">Decisions • Numbers • Analysis</p>
           <h1>Discover your edge.</h1>
