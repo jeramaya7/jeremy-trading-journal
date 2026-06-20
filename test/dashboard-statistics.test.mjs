@@ -14,16 +14,18 @@ function getDashboardStatsTemplate() {
   return source.slice(start, end);
 }
 
-test('dashboard renders KPI summary row with requested performance analytics', () => {
+test('dashboard renders hero stats row below the equity curve with requested performance analytics', () => {
   const dashboardStats = getDashboardStatsTemplate();
 
   assert.ok(dashboardStats.includes('dashboardCardRows.map'), 'Dashboard card rows should render as a balanced grouped grid.');
-  assert.ok(source.includes('function renderKpiSummaryRow(stats)'), 'KPI summary row should render below the DNA description.');
-  assert.ok(source.includes("statCard('trend', 'Net P&L', currency(stats.totalPnl)"), 'Net P&L should render first in the KPI summary row.');
-  assert.ok(source.includes('totalR: rValues.length ? totalR : null,'), 'Total R calculation should remain available even though it is not displayed in the KPI row.');
+  assert.ok(source.includes('function renderHeroStatsRow(stats)'), 'Hero stats row should render below the equity curve.');
+  assert.ok(source.indexOf('${renderEquityCurveCard()}') < source.indexOf('${renderHeroStatsRow(stats)}'), 'The equity curve should render before the hero stats row.');
+  assert.ok(source.includes("statCard('chart', 'Trades Analyzed', stats.tradeCount)"), 'Trades Analyzed should render in the hero stats row.');
+  assert.ok(source.includes('totalR: rValues.length ? totalR : null,'), 'Total R calculation should remain available for the hero stats row.');
+  assert.ok(source.includes("statCard('line', 'Total R', formatRMultiple(stats.totalR)"), 'Total R should render in the hero stats row.');
+  assert.ok(source.includes("statCard('target', 'Win Rate'"), 'Win Rate should render in the hero stats row.');
+  assert.ok(source.includes("statCard('trend', 'Expectancy', formatRMultiple(stats.averageR)"), 'Expectancy should render in the hero stats row from average R.');
   assert.ok(source.includes("statCard('line', 'Average R'"), 'Average R should still render as a dashboard card.');
-  assert.ok(source.includes("statCard('target', 'Win Rate'"), 'Win Rate should render in the KPI summary row.');
-  assert.ok(source.includes("statCard('trend', 'Profit Factor'"), 'Profit Factor should render in the KPI summary row.');
   assert.ok(source.includes("statCard('target', 'Average Risk $'"), 'Average Risk $ should render as a dashboard card.');
   assert.ok(source.includes("statCard('target', 'Average Risk %'"), 'Average Risk % should render as a dashboard card.');
 });
