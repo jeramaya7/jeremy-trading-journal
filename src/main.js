@@ -1109,10 +1109,12 @@ function render(options = {}) {
     <main class="app-shell">
       <section class="hero-card">
         <div>
-          <p class="eyebrow">${icon('book')} Jeremy Trading Journal</p>
-          <h1>Track every setup, decision, and lesson.</h1>
+          <p class="eyebrow">${icon('book')} DNA</p>
+          <h1>Discover your edge.</h1>
+          <p class="hero-subtitle">Decisions • Numbers • Analysis</p>
+          <p class="hero-tagline">Every trade leaves clues. DNA helps you find them.</p>
           <p class="hero-copy">
-            A fast local-first journal for logging trades, reviewing performance, and building disciplined repeatable habits.
+            DNA is a trader performance analysis system designed to uncover patterns, strengths, weaknesses, habits, and edge through the study of Decisions, Numbers, and Analysis.
           </p>
         </div>
         <div class="hero-actions">
@@ -1125,7 +1127,7 @@ function render(options = {}) {
         <div class="dashboard-snapshot-header">
           <div>
             <p class="eyebrow">${icon('share')} Dashboard Snapshot</p>
-            <h2>Jeremy Trading Journal Results</h2>
+            <h2>DNA Results</h2>
           </div>
           <p>Generated ${new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
         </div>
