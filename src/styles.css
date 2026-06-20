@@ -2274,7 +2274,7 @@ h1 {
   overflow: visible;
   font-size: clamp(1.35rem, 6.8cqw, 2rem);
   font-weight: 700;
-  line-height: 1;
+  line-height: 1;}
 .average-win-loss em {
   font-style: normal;
   font-size: 1.35rem;
