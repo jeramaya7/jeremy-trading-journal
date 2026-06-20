@@ -307,7 +307,15 @@ function formatPercent(value) {
 }
 
 function formatRiskPercent(value) {
-  return formatPercent(value);
+  if (value === null || value === undefined) {
+    return '—';
+  }
+
+  if (value > 0 && value < 0.1) {
+    return '0.1%';
+  }
+
+  return `${value.toFixed(1)}%`;
 }
 
 function formatRMultiple(value) {
@@ -1531,7 +1539,7 @@ function updateRiskPercentField(event) {
     accountSize: formData.get('accountSize'),
   });
 
-  riskPercentInput.value = riskPercent === null ? '' : riskPercent.toFixed(1);
+  riskPercentInput.value = riskPercent === null ? '' : formatRiskPercent(riskPercent).replace('%', '');
 }
 
 async function changeScreenshot(event) {
