@@ -848,6 +848,11 @@ function statCard(iconName, label, value, tone = '') {
   `;
 }
 
+function signedCurrency(value) {
+  const amount = Number(value) || 0;
+  return `${amount > 0 ? '+' : ''}${currency(amount)}`;
+}
+
 function renderHeroStatsRow(stats) {
   return `
         <section class="stats-grid hero-stats-row" aria-label="DNA trading statistics">
@@ -1219,7 +1224,7 @@ function render(options = {}) {
     {
       label: 'Risk Metrics',
       cards: [
-        statCard('line', 'Average Win / Loss', `<span class="split-performance"><em class="${getPerformanceTone(stats.averageWin)}">${currency(stats.averageWin)}</em><i>/</i><em class="${getPerformanceTone(stats.averageLoss)}">${currency(stats.averageLoss)}</em></span>`),
+        statCard('line', 'Average Win / Loss', `<span class="split-performance average-win-loss"><em class="${getPerformanceTone(stats.averageWin)}"><b>Average Win:</b> ${signedCurrency(stats.averageWin)}</em><em class="${getPerformanceTone(stats.averageLoss)}"><b>Average Loss:</b> ${signedCurrency(stats.averageLoss)}</em></span>`),
         statCard('line', 'Average R', formatRMultiple(stats.averageR), getPerformanceTone(stats.averageR)),
         statCard('target', 'Average Risk $', stats.averageRiskDollars === null ? '—' : currency(stats.averageRiskDollars)),
         statCard('target', 'Average Risk %', formatRiskPercent(stats.averageRiskPercent)),
@@ -1262,6 +1267,11 @@ function render(options = {}) {
         </div>
       </section>
 
+      <section class="hero-equity-section" aria-label="Equity curve">
+        ${renderEquityCurveCard()}
+      </section>
+      ${renderHeroStatsRow(stats)}
+
       <section class="dashboard-snapshot" id="dashboardSnapshot" aria-label="Dashboard share snapshot">
         <div class="dashboard-snapshot-header">
           <div>
@@ -1279,11 +1289,6 @@ function render(options = {}) {
 
         ${setupAnalyticsSection}
       </section>
-
-      <section class="hero-equity-section" aria-label="Equity curve">
-        ${renderEquityCurveCard()}
-      </section>
-      ${renderHeroStatsRow(stats)}
 
       <section class="workspace-grid">
         <section class="panel journal-panel">
