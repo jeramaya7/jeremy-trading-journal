@@ -1305,6 +1305,71 @@ h2 {
   font-weight: 900;
 }
 
+.monthly-calendar-panel {
+  margin: 1.25rem 0;
+}
+
+.monthly-calendar-header {
+  margin-bottom: 1rem;
+}
+
+.monthly-calendar-grid {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.monthly-calendar-weekday {
+  color: var(--dna-gold);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.monthly-calendar-day {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(89, 112, 149, 0.16);
+  border-radius: 18px;
+  min-height: 96px;
+  padding: 0.75rem;
+}
+
+.monthly-calendar-day-empty {
+  background: transparent;
+  border-color: transparent;
+}
+
+.monthly-calendar-date {
+  color: #43536b;
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 900;
+  margin-bottom: 1.5rem;
+}
+
+.monthly-calendar-pnl {
+  display: block;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+@media (max-width: 760px) {
+  .monthly-calendar-grid {
+    gap: 0.45rem;
+  }
+
+  .monthly-calendar-day {
+    border-radius: 14px;
+    min-height: 78px;
+    padding: 0.55rem;
+  }
+
+  .monthly-calendar-pnl {
+    font-size: 0.82rem;
+  }
+}
+
 .table-sort-button {
   background: transparent;
   color: var(--dna-gold);
