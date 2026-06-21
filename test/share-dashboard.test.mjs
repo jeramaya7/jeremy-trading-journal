@@ -42,3 +42,11 @@ test('dashboard snapshot styles are optimized for a clean exported image', () =>
   assertIncludes(styles, 'width: 1200px;', 'The exported image uses a stable share-friendly width.');
   assertIncludes(styles, '.dashboard-snapshot-export .setup-analytics-table-wrap', 'The Setup Analytics table is fully visible in exports.');
 });
+
+
+test('average win loss KPI keeps both values in one inline stat value', () => {
+  assertIncludes(source, 'return `<span class="split-performance average-win-loss"><b class="${getPerformanceTone(stats.averageWin)}">${signedCurrency(stats.averageWin)}</b><i>/</i><b class="${getPerformanceTone(stats.averageLoss)}">${signedCurrency(stats.averageLoss)}</b></span>`;', 'Average Win / Loss renders positive and negative values in one inline value wrapper.');
+  assertIncludes(styles, '.split-performance { align-items: baseline; display: inline-flex; flex-wrap: nowrap;', 'Split performance values are laid out inline without wrapping.');
+  assertIncludes(styles, '.average-win-loss { font: inherit; letter-spacing: inherit; line-height: inherit;', 'Average Win / Loss inherits the KPI value size and style.');
+  assert.equal(source.includes('<strong class="split-performance average-win-loss">'), false, 'Average Win / Loss does not nest a strong value inside the KPI strong wrapper.');
+});

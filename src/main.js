@@ -854,7 +854,7 @@ function signedCurrency(value) {
 }
 
 function averageWinLossValue(stats) {
-  return `<strong class="split-performance average-win-loss"><span class="${getPerformanceTone(stats.averageWin)}">${signedCurrency(stats.averageWin)}</span><i>/</i><span class="${getPerformanceTone(stats.averageLoss)}">${signedCurrency(stats.averageLoss)}</span></strong>`;
+  return `<span class="split-performance average-win-loss"><b class="${getPerformanceTone(stats.averageWin)}">${signedCurrency(stats.averageWin)}</b><i>/</i><b class="${getPerformanceTone(stats.averageLoss)}">${signedCurrency(stats.averageLoss)}</b></span>`;
 }
 
 function renderHeroStatsRow(stats) {

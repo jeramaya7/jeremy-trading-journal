@@ -2266,15 +2266,10 @@ h1 {
 .stat-card strong { font-size: clamp(1.35rem, 6.8cqw, 2rem); }
 .stat-card strong.long-value { font-size: clamp(0.96rem, 5.2cqw, 1.45rem); letter-spacing: -0.04em; }
 .split-performance { align-items: baseline; display: inline-flex; flex-wrap: nowrap; gap: 0.3rem; max-width: 100%; min-width: 0; white-space: nowrap; }
-.split-performance em { font-style: normal; }
+.split-performance b,
+.split-performance em { font: inherit; }
 .split-performance i { color: #334155; font-style: normal; }
-.average-win-loss { max-width: 100%; overflow: visible; }
-.average-win-loss {
-  max-width: 100%;
-  overflow: visible;
-  font-size: clamp(1.35rem, 6.8cqw, 2rem);
-  font-weight: 700;
-  line-height: 1;}
+.average-win-loss { font: inherit; letter-spacing: inherit; line-height: inherit; max-width: 100%; overflow: visible; }
 
 
 @media (max-width: 1180px) {
