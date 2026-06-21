@@ -1045,14 +1045,13 @@ function tradeCard(trade) {
         <span>Exit: ${currency(Number(trade.exit))}</span>
         <span>Size: ${escapeHtml(trade.size)}</span>
         <span>Original SL: ${stopLoss === null ? '—' : currency(stopLoss)}</span>
-        ${activeStopLoss === null || activeStopLoss === stopLoss ? '' : `<span>Risk Stop: ${currency(activeStopLoss)}</span>`}
+        ${activeStopLoss === null ? '<span>Risk Stop: —</span>' : `<span>Risk Stop: ${currency(activeStopLoss)}</span>`}
         <span>Risk $: ${riskDollars === null ? '—' : currency(riskDollars)}</span>
         <span>Risk %: ${formatRiskPercent(riskPercent)}</span>
         <span class="${rTone}">R: ${formatRMultiple(rMultiple)}</span>
         ${importedTimeDetail}
       </div>
       ${isEditing ? editTradeForm(trade) : tradeJournalDetails(trade)}
-      ${!isEditing ? screenshotPreview(trade) : ''}
       ${!isEditing ? `
         <div class="trade-card-actions">
           <button class="edit-button" type="button" data-edit-trade="${escapeHtml(trade.id)}" aria-label="Edit journaling fields for ${escapeHtml(displaySymbol)} trade">${icon('edit')} Edit</button>
@@ -1065,11 +1064,23 @@ function tradeCard(trade) {
 }
 
 function tradeJournalDetails(trade) {
+  const notesDetail = trade.notes ? `
+      <details class="edit-collapsible journal-detail-section">
+        <summary>${icon('book')} Notes</summary>
+        <p class="notes">${escapeHtml(trade.notes)}</p>
+      </details>` : '';
+  const screenshotDetail = trade.screenshot?.dataUrl ? `
+      <details class="edit-collapsible journal-detail-section">
+        <summary>${icon('image')} Screenshot Attachment</summary>
+        ${screenshotPreview(trade)}
+      </details>` : '';
+
   return `
       ${trade.lossReason ? `<p class="loss-reason"><strong>Loss Reason:</strong> ${escapeHtml(trade.lossReason)}</p>` : ''}
       ${trade.closeReason ? `<p class="close-reason"><strong>Close Reason:</strong> ${escapeHtml(trade.closeReason)}</p>` : ''}
       ${trade.tags ? `<p class="tags">${escapeHtml(trade.tags)}</p>` : ''}
-      ${trade.notes ? `<p class="notes">${escapeHtml(trade.notes)}</p>` : ''}`;
+      ${notesDetail}
+      ${screenshotDetail}`;
 }
 
 function renderSelectOption(option, selectedValue) {
