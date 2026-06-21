@@ -1487,112 +1487,37 @@ function getInlineStylesheetText() {
     .join('\n');
 }
 
-function downloadBlob(blob, filename) {
-  const objectUrl = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = objectUrl;
-  link.download = filename;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(objectUrl);
-}
-
-function loadImage(src) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('Dashboard snapshot image could not be generated.'));
-    image.src = src;
-  });
-}
-
-function canvasToPngBlob(canvas) {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob) {
-        resolve(blob);
-        return;
-      }
-
-      reject(new Error('Dashboard snapshot PNG could not be created.'));
-    }, 'image/png');
-  });
-}
-
-function waitForNextFrame() {
-  return new Promise((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(resolve));
-  });
-}
-
-async function shareDashboardSnapshot() {
+function openShareView() {
   const shareButton = document.querySelector('#shareDashboard');
   const dashboardSnapshot = document.querySelector('#dashboardSnapshot');
   if (!shareButton || !dashboardSnapshot) {
     return;
   }
 
-  const originalButtonText = shareButton.innerHTML;
-  shareButton.disabled = true;
-  shareButton.innerHTML = `${icon('download')} Preparing PNG...`;
-
-  try {
-    const exportWidth = 1200;
-    const scale = 2;
-    const clonedDashboard = dashboardSnapshot.cloneNode(true);
-    clonedDashboard.removeAttribute('id');
-    clonedDashboard.classList.add('dashboard-snapshot-export');
-    const clonedSnapshotHeader = clonedDashboard.querySelector('.dashboard-snapshot-header');
-    if (clonedSnapshotHeader) {
-      clonedSnapshotHeader.style.setProperty('backdrop-filter', 'none', 'important');
-      clonedSnapshotHeader.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
-    }
-
-    const measurementHost = document.createElement('div');
-    measurementHost.style.left = '-10000px';
-    measurementHost.style.position = 'fixed';
-    measurementHost.style.top = '0';
-    measurementHost.style.visibility = 'hidden';
-    measurementHost.append(clonedDashboard);
-    document.body.append(measurementHost);
-    await waitForNextFrame();
-
-    const snapshotBounds = clonedDashboard.getBoundingClientRect();
-    const height = Math.ceil(Math.max(clonedDashboard.scrollHeight, snapshotBounds.height));
-    measurementHost.remove();
-
-    const wrapper = document.createElement('div');
-    wrapper.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-    wrapper.append(clonedDashboard);
-
-    const serializedHtml = new XMLSerializer().serializeToString(wrapper);
-    const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="${exportWidth}" height="${height}" viewBox="0 0 ${exportWidth} ${height}">
-        <foreignObject width="100%" height="100%">
-          <div xmlns="http://www.w3.org/1999/xhtml">
-            <style>${getInlineStylesheetText()}</style>
-            ${serializedHtml}
-          </div>
-        </foreignObject>
-      </svg>`;
-
-    const image = await loadImage(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
-    const canvas = document.createElement('canvas');
-    canvas.width = exportWidth * scale;
-    canvas.height = height * scale;
-    const context = canvas.getContext('2d');
-    context.fillStyle = '#eef3fb';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.scale(scale, scale);
-    context.drawImage(image, 0, 0);
-
-    const pngBlob = await canvasToPngBlob(canvas);
-    downloadBlob(pngBlob, `jeremy-dashboard-snapshot-${new Date().toISOString().slice(0, 10)}.png`);
-  } finally {
-    shareButton.disabled = false;
-    shareButton.innerHTML = originalButtonText;
+  const shareWindow = window.open('', '_blank', 'noopener,noreferrer');
+  if (!shareWindow) {
+    return;
   }
+
+  const clonedDashboard = dashboardSnapshot.cloneNode(true);
+  clonedDashboard.removeAttribute('id');
+  clonedDashboard.classList.add('dashboard-snapshot-share-view');
+
+  shareWindow.document.write(`<!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>DNA Results Share View</title>
+        <style>${getInlineStylesheetText()}</style>
+      </head>
+      <body class="share-view-body">
+        <main class="share-view-shell">
+          ${clonedDashboard.outerHTML}
+        </main>
+      </body>
+    </html>`);
+  shareWindow.document.close();
 }
 
 function field(label, control) {
@@ -1604,7 +1529,7 @@ function bindEvents() {
   const screenshotInput = tradeForm?.querySelector('input[name="screenshot"]');
 
   document.querySelector('#toggleManualTrade').addEventListener('click', toggleManualTradeForm);
-  document.querySelector('#shareDashboard').addEventListener('click', shareDashboardSnapshot);
+  document.querySelector('#shareDashboard').addEventListener('click', openShareView);
   if (tradeForm) {
     tradeForm.addEventListener('submit', submitTrade);
     tradeForm.addEventListener('input', updateRiskPercentField);
