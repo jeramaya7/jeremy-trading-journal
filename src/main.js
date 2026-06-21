@@ -1520,6 +1520,12 @@ function canvasToPngBlob(canvas) {
   });
 }
 
+function waitForNextFrame() {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  });
+}
+
 async function shareDashboardSnapshot() {
   const dashboard = document.querySelector('#dashboardSnapshot');
   const shareButton = document.querySelector('#shareDashboard');
@@ -1538,11 +1544,23 @@ async function shareDashboardSnapshot() {
     clonedDashboard.removeAttribute('id');
     clonedDashboard.classList.add('dashboard-snapshot-export');
 
+    const measurementHost = document.createElement('div');
+    measurementHost.style.left = '-10000px';
+    measurementHost.style.position = 'fixed';
+    measurementHost.style.top = '0';
+    measurementHost.style.visibility = 'hidden';
+    measurementHost.append(clonedDashboard);
+    document.body.append(measurementHost);
+    await waitForNextFrame();
+
+    const snapshotBounds = clonedDashboard.getBoundingClientRect();
+    const height = Math.ceil(Math.max(clonedDashboard.scrollHeight, snapshotBounds.height));
+    measurementHost.remove();
+
     const wrapper = document.createElement('div');
     wrapper.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
     wrapper.append(clonedDashboard);
 
-    const height = Math.ceil(dashboard.scrollHeight * (exportWidth / dashboard.getBoundingClientRect().width));
     const serializedHtml = new XMLSerializer().serializeToString(wrapper);
     const svg = `
       <svg xmlns="http://www.w3.org/2000/svg" width="${exportWidth}" height="${height}" viewBox="0 0 ${exportWidth} ${height}">
