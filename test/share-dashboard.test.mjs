@@ -28,29 +28,26 @@ test('dashboard snapshot has a share button and captures required dashboard cont
   assertIncludes(source, '<section class="dashboard-snapshot" id="dashboardSnapshot"', 'DNA Results has a dedicated snapshot capture area.');
 });
 
-test('share dashboard opens a clean DNA Results-only share view without PNG export', () => {
-  assertIncludes(source, "document.querySelector('#shareDashboard').addEventListener('click', openShareView);", 'Share Dashboard is wired to the share view handler.');
-  assertIncludes(source, "window.open('', '_blank', 'noopener,noreferrer')", 'Share Dashboard opens a new tab for the clean share view.');
-  assertIncludes(source, "const dashboardSnapshot = document.querySelector('#dashboardSnapshot');", 'The share view targets only the DNA Results snapshot section.');
-  assertIncludes(source, "const clonedDashboard = dashboardSnapshot.cloneNode(true);", 'Only the DNA Results section is cloned into the share view.');
-  assertIncludes(source, 'class="share-view-body"', 'The share view has a dedicated body class.');
-  assertIncludes(source, 'class="share-view-shell"', 'The share view has a dedicated shell class.');
-  assertIncludes(source, "class=\"dashboard-snapshot-generated-date\"", 'The generated date badge remains in the share view.');
-  assert.equal(source.includes('canvasToPngBlob'), false, 'No canvas-to-PNG pipeline remains.');
-  assert.equal(source.includes('downloadBlob'), false, 'No local PNG download helper remains.');
-  assert.equal(source.includes('new XMLSerializer().serializeToString(wrapper)'), false, 'No SVG image serialization pipeline remains.');
-  assert.equal(source.includes("querySelector('.hero-stats-row')"), false, 'The share view does not capture the top KPI row.');
-  assert.equal(source.includes("querySelector('.monthly-calendar-panel')"), false, 'The share view does not capture the Monthly Trading Calendar.');
-  assert.equal(source.includes("querySelector('.setup-analytics-panel')"), false, 'The share view does not capture Setup Analytics.');
+test('share dashboard exports a local PNG download without external sharing APIs', () => {
+  assertIncludes(source, "document.querySelector('#shareDashboard').addEventListener('click', shareDashboardSnapshot);", 'Share Dashboard is wired to the export handler.');
+  assertIncludes(source, 'new XMLSerializer().serializeToString(wrapper)', 'The snapshot DOM is serialized for image generation.');
+  assertIncludes(source, "canvasToPngBlob(canvas)", 'The snapshot canvas is converted to a PNG blob.');
+  assertIncludes(source, "downloadBlob(pngBlob, `jeremy-dashboard-snapshot-", 'The PNG is downloaded locally.');
+  assertIncludes(source, "class=\"dashboard-snapshot-generated-date\"", 'The generated date badge has an explicit class for targeted export inclusion.');
+  assertIncludes(source, "const dashboardSnapshot = document.querySelector('#dashboardSnapshot');", 'The export targets only the DNA Results snapshot section.');
+  assertIncludes(source, "const clonedDashboard = dashboardSnapshot.cloneNode(true);", 'Only the DNA Results section is cloned for export.');
+  assert.equal(source.includes("querySelector('.hero-stats-row')"), false, 'The export does not capture the top KPI row.');
+  assert.equal(source.includes("querySelector('.monthly-calendar-panel')"), false, 'The export does not capture the Monthly Trading Calendar.');
+  assert.equal(source.includes("querySelector('.setup-analytics-panel')"), false, 'The export does not capture Setup Analytics.');
+  assert.equal(source.includes("dashboard-snapshot-generated-date')?.remove()"), false, 'The generated date badge remains in the export.');
   assert.equal(source.includes('wa.me'), false, 'No WhatsApp deep link is used.');
   assert.equal(source.includes('whatsapp'), false, 'No WhatsApp API integration is added.');
 });
 
-test('dashboard snapshot styles are optimized for a clean share view', () => {
+test('dashboard snapshot styles are optimized for a clean exported image', () => {
   assertIncludes(styles, '.dashboard-snapshot', 'The snapshot area has dedicated styling.');
-  assertIncludes(styles, '.share-view-body', 'The share view has a clean page background.');
-  assertIncludes(styles, '.share-view-shell', 'The share view has a centered desktop-first shell.');
-  assertIncludes(styles, '.dashboard-snapshot-share-view', 'The cloned DNA Results section has share-view-specific layout styles.');
-  assertIncludes(styles, '@media print', 'The share view includes print-friendly styles.');
+  assertIncludes(styles, '.dashboard-snapshot-export', 'The export clone has fixed-width styling for consistent PNG output.');
+  assertIncludes(styles, 'width: 1200px;', 'The exported image uses a stable share-friendly width.');
+  assertIncludes(styles, '.dashboard-snapshot-export .dashboard-snapshot-header', 'The DNA Results export header has dedicated rendering styles.');
 });
 
