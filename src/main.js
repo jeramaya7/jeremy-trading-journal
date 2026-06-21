@@ -95,17 +95,18 @@ let monthlyCalendarDate = new Date();
 let selectedCalendarDateKey = '';
 
 const PLAY_BOOK_SETUP_OPTIONS = [
-  'Elephant Bar',
   'Buy the Retrace',
-  'TB Retrace',
-  'Ride the 🐋',
+  'Elephant Bar',
+  'Hedge',
   'MATX',
   'MAX',
-  'Support & Resistance',
-  'Hedge',
-  'Set & Forget',
   'Return to 200',
+  'Ride the 🐋',
+  'Set & Forget',
+  'Support & Resistance',
+  'TB Retrace',
   'The General Forecast',
+  'Trade Line Break',
 ];
 const CUSTOM_SETUP_OPTION = 'Custom';
 const LOSS_REASON_OPTIONS = [
