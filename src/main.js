@@ -91,6 +91,8 @@ let editingTradeId = null;
 let isManualTradeFormOpen = false;
 let setupAnalyticsSort = { key: 'netPnl', direction: 'desc' };
 let equityCurvePeriod = 'all';
+let monthlyCalendarDate = new Date();
+let selectedCalendarDateKey = '';
 
 const PLAY_BOOK_SETUP_OPTIONS = [
   'Elephant Bar',
@@ -757,6 +759,14 @@ function setupAnalyticsRow(report) {
               </tr>`;
 }
 
+function formatDateKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
 function getMonthlyTradingCalendarDays(referenceDate = new Date()) {
   const monthStart = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
   const monthEnd = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0);
@@ -770,7 +780,8 @@ function getMonthlyTradingCalendarDays(referenceDate = new Date()) {
     }
 
     const day = tradeDate.getDate();
-    const report = dailyReports.get(day) ?? { pnl: 0, tradeCount: 0 };
+    const dateKey = formatDateKey(tradeDate);
+    const report = dailyReports.get(day) ?? { pnl: 0, tradeCount: 0, dateKey };
     report.pnl += calculatePnl(trade);
     report.tradeCount += 1;
     dailyReports.set(day, report);
@@ -780,7 +791,8 @@ function getMonthlyTradingCalendarDays(referenceDate = new Date()) {
     ...Array.from({ length: leadingEmptyDays }, () => null),
     ...Array.from({ length: monthEnd.getDate() }, (_, index) => {
       const day = index + 1;
-      return { day, report: dailyReports.get(day) ?? null };
+      const date = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), day);
+      return { day, dateKey: formatDateKey(date), report: dailyReports.get(day) ?? null };
     }),
   ];
 }
@@ -797,6 +809,10 @@ function renderMonthlyTradingCalendar(referenceDate = new Date()) {
             <div class="section-title">${icon('calendar')}<h2>Monthly Trading Calendar</h2></div>
             <p class="section-helper">Daily Net P/L for ${escapeHtml(monthLabel)} using closed trade dates.</p>
           </div>
+          <div class="monthly-calendar-controls" aria-label="Calendar month controls">
+            <button class="secondary-button monthly-calendar-nav" type="button" data-calendar-month="previous">Previous Month</button>
+            <button class="secondary-button monthly-calendar-nav" type="button" data-calendar-month="next">Next Month</button>
+          </div>
         </div>
         <div class="monthly-calendar-grid" role="grid" aria-label="${escapeHtml(monthLabel)} trading calendar">
           ${weekdays.map((weekday) => `<div class="monthly-calendar-weekday" role="columnheader">${weekday}</div>`).join('')}
@@ -811,15 +827,22 @@ function monthlyCalendarDayCell(calendarDay) {
   }
 
   const report = calendarDay.report;
+  const pnlTone = report ? getMoneyTone(report.pnl) || 'positive' : '';
+  const dayClasses = [
+    'monthly-calendar-day',
+    pnlTone ? `monthly-calendar-day-${pnlTone}` : '',
+    report ? 'monthly-calendar-day-traded' : '',
+    selectedCalendarDateKey === calendarDay.dateKey ? 'monthly-calendar-day-selected' : '',
+  ].filter(Boolean).join(' ');
   const pnlMarkup = report
     ? `<span class="monthly-calendar-pnl ${getMoneyTone(report.pnl)}">${currency(report.pnl)}</span>`
     : '';
 
   return `
-          <div class="monthly-calendar-day" role="gridcell" aria-label="Day ${calendarDay.day}${report ? `, Net P/L ${currency(report.pnl)}` : ''}">
+          <button class="${dayClasses}" type="button" role="gridcell" data-calendar-date="${escapeHtml(calendarDay.dateKey)}" ${report ? '' : 'disabled'} aria-pressed="${selectedCalendarDateKey === calendarDay.dateKey ? 'true' : 'false'}" aria-label="Day ${calendarDay.day}${report ? `, Net P/L ${currency(report.pnl)}, ${report.tradeCount} ${report.tradeCount === 1 ? 'trade' : 'trades'}` : ''}">
             <span class="monthly-calendar-date">${calendarDay.day}</span>
             ${pnlMarkup}
-          </div>`;
+          </button>`;
 }
 
 function getStats() {
@@ -864,15 +887,16 @@ function getStats() {
 
 function getFilteredTrades() {
   const normalizedQuery = searchQuery.trim().toLowerCase();
-  if (!normalizedQuery) {
-    return trades;
-  }
 
   return trades.filter((trade) => {
-    return [trade.symbol, trade.setup, trade.direction, trade.tags, trade.notes]
+    const tradeDate = getTradeReportDate(trade);
+    const matchesCalendarDate = !selectedCalendarDateKey || (tradeDate && formatDateKey(tradeDate) === selectedCalendarDateKey);
+    const matchesSearch = !normalizedQuery || [trade.symbol, trade.setup, trade.direction, trade.tags, trade.notes]
       .join(' ')
       .toLowerCase()
       .includes(normalizedQuery);
+
+    return matchesCalendarDate && matchesSearch;
   });
 }
 
@@ -1335,7 +1359,7 @@ function render(options = {}) {
     },
   ];
   const filteredTrades = getFilteredTrades();
-  const monthlyTradingCalendarSection = renderMonthlyTradingCalendar();
+  const monthlyTradingCalendarSection = renderMonthlyTradingCalendar(monthlyCalendarDate);
   const setupAnalyticsSection = renderSetupAnalytics();
   const today = new Date().toISOString().slice(0, 10);
 
@@ -1586,6 +1610,20 @@ function bindEvents() {
         key: button.dataset.setupSortKey,
         direction: button.dataset.setupSortDirection,
       };
+      render();
+    });
+  });
+  document.querySelectorAll('[data-calendar-date]').forEach((button) => {
+    button.addEventListener('click', () => {
+      selectedCalendarDateKey = selectedCalendarDateKey === button.dataset.calendarDate ? '' : button.dataset.calendarDate;
+      render();
+    });
+  });
+  document.querySelectorAll('[data-calendar-month]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const direction = button.dataset.calendarMonth === 'previous' ? -1 : 1;
+      monthlyCalendarDate = new Date(monthlyCalendarDate.getFullYear(), monthlyCalendarDate.getMonth() + direction, 1);
+      selectedCalendarDateKey = '';
       render();
     });
   });
