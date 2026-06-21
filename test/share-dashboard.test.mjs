@@ -33,8 +33,9 @@ test('share dashboard exports a local PNG download without external sharing APIs
   assertIncludes(source, 'new XMLSerializer().serializeToString(wrapper)', 'The snapshot DOM is serialized for image generation.');
   assertIncludes(source, "canvasToPngBlob(canvas)", 'The snapshot canvas is converted to a PNG blob.');
   assertIncludes(source, "downloadBlob(pngBlob, `jeremy-dashboard-snapshot-", 'The PNG is downloaded locally.');
-  assertIncludes(source, "Dashboard snapshot export: removing title obstruction .dashboard-snapshot-header > p:last-child", 'The export logs the exact DNA title obstruction removed from the clone.');
-  assertIncludes(source, "generatedDateBadge.remove();", 'The generated date badge obstruction is removed only from the export clone.');
+  assertIncludes(source, "class=\"dashboard-snapshot-generated-date\"", 'The generated date badge has an explicit class for targeted export removal.');
+  assertIncludes(source, "clonedSection.querySelector('.dashboard-snapshot-generated-date')?.remove();", 'The generated date badge obstruction is removed only from the export clone.');
+  assert.equal(source.includes(':scope > p:last-child'), false, 'The export no longer depends on a structural selector to remove the generated date badge.');
   assert.equal(source.includes('wa.me'), false, 'No WhatsApp deep link is used.');
   assert.equal(source.includes('whatsapp'), false, 'No WhatsApp API integration is added.');
 });

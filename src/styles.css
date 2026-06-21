@@ -338,7 +338,7 @@ h2 {
   margin-top: 0.35rem;
 }
 
-.dashboard-snapshot-header p:last-child {
+.dashboard-snapshot-generated-date {
   color: #64748b;
   font-weight: 900;
   margin: 0;
@@ -1668,7 +1668,7 @@ h2,
   line-height: 0.95;
 }
 
-.dashboard-snapshot-header p:last-child {
+.dashboard-snapshot-generated-date {
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid rgba(201, 148, 32, 0.14);
   border-radius: 999px;
