@@ -44,9 +44,10 @@ test('dashboard snapshot styles are optimized for a clean exported image', () =>
 });
 
 
-test('average win loss KPI keeps both values in one inline stat value', () => {
-  assertIncludes(source, 'return `<span class="split-performance average-win-loss"><b class="${getPerformanceTone(stats.averageWin)}">${signedCurrency(stats.averageWin)}</b><i>/</i><b class="${getPerformanceTone(stats.averageLoss)}">${signedCurrency(stats.averageLoss)}</b></span>`;', 'Average Win / Loss renders positive and negative values in one inline value wrapper.');
-  assertIncludes(styles, '.split-performance { align-items: baseline; display: inline-flex; flex-wrap: nowrap;', 'Split performance values are laid out inline without wrapping.');
-  assertIncludes(styles, '.average-win-loss { font: inherit; letter-spacing: inherit; line-height: inherit;', 'Average Win / Loss inherits the KPI value size and style.');
-  assert.equal(source.includes('<strong class="split-performance average-win-loss">'), false, 'Average Win / Loss does not nest a strong value inside the KPI strong wrapper.');
+test('average win loss KPI stacks both values with standard stat typography', () => {
+  assertIncludes(source, 'return `<span class="average-win-loss"><span class="${getPerformanceTone(stats.averageWin)}">${signedCurrency(stats.averageWin)}</span><span class="${getPerformanceTone(stats.averageLoss)}">${signedCurrency(stats.averageLoss)}</span></span>`;', 'Average Win / Loss renders positive and negative values as two stacked KPI value lines.');
+  assertIncludes(styles, '.average-win-loss { color: inherit; display: flex; flex-direction: column; font: inherit;', 'Average Win / Loss keeps the parent KPI value typography while stacking lines.');
+  assertIncludes(styles, '.average-win-loss span { color: inherit; display: block; font: inherit;', 'Average Win / Loss child values inherit the standard KPI value typography.');
+  assert.equal(source.includes('split-performance average-win-loss'), false, 'Average Win / Loss does not use split-performance typography.');
+  assert.equal(source.includes('<i>/</i>'), false, 'Average Win / Loss does not render a slash separator.');
 });
