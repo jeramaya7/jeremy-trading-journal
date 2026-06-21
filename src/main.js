@@ -801,13 +801,14 @@ function renderMonthlyTradingCalendar(referenceDate = new Date()) {
   const monthLabel = referenceDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
   const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const calendarDays = getMonthlyTradingCalendarDays(referenceDate);
+  const monthlyPnl = calendarDays.reduce((total, calendarDay) => total + (calendarDay?.report?.pnl || 0), 0);
 
   return `
       <section class="panel monthly-calendar-panel" aria-label="Monthly Trading Calendar">
         <div class="monthly-calendar-header">
           <div>
             <div class="section-title">${icon('calendar')}<h2>Monthly Trading Calendar</h2></div>
-            <p class="section-helper">Daily Net P/L for ${escapeHtml(monthLabel)} using closed trade dates.</p>
+            <p class="section-helper">Daily Net P/L for <span class="monthly-calendar-title-month">${escapeHtml(monthLabel)}</span><span class="monthly-calendar-monthly-pnl ${getMoneyTone(monthlyPnl)}">${currency(monthlyPnl)}</span> using closed trade dates.</p>
           </div>
           <div class="monthly-calendar-controls" aria-label="Calendar month controls">
             <button class="secondary-button monthly-calendar-nav" type="button" data-calendar-month="previous">Previous Month</button>
