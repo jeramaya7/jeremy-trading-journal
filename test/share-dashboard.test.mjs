@@ -44,9 +44,9 @@ test('dashboard snapshot styles are optimized for a clean exported image', () =>
 });
 
 
-test('average win loss KPI keeps both values in one inline stat value', () => {
-  assertIncludes(source, 'return `<span class="split-performance average-win-loss"><b class="${getPerformanceTone(stats.averageWin)}">${signedCurrency(stats.averageWin)}</b><i>/</i><b class="${getPerformanceTone(stats.averageLoss)}">${signedCurrency(stats.averageLoss)}</b></span>`;', 'Average Win / Loss renders positive and negative values in one inline value wrapper.');
-  assertIncludes(styles, '.split-performance { align-items: baseline; display: inline-flex; flex-wrap: nowrap;', 'Split performance values are laid out inline without wrapping.');
-  assertIncludes(styles, '.average-win-loss { font: inherit; letter-spacing: inherit; line-height: inherit;', 'Average Win / Loss inherits the KPI value size and style.');
+test('average win loss KPI keeps matching value typography on separate value lines', () => {
+  assertIncludes(source, 'return `<span class="split-performance average-win-loss"><b class="${getPerformanceTone(stats.averageWin)}">${signedCurrency(stats.averageWin)}</b><i>/</i><b class="${getPerformanceTone(stats.averageLoss)}">${signedCurrency(stats.averageLoss)}</b></span>`;', 'Average Win / Loss renders positive and negative values in the KPI value wrapper.');
+  assertIncludes(styles, '.average-win-loss { font: inherit; letter-spacing: inherit; line-height: inherit; color: inherit; display: inline-flex; flex-direction: column;', 'Average Win / Loss inherits the KPI value typography while stacking values.');
+  assertIncludes(styles, '.average-win-loss b { display: block; font-size: inherit; font-weight: inherit; }', 'Average Win / Loss values each render on their own line with inherited KPI value size.');
   assert.equal(source.includes('<strong class="split-performance average-win-loss">'), false, 'Average Win / Loss does not nest a strong value inside the KPI strong wrapper.');
 });

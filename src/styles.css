@@ -2269,11 +2269,11 @@ h1 {
 .split-performance b,
 .split-performance em { font: inherit; }
 .split-performance i { color: #334155; font-style: normal; }
-.average-win-loss { font: inherit; letter-spacing: inherit; line-height: inherit; color: inherit; display: inline-flex; font-size: inherit; font-weight: inherit; margin-bottom: 0; max-width: 100%; overflow: visible; text-transform: none; }
-.average-win-loss b { font-size: inherit; font-weight: inherit; }
+.average-win-loss { font: inherit; letter-spacing: inherit; line-height: inherit; color: inherit; display: inline-flex; flex-direction: column; font-size: inherit; font-weight: inherit; margin-bottom: 0; max-width: 100%; overflow: visible; text-transform: none; }
+.average-win-loss b { display: block; font-size: inherit; font-weight: inherit; }
 .average-win-loss b.positive { color: var(--performance-positive); }
 .average-win-loss b.negative { color: var(--performance-negative); }
-.average-win-loss i { color: #64748b; }
+.average-win-loss i { display: none; }
 
 .stat-card strong.positive,
 .report-card strong.positive,
