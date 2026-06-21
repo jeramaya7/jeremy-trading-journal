@@ -25,7 +25,7 @@ test('dashboard snapshot has a share button and captures required dashboard cont
   assertIncludes(source, "statCard('calendar', 'Weekly P/L'", 'Snapshot includes Weekly P/L.');
   assertIncludes(source, "statCard('calendar', 'Monthly P/L'", 'Snapshot includes Monthly P/L.');
   assertIncludes(source, "statCard('calendar', 'Yearly P/L'", 'Snapshot includes Yearly P/L.');
-  assertIncludes(source, '${setupAnalyticsSection}', 'Snapshot includes the Setup Analytics table.');
+  assertIncludes(source, '<section class="dashboard-snapshot" id="dashboardSnapshot"', 'DNA Results has a dedicated snapshot capture area.');
 });
 
 test('share dashboard exports a local PNG download without external sharing APIs', () => {
@@ -33,9 +33,13 @@ test('share dashboard exports a local PNG download without external sharing APIs
   assertIncludes(source, 'new XMLSerializer().serializeToString(wrapper)', 'The snapshot DOM is serialized for image generation.');
   assertIncludes(source, "canvasToPngBlob(canvas)", 'The snapshot canvas is converted to a PNG blob.');
   assertIncludes(source, "downloadBlob(pngBlob, `jeremy-dashboard-snapshot-", 'The PNG is downloaded locally.');
-  assertIncludes(source, "class=\"dashboard-snapshot-generated-date\"", 'The generated date badge has an explicit class for targeted export removal.');
-  assertIncludes(source, "clonedSection.querySelector('.dashboard-snapshot-generated-date')?.remove();", 'The generated date badge obstruction is removed only from the export clone.');
-  assert.equal(source.includes(':scope > p:last-child'), false, 'The export no longer depends on a structural selector to remove the generated date badge.');
+  assertIncludes(source, "class=\"dashboard-snapshot-generated-date\"", 'The generated date badge has an explicit class for targeted export inclusion.');
+  assertIncludes(source, "const dashboardSnapshot = document.querySelector('#dashboardSnapshot');", 'The export targets only the DNA Results snapshot section.');
+  assertIncludes(source, "const clonedDashboard = dashboardSnapshot.cloneNode(true);", 'Only the DNA Results section is cloned for export.');
+  assert.equal(source.includes("querySelector('.hero-stats-row')"), false, 'The export does not capture the top KPI row.');
+  assert.equal(source.includes("querySelector('.monthly-calendar-panel')"), false, 'The export does not capture the Monthly Trading Calendar.');
+  assert.equal(source.includes("querySelector('.setup-analytics-panel')"), false, 'The export does not capture Setup Analytics.');
+  assert.equal(source.includes("dashboard-snapshot-generated-date')?.remove()"), false, 'The generated date badge remains in the export.');
   assert.equal(source.includes('wa.me'), false, 'No WhatsApp deep link is used.');
   assert.equal(source.includes('whatsapp'), false, 'No WhatsApp API integration is added.');
 });
@@ -44,6 +48,6 @@ test('dashboard snapshot styles are optimized for a clean exported image', () =>
   assertIncludes(styles, '.dashboard-snapshot', 'The snapshot area has dedicated styling.');
   assertIncludes(styles, '.dashboard-snapshot-export', 'The export clone has fixed-width styling for consistent PNG output.');
   assertIncludes(styles, 'width: 1200px;', 'The exported image uses a stable share-friendly width.');
-  assertIncludes(styles, '.dashboard-snapshot-export .setup-analytics-table-wrap', 'The Setup Analytics table is fully visible in exports.');
+  assertIncludes(styles, '.dashboard-snapshot-export .dashboard-snapshot-header', 'The DNA Results export header has dedicated rendering styles.');
 });
 

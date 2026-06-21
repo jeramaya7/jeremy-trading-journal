@@ -1528,13 +1528,8 @@ function waitForNextFrame() {
 
 async function shareDashboardSnapshot() {
   const shareButton = document.querySelector('#shareDashboard');
-  const snapshotSections = [
-    document.querySelector('.hero-stats-row'),
-    document.querySelector('#dashboardSnapshot'),
-    document.querySelector('.monthly-calendar-panel'),
-    document.querySelector('.setup-analytics-panel'),
-  ];
-  if (!shareButton || snapshotSections.some((section) => !section)) {
+  const dashboardSnapshot = document.querySelector('#dashboardSnapshot');
+  if (!shareButton || !dashboardSnapshot) {
     return;
   }
 
@@ -1545,23 +1540,14 @@ async function shareDashboardSnapshot() {
   try {
     const exportWidth = 1200;
     const scale = 2;
-    const clonedDashboard = document.createElement('div');
-    clonedDashboard.className = 'dashboard-summary-export';
-    snapshotSections.forEach((section) => {
-      const clonedSection = section.cloneNode(true);
-      clonedSection.removeAttribute('id');
-      if (section.matches('#dashboardSnapshot')) {
-        clonedSection.classList.add('dashboard-snapshot-export');
-        const clonedSnapshotHeader = clonedSection.querySelector('.dashboard-snapshot-header');
-        if (clonedSnapshotHeader) {
-          clonedSnapshotHeader.style.setProperty('backdrop-filter', 'none', 'important');
-          clonedSnapshotHeader.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
-
-          clonedSection.querySelector('.dashboard-snapshot-generated-date')?.remove();
-        }
-      }
-      clonedDashboard.append(clonedSection);
-    });
+    const clonedDashboard = dashboardSnapshot.cloneNode(true);
+    clonedDashboard.removeAttribute('id');
+    clonedDashboard.classList.add('dashboard-snapshot-export');
+    const clonedSnapshotHeader = clonedDashboard.querySelector('.dashboard-snapshot-header');
+    if (clonedSnapshotHeader) {
+      clonedSnapshotHeader.style.setProperty('backdrop-filter', 'none', 'important');
+      clonedSnapshotHeader.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
+    }
 
     const measurementHost = document.createElement('div');
     measurementHost.style.left = '-10000px';
