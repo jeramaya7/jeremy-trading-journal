@@ -1552,6 +1552,11 @@ async function shareDashboardSnapshot() {
       clonedSection.removeAttribute('id');
       if (section.matches('#dashboardSnapshot')) {
         clonedSection.classList.add('dashboard-snapshot-export');
+        const clonedSnapshotHeader = clonedSection.querySelector('.dashboard-snapshot-header');
+        if (clonedSnapshotHeader) {
+          clonedSnapshotHeader.style.backdropFilter = 'none';
+          clonedSnapshotHeader.style.webkitBackdropFilter = 'none';
+        }
       }
       clonedDashboard.append(clonedSection);
     });
