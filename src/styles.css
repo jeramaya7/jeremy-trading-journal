@@ -344,6 +344,18 @@ h2 {
   margin: 0;
 }
 
+.dashboard-summary-export {
+  display: grid;
+  gap: 24px;
+  width: 1200px;
+}
+
+.dashboard-summary-export .hero-stats-row,
+.dashboard-summary-export .monthly-calendar-panel,
+.dashboard-summary-export .setup-analytics-panel {
+  margin: 0;
+}
+
 .dashboard-snapshot-export {
   border-radius: 0;
   margin: 0;
@@ -351,7 +363,8 @@ h2 {
   width: 1200px;
 }
 
-.dashboard-snapshot-export .setup-analytics-table-wrap {
+.dashboard-snapshot-export .setup-analytics-table-wrap,
+.dashboard-summary-export .setup-analytics-table-wrap {
   overflow: visible;
 }
 
