@@ -1554,8 +1554,8 @@ async function shareDashboardSnapshot() {
         clonedSection.classList.add('dashboard-snapshot-export');
         const clonedSnapshotHeader = clonedSection.querySelector('.dashboard-snapshot-header');
         if (clonedSnapshotHeader) {
-          clonedSnapshotHeader.style.backdropFilter = 'none';
-          clonedSnapshotHeader.style.webkitBackdropFilter = 'none';
+          clonedSnapshotHeader.style.setProperty('backdrop-filter', 'none', 'important');
+          clonedSnapshotHeader.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
         }
       }
       clonedDashboard.append(clonedSection);
