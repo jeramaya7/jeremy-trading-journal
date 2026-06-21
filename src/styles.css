@@ -2059,14 +2059,16 @@ h1 {
   padding: 0.72rem 0.9rem;
 }
 
-.dashboard-card-row .stat-card strong {
+.dashboard-card-row .stat-card strong,
+.hero-stats-row .stat-card strong {
   font-size: clamp(1.45rem, 2.45vw, 2.85rem);
   letter-spacing: -0.06em;
   overflow: hidden;
   text-overflow: clip;
 }
 
-.dashboard-card-row .stat-card strong.long-value {
+.dashboard-card-row .stat-card strong.long-value,
+.hero-stats-row .stat-card strong.long-value {
   font-size: clamp(1.08rem, 1.85vw, 2.05rem);
   letter-spacing: -0.04em;
 }
