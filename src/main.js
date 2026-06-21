@@ -757,6 +757,71 @@ function setupAnalyticsRow(report) {
               </tr>`;
 }
 
+function getMonthlyTradingCalendarDays(referenceDate = new Date()) {
+  const monthStart = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
+  const monthEnd = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0);
+  const leadingEmptyDays = monthStart.getDay();
+  const dailyReports = new Map();
+
+  trades.forEach((trade) => {
+    const tradeDate = getTradeReportDate(trade);
+    if (!tradeDate || tradeDate < monthStart || tradeDate > monthEnd) {
+      return;
+    }
+
+    const day = tradeDate.getDate();
+    const report = dailyReports.get(day) ?? { pnl: 0, tradeCount: 0 };
+    report.pnl += calculatePnl(trade);
+    report.tradeCount += 1;
+    dailyReports.set(day, report);
+  });
+
+  return [
+    ...Array.from({ length: leadingEmptyDays }, () => null),
+    ...Array.from({ length: monthEnd.getDate() }, (_, index) => {
+      const day = index + 1;
+      return { day, report: dailyReports.get(day) ?? null };
+    }),
+  ];
+}
+
+function renderMonthlyTradingCalendar(referenceDate = new Date()) {
+  const monthLabel = referenceDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const calendarDays = getMonthlyTradingCalendarDays(referenceDate);
+
+  return `
+      <section class="panel monthly-calendar-panel" aria-label="Monthly Trading Calendar">
+        <div class="monthly-calendar-header">
+          <div>
+            <div class="section-title">${icon('calendar')}<h2>Monthly Trading Calendar</h2></div>
+            <p class="section-helper">Daily Net P/L for ${escapeHtml(monthLabel)} using closed trade dates.</p>
+          </div>
+        </div>
+        <div class="monthly-calendar-grid" role="grid" aria-label="${escapeHtml(monthLabel)} trading calendar">
+          ${weekdays.map((weekday) => `<div class="monthly-calendar-weekday" role="columnheader">${weekday}</div>`).join('')}
+          ${calendarDays.map((calendarDay) => monthlyCalendarDayCell(calendarDay)).join('')}
+        </div>
+      </section>`;
+}
+
+function monthlyCalendarDayCell(calendarDay) {
+  if (!calendarDay) {
+    return '<div class="monthly-calendar-day monthly-calendar-day-empty" aria-hidden="true"></div>';
+  }
+
+  const report = calendarDay.report;
+  const pnlMarkup = report
+    ? `<span class="monthly-calendar-pnl ${getMoneyTone(report.pnl)}">${currency(report.pnl)}</span>`
+    : '';
+
+  return `
+          <div class="monthly-calendar-day" role="gridcell" aria-label="Day ${calendarDay.day}${report ? `, Net P/L ${currency(report.pnl)}` : ''}">
+            <span class="monthly-calendar-date">${calendarDay.day}</span>
+            ${pnlMarkup}
+          </div>`;
+}
+
 function getStats() {
   const pnlValues = trades.map(calculatePnl);
   const rValues = trades.map(calculateRMultiple).filter(Number.isFinite);
@@ -1270,6 +1335,7 @@ function render(options = {}) {
     },
   ];
   const filteredTrades = getFilteredTrades();
+  const monthlyTradingCalendarSection = renderMonthlyTradingCalendar();
   const setupAnalyticsSection = renderSetupAnalytics();
   const today = new Date().toISOString().slice(0, 10);
 
@@ -1318,6 +1384,8 @@ function render(options = {}) {
         </section>
 
       </section>
+
+      ${monthlyTradingCalendarSection}
 
       ${setupAnalyticsSection}
 
