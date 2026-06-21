@@ -112,10 +112,11 @@ const CUSTOM_SETUP_OPTION = 'Custom';
 const LOSS_REASON_OPTIONS = [
   'Bad Entry',
   'Chased Price',
-  'Ignored Rules',
   'Good Trade, Normal Loss',
-  'Stop Too Tight',
+  'Ignored Rules',
   'Other',
+  'Stayed In Too Long',
+  'Stop Too Tight',
 ];
 const CLOSE_REASON_OPTIONS = [
   'Take Profit',
