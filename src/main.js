@@ -1527,9 +1527,14 @@ function waitForNextFrame() {
 }
 
 async function shareDashboardSnapshot() {
-  const dashboard = document.querySelector('#dashboardSnapshot');
   const shareButton = document.querySelector('#shareDashboard');
-  if (!dashboard || !shareButton) {
+  const snapshotSections = [
+    document.querySelector('.hero-stats-row'),
+    document.querySelector('#dashboardSnapshot'),
+    document.querySelector('.monthly-calendar-panel'),
+    document.querySelector('.setup-analytics-panel'),
+  ];
+  if (!shareButton || snapshotSections.some((section) => !section)) {
     return;
   }
 
@@ -1540,9 +1545,16 @@ async function shareDashboardSnapshot() {
   try {
     const exportWidth = 1200;
     const scale = 2;
-    const clonedDashboard = dashboard.cloneNode(true);
-    clonedDashboard.removeAttribute('id');
-    clonedDashboard.classList.add('dashboard-snapshot-export');
+    const clonedDashboard = document.createElement('div');
+    clonedDashboard.className = 'dashboard-summary-export';
+    snapshotSections.forEach((section) => {
+      const clonedSection = section.cloneNode(true);
+      clonedSection.removeAttribute('id');
+      if (section.matches('#dashboardSnapshot')) {
+        clonedSection.classList.add('dashboard-snapshot-export');
+      }
+      clonedDashboard.append(clonedSection);
+    });
 
     const measurementHost = document.createElement('div');
     measurementHost.style.left = '-10000px';
