@@ -1399,7 +1399,7 @@ function render(options = {}) {
             <p class="eyebrow">${icon('share')} Dashboard Snapshot</p>
             <h2>DNA Results</h2>
           </div>
-          <p>Generated ${new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+          <p class="dashboard-snapshot-generated-date">Generated ${new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
         </div>
         <section class="dashboard-card-groups" aria-label="Trading performance summary">
           ${dashboardCardRows.map((row) => `
@@ -1557,11 +1557,7 @@ async function shareDashboardSnapshot() {
           clonedSnapshotHeader.style.setProperty('backdrop-filter', 'none', 'important');
           clonedSnapshotHeader.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
 
-          const generatedDateBadge = clonedSnapshotHeader.querySelector(':scope > p:last-child');
-          if (generatedDateBadge) {
-            console.info('Dashboard snapshot export: removing title obstruction .dashboard-snapshot-header > p:last-child', generatedDateBadge.className);
-            generatedDateBadge.remove();
-          }
+          clonedSection.querySelector('.dashboard-snapshot-generated-date')?.remove();
         }
       }
       clonedDashboard.append(clonedSection);
