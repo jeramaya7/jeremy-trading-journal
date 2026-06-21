@@ -45,7 +45,8 @@ test('dashboard snapshot styles are optimized for a clean exported image', () =>
 
 
 test('average win loss KPI stacks both values with standard stat typography', () => {
-  assertIncludes(source, 'return `<span class="average-win-loss"><span class="${getPerformanceTone(stats.averageWin)}">${signedCurrency(stats.averageWin)}</span><span class="${getPerformanceTone(stats.averageLoss)}">${signedCurrency(stats.averageLoss)}</span></span>`;', 'Average Win / Loss renders positive and negative values as two stacked KPI value lines.');
+  assertIncludes(source, 'return `<span class="${getPerformanceTone(stats.averageWin)}">${signedCurrency(stats.averageWin)}</span><span class="${getPerformanceTone(stats.averageLoss)}">${signedCurrency(stats.averageLoss)}</span>`;', 'Average Win / Loss renders positive and negative values as two stacked KPI value lines.');
+  assertIncludes(source, "statCard('line', 'Average Win / Loss', averageWinLossValue(stats), 'average-win-loss', { keepValueSize: true }),", 'Average Win / Loss applies the stacked value class to the statCard value wrapper.');
   assertIncludes(styles, '.average-win-loss { color: inherit; display: flex; flex-direction: column; font: inherit;', 'Average Win / Loss keeps the parent KPI value typography while stacking lines.');
   assertIncludes(styles, '.average-win-loss span { color: inherit; display: block; font: inherit;', 'Average Win / Loss child values inherit the standard KPI value typography.');
   assert.equal(source.includes('split-performance average-win-loss'), false, 'Average Win / Loss does not use split-performance typography.');

@@ -854,7 +854,7 @@ function signedCurrency(value) {
 }
 
 function averageWinLossValue(stats) {
-  return `<span class="average-win-loss"><span class="${getPerformanceTone(stats.averageWin)}">${signedCurrency(stats.averageWin)}</span><span class="${getPerformanceTone(stats.averageLoss)}">${signedCurrency(stats.averageLoss)}</span></span>`;
+  return `<span class="${getPerformanceTone(stats.averageWin)}">${signedCurrency(stats.averageWin)}</span><span class="${getPerformanceTone(stats.averageLoss)}">${signedCurrency(stats.averageLoss)}</span>`;
 }
 
 function renderHeroStatsRow(stats) {
@@ -1228,7 +1228,7 @@ function render(options = {}) {
     {
       label: 'Risk Metrics',
       cards: [
-        statCard('line', 'Average Win / Loss', averageWinLossValue(stats), '', { keepValueSize: true }),
+        statCard('line', 'Average Win / Loss', averageWinLossValue(stats), 'average-win-loss', { keepValueSize: true }),
         statCard('line', 'Average R', formatRMultiple(stats.averageR), getPerformanceTone(stats.averageR)),
         statCard('target', 'Average Risk $', stats.averageRiskDollars === null ? '—' : currency(stats.averageRiskDollars)),
         statCard('target', 'Average Risk %', formatRiskPercent(stats.averageRiskPercent)),
