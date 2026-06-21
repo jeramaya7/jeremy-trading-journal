@@ -1285,6 +1285,10 @@ function render(options = {}) {
         </div>
       </section>
 
+      <section class="hero-equity-section" aria-label="Equity curve">
+        ${renderEquityCurveCard()}
+      </section>
+
       ${renderHeroStatsRow(stats)}
 
       <section class="dashboard-snapshot" id="dashboardSnapshot" aria-label="Dashboard share snapshot">
@@ -1302,10 +1306,6 @@ function render(options = {}) {
             </section>`).join('')}
         </section>
 
-      </section>
-
-      <section class="hero-equity-section" aria-label="Equity curve">
-        ${renderEquityCurveCard()}
       </section>
 
       ${setupAnalyticsSection}
