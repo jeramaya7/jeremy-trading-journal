@@ -12,18 +12,19 @@ function assertIncludes(text, expected, message) {
 test('dashboard snapshot has a share button and captures required dashboard content', () => {
   assertIncludes(source, 'id="shareDashboard"', 'The dashboard renders a Share Dashboard button.');
   assertIncludes(source, 'id="dashboardSnapshot"', 'The dashboard has a dedicated snapshot capture area.');
-  assertIncludes(source, "statCard('trend', 'Net P&L'", 'Snapshot includes Net P&L.');
+  assertIncludes(source, "statCard('trend', 'Net P/L'", 'Top KPI row includes Net P/L.');
   assertIncludes(source, "statCard('target', 'Win Rate'", 'Snapshot includes Win Rate.');
-  assertIncludes(source, "statCard('chart', 'Trades Logged'", 'Snapshot includes Trades Logged.');
+  assertIncludes(source, "statCard('chart', 'Trades Analyzed'", 'Top KPI row includes Trades Analyzed.');
   assertIncludes(source, "statCard('trend', 'Biggest Winner'", 'Snapshot includes Biggest Winner.');
-  assertIncludes(source, "statCard('line', 'Average Win / Loss'", 'Snapshot includes Average Win / Loss.');
-  assertIncludes(source, "statCard('line', 'Average R'", 'Snapshot includes Average R.');
+  assertIncludes(source, "statCard('trend', 'Average Winner'", 'Snapshot includes Average Winner.');
+  assertIncludes(source, "statCard('trend', 'Average Loser'", 'Snapshot includes Average Loser.');
+  assertIncludes(source, "statCard('target', 'Average R'", 'Snapshot includes Average R.');
   assertIncludes(source, "statCard('target', 'Average Risk $'", 'Snapshot includes Average Risk $.');
   assertIncludes(source, "statCard('target', 'Average Risk %'", 'Snapshot includes Average Risk %.');
-  assertIncludes(source, "statCard('calendar', 'Daily P&L'", 'Snapshot includes Daily P&L.');
-  assertIncludes(source, "statCard('calendar', 'Weekly P&L'", 'Snapshot includes Weekly P&L.');
-  assertIncludes(source, "statCard('calendar', 'Monthly P&L'", 'Snapshot includes Monthly P&L.');
-  assertIncludes(source, "statCard('calendar', 'Yearly P&L'", 'Snapshot includes Yearly P&L.');
+  assertIncludes(source, "statCard('calendar', 'Daily P/L'", 'Snapshot includes Daily P/L.');
+  assertIncludes(source, "statCard('calendar', 'Weekly P/L'", 'Snapshot includes Weekly P/L.');
+  assertIncludes(source, "statCard('calendar', 'Monthly P/L'", 'Snapshot includes Monthly P/L.');
+  assertIncludes(source, "statCard('calendar', 'Yearly P/L'", 'Snapshot includes Yearly P/L.');
   assertIncludes(source, '${setupAnalyticsSection}', 'Snapshot includes the Setup Analytics table.');
 });
 
@@ -43,12 +44,3 @@ test('dashboard snapshot styles are optimized for a clean exported image', () =>
   assertIncludes(styles, '.dashboard-snapshot-export .setup-analytics-table-wrap', 'The Setup Analytics table is fully visible in exports.');
 });
 
-
-test('average win loss KPI stacks both values with standard stat typography', () => {
-  assertIncludes(source, 'return `<span class="${getPerformanceTone(stats.averageWin)}">${signedCurrency(stats.averageWin)}</span><span class="${getPerformanceTone(stats.averageLoss)}">${signedCurrency(stats.averageLoss)}</span>`;', 'Average Win / Loss renders positive and negative values as two stacked KPI value lines.');
-  assertIncludes(source, "statCard('line', 'Average Win / Loss', averageWinLossValue(stats), 'average-win-loss', { keepValueSize: true }),", 'Average Win / Loss applies the stacked value class to the statCard value wrapper.');
-  assertIncludes(styles, '.average-win-loss { color: inherit; display: flex; flex-direction: column; font: inherit;', 'Average Win / Loss keeps the parent KPI value typography while stacking lines.');
-  assertIncludes(styles, '.average-win-loss span { color: inherit; display: block; font: inherit;', 'Average Win / Loss child values inherit the standard KPI value typography.');
-  assert.equal(source.includes('split-performance average-win-loss'), false, 'Average Win / Loss does not use split-performance typography.');
-  assert.equal(source.includes('<i>/</i>'), false, 'Average Win / Loss does not render a slash separator.');
-});

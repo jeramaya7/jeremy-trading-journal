@@ -26,10 +26,10 @@ test('P&L cards render inside the balanced dashboard grid', () => {
 
   assert.ok(statsIndex > -1, 'The current dashboard section is still rendered.');
   assert.ok(workspaceIndex > statsIndex, 'Dashboard cards render above the main trade workspace.');
-  assertIncludes(source, "statCard('calendar', 'Daily P&L'", 'Daily P&L renders in the dashboard grid.');
-  assertIncludes(source, "statCard('calendar', 'Weekly P&L'", 'Weekly P&L renders in the dashboard grid.');
-  assertIncludes(source, "statCard('calendar', 'Monthly P&L'", 'Monthly P&L renders in the dashboard grid.');
-  assertIncludes(source, "statCard('calendar', 'Yearly P&L'", 'Yearly P&L renders in the dashboard grid.');
+  assertIncludes(source, "statCard('calendar', 'Daily P/L'", 'Daily P/L renders in the dashboard grid.');
+  assertIncludes(source, "statCard('calendar', 'Weekly P/L'", 'Weekly P/L renders in the dashboard grid.');
+  assertIncludes(source, "statCard('calendar', 'Monthly P/L'", 'Monthly P/L renders in the dashboard grid.');
+  assertIncludes(source, "statCard('calendar', 'Yearly P/L'", 'Yearly P/L renders in the dashboard grid.');
 });
 
 test('dashboard cards have production 4-column responsive styling', () => {

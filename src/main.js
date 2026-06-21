@@ -571,6 +571,16 @@ function calculateBiggestWinner(tradeList) {
   return winningPnlValues.length ? Math.max(...winningPnlValues) : null;
 }
 
+
+function calculateBiggestLoser(tradeList) {
+  const losingPnlValues = tradeList
+    .filter((trade) => getTradeReportDate(trade) !== null)
+    .map(calculatePnl)
+    .filter((value) => Number.isFinite(value) && value < 0);
+
+  return losingPnlValues.length ? Math.min(...losingPnlValues) : null;
+}
+
 function getEquityCurvePeriodStart(period, referenceDate = new Date()) {
   if (period === 'all') {
     return null;
@@ -767,6 +777,8 @@ function getStats() {
     ? riskPercentValues.reduce((sum, value) => sum + value, 0) / riskPercentValues.length
     : null;
   const biggestWinner = calculateBiggestWinner(trades);
+  const biggestLoser = calculateBiggestLoser(trades);
+  const biggestRisk = riskDollarValues.length ? Math.max(...riskDollarValues) : null;
 
   return {
     totalPnl,
@@ -780,6 +792,8 @@ function getStats() {
     averageRiskDollars,
     averageRiskPercent,
     biggestWinner,
+    biggestLoser,
+    biggestRisk,
   };
 }
 
@@ -828,6 +842,10 @@ function icon(name) {
   return icons[name] ?? '';
 }
 
+function getMoneyTone(value) {
+  return Number(value) < 0 ? 'negative' : '';
+}
+
 function getPerformanceTone(value) {
   if (value === null || value === undefined || Number(value) === 0 || Number.isNaN(Number(value))) {
     return 'neutral';
@@ -853,17 +871,13 @@ function signedCurrency(value) {
   return `${amount > 0 ? '+' : ''}${currency(amount)}`;
 }
 
-function averageWinLossValue(stats) {
-  return `<span class="${getPerformanceTone(stats.averageWin)}">${signedCurrency(stats.averageWin)}</span><span class="${getPerformanceTone(stats.averageLoss)}">${signedCurrency(stats.averageLoss)}</span>`;
-}
-
 function renderHeroStatsRow(stats) {
   return `
         <section class="stats-grid hero-stats-row" aria-label="DNA trading statistics">
+          ${statCard('trend', 'Net P/L', currency(stats.totalPnl), getMoneyTone(stats.totalPnl))}
           ${statCard('chart', 'Trades Analyzed', stats.tradeCount)}
-          ${statCard('line', 'Total R', formatRMultiple(stats.totalR), getPerformanceTone(stats.totalR))}
           ${statCard('target', 'Win Rate', formatPercent(stats.winRate))}
-          ${statCard('trend', 'Expectancy', formatRMultiple(stats.averageR), getPerformanceTone(stats.averageR))}
+          ${statCard('trend', 'Expectancy', formatRMultiple(stats.averageR))}
         </section>`;
 }
 
@@ -1217,19 +1231,19 @@ function render(options = {}) {
   const [dailyPnl, weeklyPnl, monthlyPnl, yearlyPnl] = pnlReports;
   const dashboardCardRows = [
     {
-      label: 'Overall Performance',
+      label: 'R Metrics',
       cards: [
-        statCard('trend', 'Net P&L', currency(stats.totalPnl), getPerformanceTone(stats.totalPnl)),
-        statCard('target', 'Win Rate', formatPercent(stats.winRate)),
-        statCard('chart', 'Trades Logged', stats.tradeCount),
-        statCard('trend', 'Biggest Winner', stats.biggestWinner === null ? '—' : currency(stats.biggestWinner), getPerformanceTone(stats.biggestWinner)),
+        statCard('target', 'Average R', formatRMultiple(stats.averageR)),
+        statCard('trend', 'Biggest Winner', stats.biggestWinner === null ? '—' : currency(stats.biggestWinner)),
+        statCard('trend', 'Biggest Loser', stats.biggestLoser === null ? '—' : currency(stats.biggestLoser), getMoneyTone(stats.biggestLoser)),
+        statCard('line', 'Biggest Risk', stats.biggestRisk === null ? '—' : currency(stats.biggestRisk)),
       ],
     },
     {
       label: 'Risk Metrics',
       cards: [
-        statCard('line', 'Average Win / Loss', averageWinLossValue(stats), 'average-win-loss', { keepValueSize: true }),
-        statCard('line', 'Average R', formatRMultiple(stats.averageR), getPerformanceTone(stats.averageR)),
+        statCard('trend', 'Average Winner', currency(stats.averageWin)),
+        statCard('trend', 'Average Loser', currency(stats.averageLoss), getMoneyTone(stats.averageLoss)),
         statCard('target', 'Average Risk $', stats.averageRiskDollars === null ? '—' : currency(stats.averageRiskDollars)),
         statCard('target', 'Average Risk %', formatRiskPercent(stats.averageRiskPercent)),
       ],
@@ -1237,10 +1251,10 @@ function render(options = {}) {
     {
       label: 'Time Performance',
       cards: [
-        statCard('calendar', 'Daily P&L', currency(dailyPnl.pnl), getPerformanceTone(dailyPnl.pnl)),
-        statCard('calendar', 'Weekly P&L', currency(weeklyPnl.pnl), getPerformanceTone(weeklyPnl.pnl)),
-        statCard('calendar', 'Monthly P&L', currency(monthlyPnl.pnl), getPerformanceTone(monthlyPnl.pnl)),
-        statCard('calendar', 'Yearly P&L', currency(yearlyPnl.pnl), getPerformanceTone(yearlyPnl.pnl)),
+        statCard('calendar', 'Daily P/L', currency(dailyPnl.pnl), getMoneyTone(dailyPnl.pnl)),
+        statCard('calendar', 'Weekly P/L', currency(weeklyPnl.pnl), getMoneyTone(weeklyPnl.pnl)),
+        statCard('calendar', 'Monthly P/L', currency(monthlyPnl.pnl), getMoneyTone(monthlyPnl.pnl)),
+        statCard('calendar', 'Yearly P/L', currency(yearlyPnl.pnl), getMoneyTone(yearlyPnl.pnl)),
       ],
     },
   ];
@@ -1271,9 +1285,6 @@ function render(options = {}) {
         </div>
       </section>
 
-      <section class="hero-equity-section" aria-label="Equity curve">
-        ${renderEquityCurveCard()}
-      </section>
       ${renderHeroStatsRow(stats)}
 
       <section class="dashboard-snapshot" id="dashboardSnapshot" aria-label="Dashboard share snapshot">
@@ -1291,8 +1302,13 @@ function render(options = {}) {
             </section>`).join('')}
         </section>
 
-        ${setupAnalyticsSection}
       </section>
+
+      <section class="hero-equity-section" aria-label="Equity curve">
+        ${renderEquityCurveCard()}
+      </section>
+
+      ${setupAnalyticsSection}
 
       <section class="workspace-grid">
         <section class="panel journal-panel">

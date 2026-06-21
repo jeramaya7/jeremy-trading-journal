@@ -14,18 +14,18 @@ function getDashboardStatsTemplate() {
   return source.slice(start, end);
 }
 
-test('dashboard renders hero stats row below the equity curve with requested performance analytics', () => {
+test('dashboard renders top KPI row above the DNA Results with requested performance analytics', () => {
   const dashboardStats = getDashboardStatsTemplate();
 
   assert.ok(dashboardStats.includes('dashboardCardRows.map'), 'Dashboard card rows should render as a balanced grouped grid.');
   assert.ok(source.includes('function renderHeroStatsRow(stats)'), 'Hero stats row should render below the equity curve.');
-  assert.ok(source.indexOf('${renderEquityCurveCard()}') < source.indexOf('${renderHeroStatsRow(stats)}'), 'The equity curve should render before the hero stats row.');
-  assert.ok(source.includes("statCard('chart', 'Trades Analyzed', stats.tradeCount)"), 'Trades Analyzed should render in the hero stats row.');
-  assert.ok(source.includes('totalR: rValues.length ? totalR : null,'), 'Total R calculation should remain available for the hero stats row.');
-  assert.ok(source.includes("statCard('line', 'Total R', formatRMultiple(stats.totalR)"), 'Total R should render in the hero stats row.');
+  assert.ok(source.indexOf('${renderHeroStatsRow(stats)}') < source.indexOf('<section class="dashboard-snapshot"'), 'The top KPI row should render before DNA Results.');
+  assert.ok(source.includes("statCard('trend', 'Net P/L', currency(stats.totalPnl), getMoneyTone(stats.totalPnl))"), 'Net P/L should render first in the top KPI row.');
+  assert.ok(source.includes("statCard('chart', 'Trades Analyzed', stats.tradeCount)"), 'Trades Analyzed should render in the top KPI row.');
+  assert.equal(source.includes("statCard('line', 'Total R', formatRMultiple(stats.totalR)"), false, 'Total R should not render as a KPI card.');
   assert.ok(source.includes("statCard('target', 'Win Rate'"), 'Win Rate should render in the hero stats row.');
-  assert.ok(source.includes("statCard('trend', 'Expectancy', formatRMultiple(stats.averageR)"), 'Expectancy should render in the hero stats row from average R.');
-  assert.ok(source.includes("statCard('line', 'Average R'"), 'Average R should still render as a dashboard card.');
+  assert.ok(source.includes("statCard('trend', 'Expectancy', formatRMultiple(stats.averageR))"), 'Expectancy should render in the top KPI row from average R without a positive color tone.');
+  assert.ok(source.includes("statCard('target', 'Average R'"), 'Average R should render as the first DNA Results card.');
   assert.ok(source.includes("statCard('target', 'Average Risk $'"), 'Average Risk $ should render as a dashboard card.');
   assert.ok(source.includes("statCard('target', 'Average Risk %'"), 'Average Risk % should render as a dashboard card.');
 });
@@ -72,12 +72,14 @@ test('dashboard renders twelve cards in three balanced 4-column rows', () => {
   assert.ok(source.includes('const dashboardCardRows = ['), 'Dashboard cards should be assembled in grouped rows.');
   assert.equal((source.match(/statCard\('/g) ?? []).length >= 12, true, 'Dashboard should define at least twelve stat cards.');
   assert.ok(source.includes("statCard('trend', 'Biggest Winner'"), 'Biggest Winner should render as a dashboard card.');
-  assert.ok(source.includes("statCard('calendar', 'Yearly P&L'"), 'Yearly P&L should render as a dashboard card.');
+  assert.ok(source.includes("statCard('calendar', 'Yearly P/L'"), 'Yearly P/L should render as a dashboard card.');
 });
 
-test('biggest winner calculates from closed winning trade P&L', () => {
+test('biggest winner and loser calculate from closed trade P&L', () => {
   assert.ok(source.includes('function calculateBiggestWinner(tradeList)'), 'Biggest Winner should have a dedicated helper.');
   assert.ok(source.includes('.filter((trade) => getTradeReportDate(trade) !== null)'), 'Biggest Winner should only use closed/reportable trades.');
   assert.ok(source.includes('.map(calculatePnl)'), 'Biggest Winner should reuse existing P&L data.');
   assert.ok(source.includes('Math.max(...winningPnlValues)'), 'Biggest Winner should select the highest winning P&L.');
+  assert.ok(source.includes('function calculateBiggestLoser(tradeList)'), 'Biggest Loser should have a dedicated helper.');
+  assert.ok(source.includes('Math.min(...losingPnlValues)'), 'Biggest Loser should select the lowest losing P&L.');
 });
