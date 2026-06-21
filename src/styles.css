@@ -2265,15 +2265,10 @@ h1 {
 
 .stat-card strong { font-size: clamp(1.35rem, 6.8cqw, 2rem); }
 .stat-card strong.long-value { font-size: clamp(0.96rem, 5.2cqw, 1.45rem); letter-spacing: -0.04em; }
-.split-performance { align-items: baseline; display: inline-flex; flex-wrap: nowrap; gap: 0.3rem; max-width: 100%; min-width: 0; white-space: nowrap; }
-.split-performance b,
-.split-performance em { font: inherit; }
-.split-performance i { color: #334155; font-style: normal; }
-.average-win-loss { font: inherit; letter-spacing: inherit; line-height: inherit; color: inherit; display: inline-flex; font-size: inherit; font-weight: inherit; margin-bottom: 0; max-width: 100%; overflow: visible; text-transform: none; }
-.average-win-loss b { font-size: inherit; font-weight: inherit; }
-.average-win-loss b.positive { color: var(--performance-positive); }
-.average-win-loss b.negative { color: var(--performance-negative); }
-.average-win-loss i { color: #64748b; }
+.average-win-loss { color: inherit; display: flex; flex-direction: column; font: inherit; letter-spacing: inherit; line-height: inherit; margin-bottom: 0; max-width: 100%; overflow: visible; text-transform: none; }
+.average-win-loss span { color: inherit; display: block; font: inherit; letter-spacing: inherit; line-height: inherit; margin-bottom: 0; text-transform: none; }
+.average-win-loss span.positive { color: var(--performance-positive); }
+.average-win-loss span.negative { color: var(--performance-negative); }
 
 .stat-card strong.positive,
 .report-card strong.positive,
