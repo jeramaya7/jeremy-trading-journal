@@ -345,8 +345,10 @@ h2 {
 }
 
 .dashboard-summary-export {
+  box-sizing: border-box;
   display: grid;
   gap: 24px;
+  padding: 24px 0;
   width: 1200px;
 }
 
@@ -358,9 +360,14 @@ h2 {
 
 .dashboard-snapshot-export {
   border-radius: 0;
+  box-sizing: border-box;
   margin: 0;
   padding: 24px;
   width: 1200px;
+}
+
+.dashboard-snapshot-export .dashboard-snapshot-header {
+  backdrop-filter: none;
 }
 
 .dashboard-snapshot-export .setup-analytics-table-wrap,
