@@ -2269,7 +2269,10 @@ h1 {
 .split-performance b,
 .split-performance em { font: inherit; }
 .split-performance i { color: #334155; font-style: normal; }
-.average-win-loss { font: inherit; letter-spacing: inherit; line-height: inherit; max-width: 100%; overflow: visible; }
+.average-win-loss { font: inherit; letter-spacing: inherit; line-height: inherit; color: inherit; display: inline-flex; font-size: inherit; font-weight: inherit; margin-bottom: 0; max-width: 100%; overflow: visible; text-transform: none; }
+.average-win-loss b.positive { color: var(--dna-navy); }
+.average-win-loss b.negative { color: #8f1d1d; }
+.average-win-loss i { color: #64748b; }
 
 
 @media (max-width: 1180px) {
