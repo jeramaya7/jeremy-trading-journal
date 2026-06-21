@@ -1556,6 +1556,12 @@ async function shareDashboardSnapshot() {
         if (clonedSnapshotHeader) {
           clonedSnapshotHeader.style.setProperty('backdrop-filter', 'none', 'important');
           clonedSnapshotHeader.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
+
+          const generatedDateBadge = clonedSnapshotHeader.querySelector(':scope > p:last-child');
+          if (generatedDateBadge) {
+            console.info('Dashboard snapshot export: removing title obstruction .dashboard-snapshot-header > p:last-child', generatedDateBadge.className);
+            generatedDateBadge.remove();
+          }
         }
       }
       clonedDashboard.append(clonedSection);
