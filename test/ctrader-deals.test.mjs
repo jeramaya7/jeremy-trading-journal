@@ -344,6 +344,35 @@ test('maps numeric cTrader symbol ID 10026 to BTCUSD from symbol metadata', () =
   assert.equal(trade.symbol, 'BTCUSD');
 });
 
+test('maps numeric cTrader symbol ID 10026 to BTCUSD fallback when metadata is unavailable', () => {
+  const previewTrade = mapCtraderClosingDealToJournalTrade({
+    dealId: 905,
+    positionId: 1905,
+    symbol: '10026',
+    tradeSide: 'SELL',
+    executionPrice: 65000,
+    executionTimestamp: 1_700_000_000_000,
+    closePositionDetail: {
+      entryPrice: 65500,
+      closedVolume: 1,
+      netProfitLoss: 50000,
+    },
+  });
+
+  const importedTrade = convertCTraderPreviewTradeToJournalEntry(previewTrade, {
+    now: () => 1_700_000_001_000,
+  });
+  const journalCardSymbolMarkup = `<p class="trade-symbol">${importedTrade.brokerSymbol || importedTrade.symbol}</p>`;
+
+  assert.equal(previewTrade.sourceSymbolId, '10026');
+  assert.equal(previewTrade.symbol, 'BTCUSD');
+  assert.equal(previewTrade.brokerSymbol, 'BTCUSD');
+  assert.equal(importedTrade.symbol, 'BTCUSD');
+  assert.equal(importedTrade.brokerSymbol, 'BTCUSD');
+  assert.equal(journalCardSymbolMarkup, '<p class="trade-symbol">BTCUSD</p>');
+  assert.notEqual(importedTrade.symbol, '10026');
+});
+
 test('imported cTrader card data keeps broker symbol name instead of numeric ID', () => {
   const previewTrade = mapCtraderClosingDealToJournalTrade({
     dealId: 904,
