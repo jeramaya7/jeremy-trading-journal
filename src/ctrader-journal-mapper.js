@@ -4,6 +4,7 @@ export const CTRADER_JOURNAL_MAPPER_TRACE_VERSION = 'symbol-metadata-by-id-v5-or
 
 const BROKER_SYMBOL_FALLBACKS_BY_ID = {
   41: 'XAUUSD',
+  10026: 'BTCUSD',
 };
 
 export function mapCtraderDealsToJournalTrades(rawDeals, options = {}) {
