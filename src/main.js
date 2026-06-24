@@ -90,6 +90,7 @@ let isLoadingCTraderAccounts = false;
 let hasHandledCTraderOAuthReturn = false;
 let editingTradeId = null;
 let isManualTradeFormOpen = false;
+let manualTradeDateKey = formatDateKey(new Date());
 let setupAnalyticsSort = { key: 'netPnl', direction: 'desc' };
 let equityCurvePeriod = 'all';
 let monthlyCalendarDate = new Date();
@@ -881,7 +882,7 @@ function monthlyCalendarDayCell(calendarDay) {
     : '';
 
   return `
-          <button class="${dayClasses}" type="button" role="gridcell" data-calendar-date="${escapeHtml(calendarDay.dateKey)}" ${report ? '' : 'disabled'} aria-pressed="${selectedCalendarDateKey === calendarDay.dateKey ? 'true' : 'false'}" aria-label="Day ${calendarDay.day}${report ? `, Net P/L ${formatCalendarPnl(report.pnl, report.startingBalance)}, ${report.tradeCount} ${report.tradeCount === 1 ? 'trade' : 'trades'}` : ''}">
+          <button class="${dayClasses}" type="button" role="gridcell" data-calendar-date="${escapeHtml(calendarDay.dateKey)}" aria-pressed="${selectedCalendarDateKey === calendarDay.dateKey ? 'true' : 'false'}" aria-label="Day ${calendarDay.day}${report ? `, Net P/L ${formatCalendarPnl(report.pnl, report.startingBalance)}, ${report.tradeCount} ${report.tradeCount === 1 ? 'trade' : 'trades'}` : ', no trades'}">
             <span class="monthly-calendar-date">${calendarDay.day}</span>
             ${pnlMarkup}
           </button>`;
@@ -925,6 +926,23 @@ function getStats() {
     biggestLoser,
     biggestRisk,
   };
+}
+
+
+function hasTradesForDate(dateKey) {
+  return trades.some((trade) => {
+    const tradeDate = getTradeReportDate(trade);
+    return tradeDate && formatDateKey(tradeDate) === dateKey;
+  });
+}
+
+function openJournalForCalendarDate(dateKey) {
+  selectedCalendarDateKey = dateKey;
+  manualTradeDateKey = dateKey;
+  searchQuery = '';
+  isManualTradeFormOpen = !hasTradesForDate(dateKey);
+  render();
+  document.querySelector('.journal-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function getFilteredTrades() {
@@ -1473,7 +1491,7 @@ function render(options = {}) {
           <button class="secondary-button manual-trade-toggle" type="button" id="toggleManualTrade" aria-expanded="${isManualTradeFormOpen ? 'true' : 'false'}" aria-controls="tradeForm">
             ${icon(isManualTradeFormOpen ? 'minus' : 'plus')} ${isManualTradeFormOpen ? 'Hide Manual Trade Form' : '+ Add Manual Trade'}
           </button>
-          ${isManualTradeFormOpen ? renderManualTradeForm(today) : '<p class="manual-trade-helper">Use this only for trades that did not come from cTrader import.</p>'}
+          ${isManualTradeFormOpen ? renderManualTradeForm(manualTradeDateKey || today) : '<p class="manual-trade-helper">Use this only for trades that did not come from cTrader import.</p>'}
         </section>
       </section>
     </main>
@@ -1679,10 +1697,7 @@ function bindEvents() {
     });
   });
   document.querySelectorAll('[data-calendar-date]').forEach((button) => {
-    button.addEventListener('click', () => {
-      selectedCalendarDateKey = selectedCalendarDateKey === button.dataset.calendarDate ? '' : button.dataset.calendarDate;
-      render();
-    });
+    button.addEventListener('click', () => openJournalForCalendarDate(button.dataset.calendarDate));
   });
   document.querySelectorAll('[data-calendar-display-mode]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -1789,6 +1804,7 @@ function changeEditSetupChoice(event) {
 }
 
 function toggleManualTradeForm() {
+  manualTradeDateKey = selectedCalendarDateKey || formatDateKey(new Date());
   isManualTradeFormOpen = !isManualTradeFormOpen;
   if (!isManualTradeFormOpen) {
     selectedScreenshot = null;
