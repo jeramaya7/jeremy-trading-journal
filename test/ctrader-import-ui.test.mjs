@@ -134,6 +134,9 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(source, "${field('Setup', renderPlayBookSetupSelect(trade))}", 'The edit form allows setup changes through the Play Book dropdown.');
   assertIncludes(source, 'const PLAY_BOOK_SETUP_OPTIONS = [', 'The Play Book setup dropdown has a fixed setup list.');
   assertIncludes(source, "'Elephant Bar'", 'The Play Book setup dropdown includes Elephant Bar.');
+  assertIncludes(source, "const TREND_LINE_BREAK_SETUP = 'Trend Line Break';", 'The Play Book setup dropdown includes the corrected Trend Line Break setup.');
+  assertIncludes(source, '  TREND_LINE_BREAK_SETUP,', 'The Play Book setup dropdown uses the corrected setup constant.');
+  assert.ok(!source.includes("  'Trade Line Break',"), 'The Play Book setup dropdown no longer shows the misspelled setup label.');
   assertIncludes(source, "'Ride the 🐋'", 'The Play Book setup dropdown includes Ride the whale.');
   assertIncludes(source, "const CUSTOM_SETUP_OPTION = 'Custom';", 'The Play Book setup dropdown includes a Custom option.');
   assertIncludes(source, "const selectedSetup = isPlayBookSetup(currentSetup) ? currentSetup : CUSTOM_SETUP_OPTION;", 'Existing non-Play Book setup values open as Custom.');
@@ -146,6 +149,17 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(source, "form.addEventListener('submit', submitTradeEdit);", 'Edit forms are wired to the save handler.');
 });
 
+
+
+test('legacy Trade Line Break setup values migrate to Trend Line Break', () => {
+  assertIncludes(source, "const LEGACY_TRADE_LINE_BREAK_SETUP = 'Trade Line Break';", 'The legacy setup name is retained only for migration.');
+  assertIncludes(source, "return setup === LEGACY_TRADE_LINE_BREAK_SETUP ? TREND_LINE_BREAK_SETUP : setup;", 'Setup normalization renames only the legacy setup value.');
+  assertIncludes(source, 'const shouldMigrateSavedTrades = hasLegacySetupName(parsedTrades);', 'Saved journal entries are checked for legacy setup names when loaded from localStorage.');
+  assertIncludes(source, 'const migratedTrades = shouldMigrateSavedTrades ? normalizeTradeSetups(parsedTrades) : parsedTrades;', 'Saved journal entries are normalized when migration is needed.');
+  assertIncludes(source, 'window.localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedTrades));', 'Migrated saved journal entries are written back to localStorage.');
+  assertIncludes(source, 'trades = normalizeTradeSetups(nextTrades);', 'Imported and saved journal entries are normalized before persistence/export.');
+  assertIncludes(source, "setup: normalizeSetupName(String(formData.get('setup')).trim()) || 'Uncategorized setup',", 'Manual entries typed with the legacy setup name are normalized.');
+});
 
 test('trade edit form changes stay local until the user saves', () => {
   assertIncludes(source, "button.addEventListener('click', removeEditScreenshot);", 'Removing an edit screenshot uses a local DOM update handler instead of re-rendering the form.');

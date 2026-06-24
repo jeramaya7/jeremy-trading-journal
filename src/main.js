@@ -7,6 +7,8 @@ const LAST_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-last-sync:v1';
 const SELECTED_CTRADER_ACCOUNT_STORAGE_KEY = 'jeremy-trading-journal:ctrader-selected-account:v1';
 const DELETED_CTRADER_SOURCE_KEYS_STORAGE_KEY = 'deletedCTraderSourceKeys';
 const MONTHLY_CALENDAR_DISPLAY_MODE_STORAGE_KEY = 'jeremy-trading-journal:monthly-calendar-display-mode:v1';
+const LEGACY_TRADE_LINE_BREAK_SETUP = 'Trade Line Break';
+const TREND_LINE_BREAK_SETUP = 'Trend Line Break';
 const AUTO_SYNC_INTERVAL_MS = 60 * 1000;
 
 const starterTrades = [
@@ -110,7 +112,7 @@ const PLAY_BOOK_SETUP_OPTIONS = [
   'Support & Resistance',
   'TB Retrace',
   'The General Forecast',
-  'Trade Line Break',
+  TREND_LINE_BREAK_SETUP,
 ];
 const CUSTOM_SETUP_OPTION = 'Custom';
 const LOSS_REASON_OPTIONS = [
@@ -135,6 +137,22 @@ const CLOSE_REASON_OPTIONS = [
 
 const app = document.querySelector('#root');
 
+function normalizeSetupName(setup) {
+  return setup === LEGACY_TRADE_LINE_BREAK_SETUP ? TREND_LINE_BREAK_SETUP : setup;
+}
+
+function hasLegacySetupName(nextTrades) {
+  return nextTrades.some((trade) => trade?.setup === LEGACY_TRADE_LINE_BREAK_SETUP);
+}
+
+function normalizeTradeSetups(nextTrades) {
+  return nextTrades.map((trade) => (
+    trade?.setup === LEGACY_TRADE_LINE_BREAK_SETUP
+      ? { ...trade, setup: TREND_LINE_BREAK_SETUP }
+      : trade
+  ));
+}
+
 function loadTrades() {
   const savedTrades = window.localStorage.getItem(STORAGE_KEY);
   if (!savedTrades) {
@@ -142,11 +160,20 @@ function loadTrades() {
   }
 
   const parsedTrades = JSON.parse(savedTrades);
-  return Array.isArray(parsedTrades) ? parsedTrades : starterTrades;
+  if (!Array.isArray(parsedTrades)) {
+    return starterTrades;
+  }
+
+  const shouldMigrateSavedTrades = hasLegacySetupName(parsedTrades);
+  const migratedTrades = shouldMigrateSavedTrades ? normalizeTradeSetups(parsedTrades) : parsedTrades;
+  if (shouldMigrateSavedTrades) {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedTrades));
+  }
+  return migratedTrades;
 }
 
 function persistTrades(nextTrades, options = {}) {
-  trades = nextTrades;
+  trades = normalizeTradeSetups(nextTrades);
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));
   if (options.preserveTradeId) {
     renderPreservingTradePosition(options.preserveTradeId, options.renderOptions);
@@ -1383,10 +1410,10 @@ function renderCloseReasonSelect(trade) {
 function getSetupFormValue(formData) {
   const setupChoice = String(formData.get('setupChoice') || '').trim();
   if (setupChoice === CUSTOM_SETUP_OPTION) {
-    return String(formData.get('setupCustom')).trim() || 'Uncategorized setup';
+    return normalizeSetupName(String(formData.get('setupCustom')).trim()) || 'Uncategorized setup';
   }
 
-  return String(formData.get('setup') || '').trim() || setupChoice || 'Uncategorized setup';
+  return normalizeSetupName(String(formData.get('setup') || '').trim() || setupChoice) || 'Uncategorized setup';
 }
 
 function editTradeForm(trade) {
@@ -1947,7 +1974,7 @@ async function submitTrade(event) {
     date: formData.get('date'),
     symbol: String(formData.get('symbol')).trim().toUpperCase(),
     direction: formData.get('direction'),
-    setup: String(formData.get('setup')).trim() || 'Uncategorized setup',
+    setup: normalizeSetupName(String(formData.get('setup')).trim()) || 'Uncategorized setup',
     entry: Number(formData.get('entry')),
     exit: Number(formData.get('exit')),
     size: Number(formData.get('size')),
