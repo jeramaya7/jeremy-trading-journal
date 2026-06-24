@@ -6,6 +6,7 @@ const AUTO_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-auto-sync:v1';
 const LAST_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-last-sync:v1';
 const SELECTED_CTRADER_ACCOUNT_STORAGE_KEY = 'jeremy-trading-journal:ctrader-selected-account:v1';
 const DELETED_CTRADER_SOURCE_KEYS_STORAGE_KEY = 'deletedCTraderSourceKeys';
+const MONTHLY_CALENDAR_DISPLAY_MODE_STORAGE_KEY = 'jeremy-trading-journal:monthly-calendar-display-mode:v1';
 const AUTO_SYNC_INTERVAL_MS = 60 * 1000;
 
 const starterTrades = [
@@ -93,6 +94,7 @@ let setupAnalyticsSort = { key: 'netPnl', direction: 'desc' };
 let equityCurvePeriod = 'all';
 let monthlyCalendarDate = new Date();
 let selectedCalendarDateKey = '';
+let monthlyCalendarDisplayMode = loadMonthlyCalendarDisplayMode();
 
 const PLAY_BOOK_SETUP_OPTIONS = [
   'Buy the Retrace',
@@ -762,6 +764,36 @@ function setupAnalyticsRow(report) {
               </tr>`;
 }
 
+
+function loadMonthlyCalendarDisplayMode() {
+  return window.localStorage.getItem(MONTHLY_CALENDAR_DISPLAY_MODE_STORAGE_KEY) === 'percent' ? 'percent' : 'dollars';
+}
+
+function setMonthlyCalendarDisplayMode(displayMode) {
+  monthlyCalendarDisplayMode = displayMode === 'percent' ? 'percent' : 'dollars';
+  window.localStorage.setItem(MONTHLY_CALENDAR_DISPLAY_MODE_STORAGE_KEY, monthlyCalendarDisplayMode);
+}
+
+function getTradeStartingBalance(trade) {
+  const accountSize = toOptionalNumber(trade.accountSize);
+  const accountBalance = toOptionalNumber(trade.accountBalance);
+  const startingBalance = accountSize ?? accountBalance;
+
+  return startingBalance !== null && startingBalance > 0 ? startingBalance : null;
+}
+
+function formatCalendarPnl(pnl, startingBalance) {
+  if (monthlyCalendarDisplayMode !== 'percent') {
+    return currency(pnl);
+  }
+
+  if (startingBalance === null || startingBalance === undefined || startingBalance <= 0) {
+    return '—';
+  }
+
+  return formatPercent((pnl / startingBalance) * 100);
+}
+
 function formatDateKey(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -784,8 +816,9 @@ function getMonthlyTradingCalendarDays(referenceDate = new Date()) {
 
     const day = tradeDate.getDate();
     const dateKey = formatDateKey(tradeDate);
-    const report = dailyReports.get(day) ?? { pnl: 0, tradeCount: 0, dateKey };
+    const report = dailyReports.get(day) ?? { pnl: 0, tradeCount: 0, dateKey, startingBalance: null };
     report.pnl += calculatePnl(trade);
+    report.startingBalance ??= getTradeStartingBalance(trade);
     report.tradeCount += 1;
     dailyReports.set(day, report);
   });
@@ -805,15 +838,20 @@ function renderMonthlyTradingCalendar(referenceDate = new Date()) {
   const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const calendarDays = getMonthlyTradingCalendarDays(referenceDate);
   const monthlyPnl = calendarDays.reduce((total, calendarDay) => total + (calendarDay?.report?.pnl || 0), 0);
+  const monthlyStartingBalance = calendarDays.find((calendarDay) => calendarDay?.report?.startingBalance)?.report.startingBalance ?? null;
 
   return `
       <section class="panel monthly-calendar-panel" aria-label="Monthly Trading Calendar">
         <div class="monthly-calendar-header">
           <div>
             <div class="section-title">${icon('calendar')}<h2>Monthly Trading Calendar</h2></div>
-            <p class="section-helper">Daily Net P/L for <span class="monthly-calendar-title-month">${escapeHtml(monthLabel)}</span><span class="monthly-calendar-monthly-pnl ${getMoneyTone(monthlyPnl)}">${currency(monthlyPnl)}</span> using closed trade dates.</p>
+            <p class="section-helper">Daily Net P/L for <span class="monthly-calendar-title-month">${escapeHtml(monthLabel)}</span><span class="monthly-calendar-monthly-pnl ${getMoneyTone(monthlyPnl)}">${formatCalendarPnl(monthlyPnl, monthlyStartingBalance)}</span> using closed trade dates.</p>
           </div>
           <div class="monthly-calendar-controls" aria-label="Calendar month controls">
+            <div class="monthly-calendar-display-toggle" role="group" aria-label="Calendar P/L display mode">
+              <button class="secondary-button monthly-calendar-display-option ${monthlyCalendarDisplayMode === 'dollars' ? 'monthly-calendar-display-option-active' : ''}" type="button" data-calendar-display-mode="dollars" aria-pressed="${monthlyCalendarDisplayMode === 'dollars' ? 'true' : 'false'}">$</button>
+              <button class="secondary-button monthly-calendar-display-option ${monthlyCalendarDisplayMode === 'percent' ? 'monthly-calendar-display-option-active' : ''}" type="button" data-calendar-display-mode="percent" aria-pressed="${monthlyCalendarDisplayMode === 'percent' ? 'true' : 'false'}">%</button>
+            </div>
             <button class="secondary-button monthly-calendar-nav" type="button" data-calendar-month="previous">Previous Month</button>
             <button class="secondary-button monthly-calendar-nav" type="button" data-calendar-month="next">Next Month</button>
           </div>
@@ -839,11 +877,11 @@ function monthlyCalendarDayCell(calendarDay) {
     selectedCalendarDateKey === calendarDay.dateKey ? 'monthly-calendar-day-selected' : '',
   ].filter(Boolean).join(' ');
   const pnlMarkup = report
-    ? `<span class="monthly-calendar-pnl ${getMoneyTone(report.pnl)}">${currency(report.pnl)}</span>`
+    ? `<span class="monthly-calendar-pnl ${getMoneyTone(report.pnl)}">${formatCalendarPnl(report.pnl, report.startingBalance)}</span>`
     : '';
 
   return `
-          <button class="${dayClasses}" type="button" role="gridcell" data-calendar-date="${escapeHtml(calendarDay.dateKey)}" ${report ? '' : 'disabled'} aria-pressed="${selectedCalendarDateKey === calendarDay.dateKey ? 'true' : 'false'}" aria-label="Day ${calendarDay.day}${report ? `, Net P/L ${currency(report.pnl)}, ${report.tradeCount} ${report.tradeCount === 1 ? 'trade' : 'trades'}` : ''}">
+          <button class="${dayClasses}" type="button" role="gridcell" data-calendar-date="${escapeHtml(calendarDay.dateKey)}" ${report ? '' : 'disabled'} aria-pressed="${selectedCalendarDateKey === calendarDay.dateKey ? 'true' : 'false'}" aria-label="Day ${calendarDay.day}${report ? `, Net P/L ${formatCalendarPnl(report.pnl, report.startingBalance)}, ${report.tradeCount} ${report.tradeCount === 1 ? 'trade' : 'trades'}` : ''}">
             <span class="monthly-calendar-date">${calendarDay.day}</span>
             ${pnlMarkup}
           </button>`;
@@ -1643,6 +1681,12 @@ function bindEvents() {
   document.querySelectorAll('[data-calendar-date]').forEach((button) => {
     button.addEventListener('click', () => {
       selectedCalendarDateKey = selectedCalendarDateKey === button.dataset.calendarDate ? '' : button.dataset.calendarDate;
+      render();
+    });
+  });
+  document.querySelectorAll('[data-calendar-display-mode]').forEach((button) => {
+    button.addEventListener('click', () => {
+      setMonthlyCalendarDisplayMode(button.dataset.calendarDisplayMode);
       render();
     });
   });
