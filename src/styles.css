@@ -1348,6 +1348,20 @@ h2 {
   padding: 0.7rem 0.9rem;
 }
 
+.monthly-calendar-display-toggle {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.monthly-calendar-display-option {
+  min-width: 44px;
+  padding: 0.7rem 0.8rem;
+}
+
+.monthly-calendar-display-option-active {
+  background: linear-gradient(135deg, var(--dna-gold), #b47a12);
+}
+
 .monthly-calendar-grid {
   display: grid;
   gap: 0.65rem;
