@@ -119,13 +119,14 @@ const LOSS_REASON_OPTIONS = [
   'Stop Too Tight',
 ];
 const CLOSE_REASON_OPTIONS = [
-  'Take Profit',
+  'Break Even',
+  'Closed Too Early',
+  'Manual Close',
+  'Other',
   'Stop Loss',
+  'Take Profit',
   'Trailed Stop',
   'Trend Change',
-  'Manual Close',
-  'Break Even',
-  'Other',
 ];
 
 const app = document.querySelector('#root');
