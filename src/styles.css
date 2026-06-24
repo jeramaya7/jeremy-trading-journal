@@ -1455,6 +1455,103 @@ h2 {
   color: var(--performance-negative);
 }
 
+.calendar-review-backdrop {
+  background: rgba(16, 26, 46, 0.42);
+  display: flex;
+  inset: 0;
+  justify-content: flex-end;
+  padding: clamp(1rem, 2vw, 2rem);
+  position: fixed;
+  z-index: 20;
+}
+
+.calendar-review-panel {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(250, 252, 255, 0.96));
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 30px;
+  box-shadow: 0 26px 70px rgba(16, 26, 46, 0.24);
+  max-width: 620px;
+  overflow: auto;
+  padding: clamp(1.1rem, 2vw, 1.5rem);
+  width: min(100%, 620px);
+}
+
+.calendar-review-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.calendar-review-header h2 {
+  color: var(--dna-navy);
+  font-size: clamp(1.75rem, 3vw, 2.6rem);
+  letter-spacing: -0.055em;
+  line-height: 1;
+}
+
+.calendar-review-stats {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 1rem;
+}
+
+.calendar-review-stats div,
+.calendar-review-sections section {
+  background: rgba(248, 250, 252, 0.82);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  padding: 0.85rem;
+}
+
+.calendar-review-stats span {
+  color: #64748b;
+  display: block;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.3rem;
+  text-transform: uppercase;
+}
+
+.calendar-review-stats strong {
+  color: var(--dna-navy);
+  font-size: 1.05rem;
+}
+
+.calendar-review-sections {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.calendar-review-sections h3 {
+  color: var(--dna-navy);
+  font-size: 0.9rem;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.45rem;
+  text-transform: uppercase;
+}
+
+.calendar-review-sections ul {
+  margin: 0;
+  padding-left: 1.15rem;
+}
+
+.calendar-review-screenshots {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.calendar-review-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
 @media (max-width: 760px) {
   .monthly-calendar-header {
     align-items: flex-start;
@@ -1463,6 +1560,24 @@ h2 {
 
   .monthly-calendar-controls {
     justify-content: flex-start;
+  }
+
+  .calendar-review-backdrop {
+    padding: 0.75rem;
+  }
+
+  .calendar-review-panel {
+    border-radius: 24px;
+  }
+
+  .calendar-review-header,
+  .calendar-review-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .calendar-review-stats {
+    grid-template-columns: 1fr;
   }
 
   .monthly-calendar-grid {

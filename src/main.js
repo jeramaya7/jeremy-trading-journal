@@ -95,6 +95,7 @@ let setupAnalyticsSort = { key: 'netPnl', direction: 'desc' };
 let equityCurvePeriod = 'all';
 let monthlyCalendarDate = new Date();
 let selectedCalendarDateKey = '';
+let calendarReviewDateKey = '';
 let monthlyCalendarDisplayMode = loadMonthlyCalendarDisplayMode();
 
 const PLAY_BOOK_SETUP_OPTIONS = [
@@ -875,17 +876,102 @@ function monthlyCalendarDayCell(calendarDay) {
     'monthly-calendar-day',
     pnlTone ? `monthly-calendar-day-${pnlTone}` : '',
     report ? 'monthly-calendar-day-traded' : '',
-    selectedCalendarDateKey === calendarDay.dateKey ? 'monthly-calendar-day-selected' : '',
+    calendarReviewDateKey === calendarDay.dateKey ? 'monthly-calendar-day-selected' : '',
   ].filter(Boolean).join(' ');
   const pnlMarkup = report
     ? `<span class="monthly-calendar-pnl ${getMoneyTone(report.pnl)}">${formatCalendarPnl(report.pnl, report.startingBalance)}</span>`
     : '';
 
   return `
-          <button class="${dayClasses}" type="button" role="gridcell" data-calendar-date="${escapeHtml(calendarDay.dateKey)}" aria-pressed="${selectedCalendarDateKey === calendarDay.dateKey ? 'true' : 'false'}" aria-label="Day ${calendarDay.day}${report ? `, Net P/L ${formatCalendarPnl(report.pnl, report.startingBalance)}, ${report.tradeCount} ${report.tradeCount === 1 ? 'trade' : 'trades'}` : ', no trades'}">
+          <button class="${dayClasses}" type="button" role="gridcell" data-calendar-date="${escapeHtml(calendarDay.dateKey)}" aria-pressed="${calendarReviewDateKey === calendarDay.dateKey ? 'true' : 'false'}" aria-label="Day ${calendarDay.day}${report ? `, Net P/L ${formatCalendarPnl(report.pnl, report.startingBalance)}, ${report.tradeCount} ${report.tradeCount === 1 ? 'trade' : 'trades'}` : ', no trades'}">
             <span class="monthly-calendar-date">${calendarDay.day}</span>
             ${pnlMarkup}
           </button>`;
+}
+
+function getTradesForCalendarDate(dateKey) {
+  return trades.filter((trade) => {
+    const tradeDate = getTradeReportDate(trade);
+    return tradeDate && formatDateKey(tradeDate) === dateKey;
+  });
+}
+
+function renderCalendarDayReviewPanel() {
+  if (!calendarReviewDateKey) {
+    return '';
+  }
+
+  const dayTrades = getTradesForCalendarDate(calendarReviewDateKey);
+  const reviewDate = new Date(`${calendarReviewDateKey}T00:00:00`);
+  const dateLabel = Number.isNaN(reviewDate.getTime())
+    ? calendarReviewDateKey
+    : reviewDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+  return `
+      <div class="calendar-review-backdrop" role="presentation">
+        <aside class="calendar-review-panel" role="dialog" aria-modal="true" aria-labelledby="calendarReviewTitle">
+          <div class="calendar-review-header">
+            <div>
+              <p class="eyebrow">${icon('calendar')} Calendar Day Review</p>
+              <h2 id="calendarReviewTitle">${escapeHtml(dateLabel)}</h2>
+            </div>
+            <button class="secondary-button" type="button" data-calendar-review-close>Close</button>
+          </div>
+          ${dayTrades.length ? renderCalendarDayReviewSummary(calendarReviewDateKey, dayTrades) : '<p class="empty-state">No trades recorded for this day.</p>'}
+          <div class="calendar-review-actions">
+            <button class="secondary-button" type="button" data-calendar-review-open-journal="${escapeHtml(calendarReviewDateKey)}">Open/Edit Journal Entries for this day</button>
+          </div>
+        </aside>
+      </div>`;
+}
+
+function renderCalendarDayReviewSummary(dateKey, dayTrades) {
+  const pnl = dayTrades.reduce((total, trade) => total + calculatePnl(trade), 0);
+  const startingBalance = dayTrades.map(getTradeStartingBalance).find((balance) => balance !== null) ?? null;
+  const pnlPercent = startingBalance ? formatPercent((pnl / startingBalance) * 100) : '—';
+  const rValues = dayTrades.map(calculateRMultiple).filter(Number.isFinite);
+  const totalR = rValues.length ? rValues.reduce((total, value) => total + value, 0) : null;
+  const wins = dayTrades.filter((trade) => calculatePnl(trade) > 0).length;
+  const losses = dayTrades.filter((trade) => calculatePnl(trade) < 0).length;
+  const setups = uniqueTradeValues(dayTrades, 'setup');
+  const closeReasons = uniqueTradeValues(dayTrades, 'closeReason');
+  const lossReasons = uniqueTradeValues(dayTrades, 'lossReason');
+  const notes = dayTrades.map((trade) => String(trade.notes || '').trim()).filter(Boolean);
+  const screenshots = dayTrades.filter((trade) => trade.screenshot?.dataUrl);
+  const pnlTone = getMoneyTone(pnl);
+
+  return `
+          <div class="calendar-review-stats">
+            <div><span>Date</span><strong>${escapeHtml(dateKey)}</strong></div>
+            <div><span>Daily P/L</span><strong class="${pnlTone}">${currency(pnl)} / ${pnlPercent}</strong></div>
+            <div><span>Total R</span><strong>${formatRMultiple(totalR)}</strong></div>
+            <div><span>Number of trades</span><strong>${dayTrades.length}</strong></div>
+            <div><span>Wins / losses</span><strong>${wins} / ${losses}</strong></div>
+          </div>
+          <div class="calendar-review-sections">
+            ${calendarReviewList('Setups used', setups)}
+            ${calendarReviewList('Close reasons', closeReasons)}
+            ${calendarReviewList('Loss reasons', lossReasons)}
+            ${calendarReviewList('Notes from journal entries', notes)}
+            <section>
+              <h3>Screenshots</h3>
+              ${screenshots.length
+                ? `<div class="calendar-review-screenshots">${screenshots.map((trade) => screenshotLink(trade.screenshot, `${getTradeDisplaySymbol(trade)} ${dateKey}`)).join('')}</div>`
+                : '<p class="empty-state">No screenshots available for this day.</p>'}
+            </section>
+          </div>`;
+}
+
+function uniqueTradeValues(dayTrades, fieldName) {
+  return [...new Set(dayTrades.map((trade) => String(trade[fieldName] || '').trim()).filter(Boolean))];
+}
+
+function calendarReviewList(title, values) {
+  return `
+            <section>
+              <h3>${escapeHtml(title)}</h3>
+              ${values.length ? `<ul>${values.map((value) => `<li>${escapeHtml(value)}</li>`).join('')}</ul>` : '<p class="empty-state">None recorded.</p>'}
+            </section>`;
 }
 
 function getStats() {
@@ -936,8 +1022,19 @@ function hasTradesForDate(dateKey) {
   });
 }
 
+function openCalendarDayReview(dateKey) {
+  calendarReviewDateKey = dateKey;
+  render();
+}
+
+function closeCalendarDayReview() {
+  calendarReviewDateKey = '';
+  render();
+}
+
 function openJournalForCalendarDate(dateKey) {
   selectedCalendarDateKey = dateKey;
+  calendarReviewDateKey = '';
   manualTradeDateKey = dateKey;
   searchQuery = '';
   isManualTradeFormOpen = !hasTradesForDate(dateKey);
@@ -1471,6 +1568,8 @@ function render(options = {}) {
 
       ${monthlyTradingCalendarSection}
 
+      ${renderCalendarDayReviewPanel()}
+
       ${setupAnalyticsSection}
 
       <section class="workspace-grid">
@@ -1697,7 +1796,11 @@ function bindEvents() {
     });
   });
   document.querySelectorAll('[data-calendar-date]').forEach((button) => {
-    button.addEventListener('click', () => openJournalForCalendarDate(button.dataset.calendarDate));
+    button.addEventListener('click', () => openCalendarDayReview(button.dataset.calendarDate));
+  });
+  document.querySelector('[data-calendar-review-close]')?.addEventListener('click', closeCalendarDayReview);
+  document.querySelector('[data-calendar-review-open-journal]')?.addEventListener('click', (event) => {
+    openJournalForCalendarDate(event.currentTarget.dataset.calendarReviewOpenJournal);
   });
   document.querySelectorAll('[data-calendar-display-mode]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -1710,6 +1813,7 @@ function bindEvents() {
       const direction = button.dataset.calendarMonth === 'previous' ? -1 : 1;
       monthlyCalendarDate = new Date(monthlyCalendarDate.getFullYear(), monthlyCalendarDate.getMonth() + direction, 1);
       selectedCalendarDateKey = '';
+      calendarReviewDateKey = '';
       render();
     });
   });
@@ -1725,6 +1829,9 @@ function bindEvents() {
     updateRiskPercentField({ currentTarget: tradeForm });
   }
 
+  document.querySelectorAll('.calendar-review-panel .screenshot-link').forEach((link) => {
+    link.addEventListener('click', openScreenshotLink);
+  });
   document.querySelectorAll('[data-trade-card]').forEach(bindTradeCardEvents);
 }
 
