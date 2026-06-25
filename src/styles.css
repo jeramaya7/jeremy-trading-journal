@@ -370,6 +370,10 @@ h2 {
   backdrop-filter: none;
 }
 
+.dashboard-snapshot-export .dashboard-snapshot-header h2 {
+  line-height: 1.05;
+}
+
 .dashboard-snapshot-export .setup-analytics-table-wrap,
 .dashboard-summary-export .setup-analytics-table-wrap {
   overflow: visible;
