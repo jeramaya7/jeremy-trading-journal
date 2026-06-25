@@ -8,6 +8,11 @@ const SELECTED_CTRADER_ACCOUNT_STORAGE_KEY = 'jeremy-trading-journal:ctrader-sel
 const DELETED_CTRADER_SOURCE_KEYS_STORAGE_KEY = 'deletedCTraderSourceKeys';
 const MONTHLY_CALENDAR_DISPLAY_MODE_STORAGE_KEY = 'jeremy-trading-journal:monthly-calendar-display-mode:v1';
 const DNA_TIMEFRAME_STORAGE_KEY = 'jeremy-trading-journal:dna-timeframe:v1';
+const PAGE_MODE_STORAGE_KEY = 'jeremy-trading-journal:page-mode:v1';
+const PAGE_MODES = {
+  dashboard: 'dashboard',
+  trading: 'trading',
+};
 const DNA_TIMEFRAME_OPTIONS = [
   { value: 'day', label: 'Day' },
   { value: 'week', label: 'WTD' },
@@ -108,6 +113,7 @@ let selectedCalendarDateKey = '';
 let calendarReviewDateKey = '';
 let monthlyCalendarDisplayMode = loadMonthlyCalendarDisplayMode();
 let dnaResultsTimeframe = loadDnaResultsTimeframe();
+let pageMode = loadPageMode();
 
 const PLAY_BOOK_SETUP_OPTIONS = [
   'Buy the Retrace',
@@ -1022,6 +1028,25 @@ function calendarReviewList(title, values) {
             </section>`;
 }
 
+function loadPageMode() {
+  return window.localStorage.getItem(PAGE_MODE_STORAGE_KEY) === PAGE_MODES.trading
+    ? PAGE_MODES.trading
+    : PAGE_MODES.dashboard;
+}
+
+function setPageMode(nextMode) {
+  pageMode = nextMode === PAGE_MODES.trading ? PAGE_MODES.trading : PAGE_MODES.dashboard;
+  window.localStorage.setItem(PAGE_MODE_STORAGE_KEY, pageMode);
+}
+
+function renderPageModeToggle() {
+  return `
+        <div class="page-mode-toggle" role="group" aria-label="Page mode">
+          <button class="page-mode-button ${pageMode === PAGE_MODES.dashboard ? 'active' : ''}" type="button" data-page-mode="${PAGE_MODES.dashboard}" aria-pressed="${pageMode === PAGE_MODES.dashboard ? 'true' : 'false'}">Dashboard Mode</button>
+          <button class="page-mode-button ${pageMode === PAGE_MODES.trading ? 'active' : ''}" type="button" data-page-mode="${PAGE_MODES.trading}" aria-pressed="${pageMode === PAGE_MODES.trading ? 'true' : 'false'}">Trading Mode</button>
+        </div>`;
+}
+
 function loadDnaResultsTimeframe() {
   const storedTimeframe = window.localStorage.getItem(DNA_TIMEFRAME_STORAGE_KEY);
   return isValidDnaTimeframe(storedTimeframe) ? storedTimeframe : 'all';
@@ -1598,30 +1623,8 @@ function render(options = {}) {
   const monthlyTradingCalendarSection = renderMonthlyTradingCalendar(monthlyCalendarDate, dnaResultsTrades);
   const setupAnalyticsSection = renderSetupAnalytics(dnaResultsTrades);
   const today = new Date().toISOString().slice(0, 10);
-
-  app.innerHTML = `
-    <main class="app-shell">
-      <section class="hero-card">
-        <div class="hero-branding">
-          <div class="dna-brand-lockup" aria-label="DNA Decisions Numbers Analysis">
-            <img class="dna-logo" src="./ChatGPT%20Image%20Jun%2020%2C%202026%2C%2006_45_24%20AM.png" alt="DNA logo" />
-            <div class="dna-wordmark" aria-hidden="true">
-              <span class="dna-wordmark-main">DNA</span>
-              <span class="dna-wordmark-sub">Decisions <b>•</b> Numbers <b>•</b> Analysis</span>
-            </div>
-          </div>
-          <h1>Discover your edge.</h1>
-          <p class="hero-tagline">Every trade leaves clues. DNA helps you find them.</p>
-          <p class="hero-copy">
-            DNA is a trader performance analysis system designed to uncover patterns, strengths, weaknesses, habits, and edge through the study of Decisions, Numbers, and Analysis.
-          </p>
-        </div>
-        <div class="hero-actions">
-          <button class="share-dashboard-button" type="button" id="shareDashboard">${icon('share')} Share Dashboard</button>
-          ${renderCTraderConnectionCard()}
-        </div>
-      </section>
-
+  const journalWorkspaceSection = renderJournalWorkspace(filteredTrades, today);
+  const dashboardSections = `
       ${renderDnaResultsTimeframeToggle()}
 
       <section class="hero-equity-section" aria-label="Equity curve">
@@ -1651,8 +1654,45 @@ function render(options = {}) {
 
       ${renderCalendarDayReviewPanel()}
 
-      ${setupAnalyticsSection}
+      ${setupAnalyticsSection}`;
+  const pageSections = pageMode === PAGE_MODES.trading
+    ? `${journalWorkspaceSection}${dashboardSections}`
+    : `${dashboardSections}${journalWorkspaceSection}`;
 
+  app.innerHTML = `
+    <main class="app-shell">
+      <section class="hero-card">
+        <div class="hero-branding">
+          <div class="dna-brand-lockup" aria-label="DNA Decisions Numbers Analysis">
+            <img class="dna-logo" src="./ChatGPT%20Image%20Jun%2020%2C%202026%2C%2006_45_24%20AM.png" alt="DNA logo" />
+            <div class="dna-wordmark" aria-hidden="true">
+              <span class="dna-wordmark-main">DNA</span>
+              <span class="dna-wordmark-sub">Decisions <b>•</b> Numbers <b>•</b> Analysis</span>
+            </div>
+          </div>
+          <h1>Discover your edge.</h1>
+          <p class="hero-tagline">Every trade leaves clues. DNA helps you find them.</p>
+          <p class="hero-copy">
+            DNA is a trader performance analysis system designed to uncover patterns, strengths, weaknesses, habits, and edge through the study of Decisions, Numbers, and Analysis.
+          </p>
+        </div>
+        <div class="hero-actions">
+          <button class="share-dashboard-button" type="button" id="shareDashboard">${icon('share')} Share Dashboard</button>
+          ${renderCTraderConnectionCard()}
+        </div>
+      </section>
+
+      ${renderPageModeToggle()}
+
+      ${pageSections}
+    </main>
+  `;
+
+  bindEvents();
+}
+
+function renderJournalWorkspace(filteredTrades, today) {
+  return `
       <section class="workspace-grid">
         <section class="panel journal-panel">
           <div class="journal-header">
@@ -1673,11 +1713,7 @@ function render(options = {}) {
           </button>
           ${isManualTradeFormOpen ? renderManualTradeForm(manualTradeDateKey || today) : '<p class="manual-trade-helper">Use this only for trades that did not come from cTrader import.</p>'}
         </section>
-      </section>
-    </main>
-  `;
-
-  bindEvents();
+      </section>`;
 }
 
 function renderManualTradeForm(today) {
@@ -1844,6 +1880,12 @@ function bindEvents() {
 
   document.querySelector('#toggleManualTrade').addEventListener('click', toggleManualTradeForm);
   document.querySelector('#shareDashboard').addEventListener('click', shareDashboardSnapshot);
+  document.querySelectorAll('[data-page-mode]').forEach((button) => {
+    button.addEventListener('click', () => {
+      setPageMode(button.dataset.pageMode);
+      render();
+    });
+  });
   if (tradeForm) {
     tradeForm.addEventListener('submit', submitTrade);
     tradeForm.addEventListener('input', updateRiskPercentField);

@@ -2642,3 +2642,34 @@ h1 {
   box-shadow: 0 10px 24px rgba(16, 26, 46, 0.18);
   color: #ffffff;
 }
+
+.page-mode-toggle {
+  align-items: center;
+  background: rgba(16, 26, 46, 0.08);
+  border: 1px solid rgba(39, 110, 241, 0.14);
+  border-radius: 999px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  justify-content: center;
+  margin: 0 auto 1rem;
+  padding: 0.25rem;
+  width: fit-content;
+}
+
+.page-mode-button {
+  background: transparent;
+  border-radius: 999px;
+  color: var(--dna-navy);
+  font-size: 0.88rem;
+  font-weight: 900;
+  min-height: 40px;
+  padding: 0.55rem 1rem;
+  white-space: nowrap;
+}
+
+.page-mode-button.active {
+  background: linear-gradient(135deg, var(--dna-navy), var(--dna-gold));
+  box-shadow: 0 10px 24px rgba(16, 26, 46, 0.18);
+  color: #ffffff;
+}
