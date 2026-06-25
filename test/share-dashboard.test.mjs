@@ -11,6 +11,7 @@ function assertIncludes(text, expected, message) {
 
 test('dashboard snapshot has a share button and captures required dashboard content', () => {
   assertIncludes(source, 'id="shareDashboard"', 'The dashboard renders a Share Dashboard button.');
+  assertIncludes(source, 'pageMode === PAGE_MODES.dashboard ? `<button class="share-dashboard-button" type="button" id="shareDashboard">${icon(\'share\')} Share Dashboard</button>` : \'\'', 'The hero action Share Dashboard button is rendered in Dashboard Mode.');
   assertIncludes(source, 'id="dashboardSnapshot"', 'The dashboard has a dedicated snapshot capture area.');
   assertIncludes(source, "statCard('trend', 'Net P/L'", 'Top KPI row includes Net P/L.');
   assertIncludes(source, "statCard('target', 'Win Rate'", 'Snapshot includes Win Rate.');
@@ -51,3 +52,7 @@ test('dashboard snapshot styles are optimized for a clean exported image', () =>
   assertIncludes(styles, '.dashboard-snapshot-export .dashboard-snapshot-header', 'The DNA Results export header has dedicated rendering styles.');
 });
 
+test('share dashboard hero action remains visible in Dashboard Mode', () => {
+  assertIncludes(styles, 'display: inline-flex;', 'The Share Dashboard button keeps an explicit visible layout display.');
+  assertIncludes(styles, 'flex: 0 0 auto;', 'The Share Dashboard button is not allowed to collapse inside hero actions.');
+});
