@@ -1029,7 +1029,11 @@ function getCalendarReviewUserNote(trade) {
     return '';
   }
 
-  return note.replace(/^Imported from cTrader (?:unknown source trade|source trade [^.]+)\.\s*/i, '').trim();
+  if (/Imported from cTrader/i.test(note) || /Imported from cTrader source trade/i.test(note)) {
+    return '';
+  }
+
+  return note;
 }
 
 function uniqueTradeValues(dayTrades, fieldName) {
