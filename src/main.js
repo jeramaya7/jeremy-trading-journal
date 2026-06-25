@@ -1731,9 +1731,10 @@ function render(options = {}) {
 
 function renderJournalWorkspace(filteredTrades, today, options = {}) {
   const showManualTradePanel = options.showManualTradePanel !== false;
+  const journalPanelClass = showManualTradePanel ? 'panel journal-panel' : 'panel journal-panel trading-mode-journal-panel';
   return `
       <section class="workspace-grid">
-        <section class="panel journal-panel">
+        <section class="${journalPanelClass}">
           <div class="journal-header">
             <div>
               <div class="section-title">${icon('calendar')}<h2>Journal entries</h2></div>

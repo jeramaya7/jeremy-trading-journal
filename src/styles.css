@@ -398,6 +398,15 @@ h2 {
   min-height: 7.4rem;
 }
 
+.trading-today-kpi-strip {
+  margin: -0.25rem 0 0.7rem;
+}
+
+.trading-today-kpi-strip .stat-card {
+  min-height: 6.85rem;
+  padding: 0.9rem 1rem;
+}
+
 .equity-curve-card {
   margin-top: 0;
   padding: clamp(1.25rem, 2.3vw, 1.9rem);
@@ -1884,6 +1893,23 @@ h2,
   min-height: 54px;
   max-width: 430px;
   padding: 0.95rem 1.25rem;
+}
+
+.trading-mode-journal-panel {
+  padding-top: 0;
+}
+
+.trading-mode-journal-panel .journal-header {
+  align-items: flex-end;
+  margin-bottom: 0.85rem;
+}
+
+.trading-mode-journal-panel .journal-header .section-title h2 {
+  font-size: clamp(1.85rem, 3vw, 2.9rem);
+}
+
+.trading-mode-journal-panel .search-input {
+  margin-bottom: 0.05rem;
 }
 
 .trade-list {
