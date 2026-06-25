@@ -1259,9 +1259,10 @@ function renderTodayKpiStrip(todayTrades, todayStats) {
   return `
         <section class="stats-grid hero-stats-row trading-today-kpi-strip" aria-label="Today trading statistics">
           ${statCard('calendar', 'Today P/L', currency(todayPnl), getMoneyTone(todayPnl))}
-          ${statCard('trend', 'Expectancy', formatRMultiple(todayStats.averageR))}
+          ${statCard('trend', 'Today %', formatPercent(getTodayPnlPercent(todayTrades, todayPnl)))}
           ${statCard('target', 'Win Rate', formatPercent(todayStats.winRate))}
           ${statCard('chart', 'Trades', todayStats.tradeCount)}
+          ${statCard('trend', 'Expectancy', formatRMultiple(todayStats.averageR))}
         </section>`;
 }
 
