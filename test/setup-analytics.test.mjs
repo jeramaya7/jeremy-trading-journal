@@ -10,7 +10,7 @@ function assertIncludes(text, expected, message) {
 }
 
 test('setup analytics groups non-blank setups using existing trade calculations', () => {
-  assertIncludes(source, 'function getSetupAnalytics()', 'Setup analytics has a dedicated report calculator.');
+  assertIncludes(source, 'function getSetupAnalytics(tradeList = trades)', 'Setup analytics has a dedicated report calculator.');
   assertIncludes(source, "const setupName = String(trade.setup ?? '').trim();", 'Setup values are normalized from existing trade data.');
   assertIncludes(source, 'if (!setupName) {', 'Blank setup values are ignored.');
   assertIncludes(source, 'const pnl = calculatePnl(trade);', 'Setup analytics reuses the existing P&L calculation.');

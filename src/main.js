@@ -103,7 +103,6 @@ let editingTradeId = null;
 let isManualTradeFormOpen = false;
 let manualTradeDateKey = formatDateKey(new Date());
 let setupAnalyticsSort = { key: 'netPnl', direction: 'desc' };
-let equityCurvePeriod = 'all';
 let monthlyCalendarDate = new Date();
 let selectedCalendarDateKey = '';
 let calendarReviewDateKey = '';
@@ -652,34 +651,21 @@ function calculateBiggestLoser(tradeList) {
   return losingPnlValues.length ? Math.min(...losingPnlValues) : null;
 }
 
-function getEquityCurvePeriodStart(period, referenceDate = new Date()) {
-  if (period === 'all') {
-    return null;
-  }
-
-  return getReportPeriodStart(referenceDate, period);
-}
-
-function getEquityCurveTrades(period = equityCurvePeriod, referenceDate = new Date()) {
-  const periodStart = getEquityCurvePeriodStart(period, referenceDate);
-  const periodEnd = new Date(referenceDate);
-  periodEnd.setHours(23, 59, 59, 999);
-
-  return trades
+function getEquityCurveTrades(tradeList = trades) {
+  return tradeList
     .map((trade) => ({
       trade,
       date: getTradeReportDate(trade),
       pnl: calculatePnl(trade),
     }))
     .filter(({ date, pnl }) => date !== null && Number.isFinite(pnl))
-    .filter(({ date }) => !periodStart || (date >= periodStart && date <= periodEnd))
     .sort((firstTrade, secondTrade) => firstTrade.date - secondTrade.date);
 }
 
-function getEquityCurve(period = equityCurvePeriod) {
+function getEquityCurve(tradeList = trades) {
   let cumulativePnl = 0;
 
-  return getEquityCurveTrades(period).map(({ date, pnl }) => {
+  return getEquityCurveTrades(tradeList).map(({ date, pnl }) => {
     cumulativePnl += pnl;
     return {
       date,
@@ -712,10 +698,10 @@ function formatProfitFactor(value) {
   return Number(value).toFixed(2);
 }
 
-function getSetupAnalytics() {
+function getSetupAnalytics(tradeList = trades) {
   const setupReports = new Map();
 
-  trades.forEach((trade) => {
+  tradeList.forEach((trade) => {
     const setupName = String(trade.setup ?? '').trim();
     if (!setupName) {
       return;
@@ -774,8 +760,8 @@ function compareSetupAnalyticsRows(firstRow, secondRow) {
   return result * direction;
 }
 
-function renderSetupAnalytics() {
-  const setupAnalytics = getSetupAnalytics();
+function renderSetupAnalytics(tradeList = trades) {
+  const setupAnalytics = getSetupAnalytics(tradeList);
   const sortLabels = { setupName: 'Setup Name', tradeCount: 'Number of Trades', winRate: 'Win Rate %', averageR: 'Average R', netPnl: 'Net P&L' };
 
   return `
@@ -866,13 +852,13 @@ function formatDateKey(date) {
   return `${year}-${month}-${day}`;
 }
 
-function getMonthlyTradingCalendarDays(referenceDate = new Date()) {
+function getMonthlyTradingCalendarDays(referenceDate = new Date(), tradeList = trades) {
   const monthStart = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
   const monthEnd = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0);
   const leadingEmptyDays = monthStart.getDay();
   const dailyReports = new Map();
 
-  trades.forEach((trade) => {
+  tradeList.forEach((trade) => {
     const tradeDate = getTradeReportDate(trade);
     if (!tradeDate || tradeDate < monthStart || tradeDate > monthEnd) {
       return;
@@ -897,10 +883,10 @@ function getMonthlyTradingCalendarDays(referenceDate = new Date()) {
   ];
 }
 
-function renderMonthlyTradingCalendar(referenceDate = new Date()) {
+function renderMonthlyTradingCalendar(referenceDate = new Date(), tradeList = trades) {
   const monthLabel = referenceDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
   const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const calendarDays = getMonthlyTradingCalendarDays(referenceDate);
+  const calendarDays = getMonthlyTradingCalendarDays(referenceDate, tradeList);
   const monthlyPnl = calendarDays.reduce((total, calendarDay) => total + (calendarDay?.report?.pnl || 0), 0);
   const monthlyStartingBalance = calendarDays.find((calendarDay) => calendarDay?.report?.startingBalance)?.report.startingBalance ?? null;
 
@@ -1038,16 +1024,20 @@ function calendarReviewList(title, values) {
 
 function loadDnaResultsTimeframe() {
   const storedTimeframe = window.localStorage.getItem(DNA_TIMEFRAME_STORAGE_KEY);
-  return DNA_TIMEFRAME_OPTIONS.some((option) => option.value === storedTimeframe) ? storedTimeframe : 'day';
+  return isValidDnaTimeframe(storedTimeframe) ? storedTimeframe : 'all';
 }
 
 function setDnaResultsTimeframe(timeframe) {
-  dnaResultsTimeframe = DNA_TIMEFRAME_OPTIONS.some((option) => option.value === timeframe) ? timeframe : 'day';
+  dnaResultsTimeframe = isValidDnaTimeframe(timeframe) ? timeframe : 'all';
   window.localStorage.setItem(DNA_TIMEFRAME_STORAGE_KEY, dnaResultsTimeframe);
 }
 
+function isValidDnaTimeframe(timeframe) {
+  return DNA_TIMEFRAME_OPTIONS.some((option) => option.value === timeframe);
+}
+
 function getDnaResultsReferenceDate() {
-  return selectedCalendarDateKey ? new Date(`${selectedCalendarDateKey}T12:00:00`) : new Date();
+  return new Date();
 }
 
 function getDnaResultsTrades(referenceDate = getDnaResultsReferenceDate()) {
@@ -1219,8 +1209,8 @@ function renderHeroStatsRow(stats) {
         </section>`;
 }
 
-function renderEquityCurveCard(period = equityCurvePeriod) {
-  const equityCurve = getEquityCurve(period);
+function renderEquityCurveCard(tradeList = trades) {
+  const equityCurve = getEquityCurve(tradeList);
   const cumulativeValues = equityCurve.map((point) => point.cumulativePnl);
   const minValue = Math.min(0, ...cumulativeValues);
   const maxValue = Math.max(0, ...cumulativeValues);
@@ -1240,7 +1230,7 @@ function renderEquityCurveCard(period = equityCurvePeriod) {
   }).join(' ');
   const endingPnl = cumulativeValues.at(-1) ?? 0;
   const endingTone = getPerformanceTone(endingPnl);
-  const periodLabels = { all: 'All Time', month: 'Month', week: 'Week' };
+  const selectedTimeframeLabel = DNA_TIMEFRAME_OPTIONS.find((option) => option.value === dnaResultsTimeframe)?.label || 'Beginning';
 
   return `
       <section class="panel equity-curve-card" aria-label="Equity curve analytics">
@@ -1249,17 +1239,12 @@ function renderEquityCurveCard(period = equityCurvePeriod) {
             <div class="section-title">${icon('line')}<h2>Equity Curve</h2></div>
             <p class="section-helper">Running cumulative P&L built from imported and logged trade history.</p>
           </div>
-          <div class="equity-curve-toggle" role="group" aria-label="Equity curve period">
-            ${Object.entries(periodLabels).map(([value, label]) => `
-              <button class="equity-period-button ${period === value ? 'active' : ''}" type="button" data-equity-period="${value}" aria-pressed="${period === value ? 'true' : 'false'}">${label}</button>
-            `).join('')}
-          </div>
         </div>
         <div class="equity-curve-metrics">
           <span>${equityCurve.length} ${equityCurve.length === 1 ? 'trade' : 'trades'}</span>
           <strong class="${endingTone}">${currency(endingPnl)}</strong>
         </div>
-        <div class="equity-curve-chart" role="img" aria-label="${escapeHtml(periodLabels[period])} cumulative equity curve ending at ${escapeHtml(currency(endingPnl))}">
+        <div class="equity-curve-chart" role="img" aria-label="${escapeHtml(selectedTimeframeLabel)} cumulative equity curve ending at ${escapeHtml(currency(endingPnl))}">
           ${equityCurve.length ? `
             <svg viewBox="0 0 ${chartWidth} ${chartHeight}" preserveAspectRatio="none">
               <line class="equity-zero-line" x1="${chartPadding}" y1="${zeroY.toFixed(2)}" x2="${chartWidth - chartPadding}" y2="${zeroY.toFixed(2)}"></line>
@@ -1610,8 +1595,8 @@ function render(options = {}) {
     },
   ];
   const filteredTrades = getFilteredTrades();
-  const monthlyTradingCalendarSection = renderMonthlyTradingCalendar(monthlyCalendarDate);
-  const setupAnalyticsSection = renderSetupAnalytics();
+  const monthlyTradingCalendarSection = renderMonthlyTradingCalendar(monthlyCalendarDate, dnaResultsTrades);
+  const setupAnalyticsSection = renderSetupAnalytics(dnaResultsTrades);
   const today = new Date().toISOString().slice(0, 10);
 
   app.innerHTML = `
@@ -1637,13 +1622,13 @@ function render(options = {}) {
         </div>
       </section>
 
+      ${renderDnaResultsTimeframeToggle()}
+
       <section class="hero-equity-section" aria-label="Equity curve">
-        ${renderEquityCurveCard()}
+        ${renderEquityCurveCard(dnaResultsTrades)}
       </section>
 
       ${renderHeroStatsRow(stats)}
-
-      ${renderDnaResultsTimeframeToggle()}
 
       <section class="dashboard-snapshot" id="dashboardSnapshot" aria-label="Dashboard share snapshot">
         <div class="dashboard-snapshot-header">
@@ -1919,13 +1904,6 @@ function bindEvents() {
       render();
     });
   });
-  document.querySelectorAll('[data-equity-period]').forEach((button) => {
-    button.addEventListener('click', () => {
-      equityCurvePeriod = button.dataset.equityPeriod;
-      render();
-    });
-  });
-
   updateScreenshotFieldPreview();
   if (tradeForm) {
     updateRiskPercentField({ currentTarget: tradeForm });
