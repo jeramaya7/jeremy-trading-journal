@@ -2611,3 +2611,34 @@ h1 {
   .hero-card { grid-template-columns: 1fr; }
   .hero-actions .share-dashboard-button { align-self: stretch; }
 }
+
+.dna-timeframe-toggle {
+  align-items: center;
+  background: rgba(201, 148, 32, 0.12);
+  border: 1px solid rgba(39, 110, 241, 0.14);
+  border-radius: 999px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  justify-content: center;
+  margin: 0 auto 1rem;
+  padding: 0.25rem;
+  width: fit-content;
+}
+
+.dna-timeframe-button {
+  background: transparent;
+  border-radius: 999px;
+  color: var(--dna-gold);
+  font-size: 0.82rem;
+  font-weight: 800;
+  min-height: 36px;
+  padding: 0.45rem 0.85rem;
+  white-space: nowrap;
+}
+
+.dna-timeframe-button.active {
+  background: linear-gradient(135deg, var(--dna-navy), var(--dna-gold));
+  box-shadow: 0 10px 24px rgba(16, 26, 46, 0.18);
+  color: #ffffff;
+}

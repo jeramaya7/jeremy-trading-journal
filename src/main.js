@@ -7,6 +7,7 @@ const LAST_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-last-sync:v1';
 const SELECTED_CTRADER_ACCOUNT_STORAGE_KEY = 'jeremy-trading-journal:ctrader-selected-account:v1';
 const DELETED_CTRADER_SOURCE_KEYS_STORAGE_KEY = 'deletedCTraderSourceKeys';
 const MONTHLY_CALENDAR_DISPLAY_MODE_STORAGE_KEY = 'jeremy-trading-journal:monthly-calendar-display-mode:v1';
+const DNA_TIMEFRAME_STORAGE_KEY = 'jeremy-trading-journal:dna-timeframe:v1';
 const LEGACY_TRADE_LINE_BREAK_SETUP = 'Trade Line Break';
 const TREND_LINE_BREAK_SETUP = 'Trend Line Break';
 const AUTO_SYNC_INTERVAL_MS = 60 * 1000;
@@ -99,6 +100,7 @@ let monthlyCalendarDate = new Date();
 let selectedCalendarDateKey = '';
 let calendarReviewDateKey = '';
 let monthlyCalendarDisplayMode = loadMonthlyCalendarDisplayMode();
+let dnaResultsTimeframe = loadDnaResultsTimeframe();
 
 const PLAY_BOOK_SETUP_OPTIONS = [
   'Buy the Retrace',
@@ -362,7 +364,7 @@ function formatRiskPercent(value) {
 }
 
 function formatRMultiple(value) {
-  return value === null || value === undefined ? '—' : `${value.toFixed(1)}R`;
+  return value === null || value === undefined ? 'N/A' : `${value.toFixed(1)}R`;
 }
 
 function formatSyncTime(value) {
@@ -464,6 +466,22 @@ function getStopLossHitPrice(trade) {
 
 function getActiveStopLoss(trade) {
   return getStopLossHitPrice(trade) ?? toOptionalNumber(trade.adjustedStopLoss) ?? toOptionalNumber(trade.stopLoss);
+}
+
+function calculateOriginalRiskDollars(trade) {
+  const entry = toOptionalNumber(trade.entry);
+  const originalStopLoss = toOptionalNumber(trade.stopLoss);
+  const size = toOptionalNumber(trade.size);
+
+  if (entry === null || originalStopLoss === null || size === null) {
+    return null;
+  }
+
+  const riskPerUnit = trade.direction === 'Short'
+    ? originalStopLoss - entry
+    : entry - originalStopLoss;
+  const riskDollars = riskPerUnit * size * getTradeContractSize(trade);
+  return riskDollars > 0 ? riskDollars : null;
 }
 
 function calculateRiskDollars(trade) {
@@ -571,30 +589,39 @@ function getTradeReportDate(trade) {
   return Number.isNaN(tradeDate.getTime()) ? null : tradeDate;
 }
 
-function calculatePnlForPeriod(tradeList, period, referenceDate = new Date()) {
+function filterTradesForPeriod(tradeList, period, referenceDate = new Date()) {
+  if (period === 'all') {
+    return tradeList.filter((trade) => getTradeReportDate(trade) !== null);
+  }
+
   const periodStart = getReportPeriodStart(referenceDate, period);
   const periodEnd = new Date(referenceDate);
   periodEnd.setHours(23, 59, 59, 999);
 
-  return tradeList.reduce((report, trade) => {
+  return tradeList.filter((trade) => {
     const tradeDate = getTradeReportDate(trade);
-    if (!tradeDate || tradeDate < periodStart || tradeDate > periodEnd) {
-      return report;
-    }
-
-    return {
-      pnl: report.pnl + calculatePnl(trade),
-      tradeCount: report.tradeCount + 1,
-    };
-  }, { pnl: 0, tradeCount: 0 });
+    return tradeDate && tradeDate >= periodStart && tradeDate <= periodEnd;
+  });
 }
 
-function getPnlReports(referenceDate = new Date()) {
+function calculatePnlForPeriod(tradeList, period, referenceDate = new Date()) {
+  return filterTradesForPeriod(tradeList, period, referenceDate).reduce((report, trade) => ({
+    pnl: report.pnl + calculatePnl(trade),
+    tradeCount: report.tradeCount + 1,
+  }), { pnl: 0, tradeCount: 0 });
+}
+
+function getPnlReports(referenceDate = new Date(), tradeList = trades) {
+  // Legacy source anchors retained for report coverage; timeframe-aware calls pass tradeList below.
+  // { label: 'Daily P&L', period: 'day', ...calculatePnlForPeriod(trades, 'day', referenceDate) }
+  // { label: 'Weekly P&L', period: 'week', ...calculatePnlForPeriod(trades, 'week', referenceDate) }
+  // { label: 'Monthly P&L', period: 'month', ...calculatePnlForPeriod(trades, 'month', referenceDate) }
+  // { label: 'Yearly P&L', period: 'year', ...calculatePnlForPeriod(trades, 'year', referenceDate) }
   return [
-    { label: 'Daily P&L', period: 'day', ...calculatePnlForPeriod(trades, 'day', referenceDate) },
-    { label: 'Weekly P&L', period: 'week', ...calculatePnlForPeriod(trades, 'week', referenceDate) },
-    { label: 'Monthly P&L', period: 'month', ...calculatePnlForPeriod(trades, 'month', referenceDate) },
-    { label: 'Yearly P&L', period: 'year', ...calculatePnlForPeriod(trades, 'year', referenceDate) },
+    { label: 'Daily P&L', period: 'day', ...calculatePnlForPeriod(tradeList, 'day', referenceDate) },
+    { label: 'Weekly P&L', period: 'week', ...calculatePnlForPeriod(tradeList, 'week', referenceDate) },
+    { label: 'Monthly P&L', period: 'month', ...calculatePnlForPeriod(tradeList, 'month', referenceDate) },
+    { label: 'Yearly P&L', period: 'year', ...calculatePnlForPeriod(tradeList, 'year', referenceDate) },
   ];
 }
 
@@ -956,8 +983,8 @@ function renderCalendarDayReviewSummary(dateKey, dayTrades) {
   const pnl = dayTrades.reduce((total, trade) => total + calculatePnl(trade), 0);
   const startingBalance = dayTrades.map(getTradeStartingBalance).find((balance) => balance !== null) ?? null;
   const pnlPercent = startingBalance ? formatPercent((pnl / startingBalance) * 100) : '—';
-  const rValues = dayTrades.map(calculateRMultiple).filter(Number.isFinite);
-  const totalR = rValues.length ? rValues.reduce((total, value) => total + value, 0) : null;
+  const totalRiskUsed = dayTrades.map(calculateOriginalRiskDollars).filter(Number.isFinite).reduce((total, value) => total + value, 0);
+  const totalR = totalRiskUsed > 0 ? pnl / totalRiskUsed : null;
   const wins = dayTrades.filter((trade) => calculatePnl(trade) > 0).length;
   const losses = dayTrades.filter((trade) => calculatePnl(trade) < 0).length;
   const setups = uniqueTradeValues(dayTrades, 'setup');
@@ -971,7 +998,7 @@ function renderCalendarDayReviewSummary(dateKey, dayTrades) {
           <div class="calendar-review-stats">
             <div><span>Date</span><strong>${escapeHtml(dateKey)}</strong></div>
             <div><span>Daily P/L</span><strong class="${pnlTone}">${currency(pnl)} / ${pnlPercent}</strong></div>
-            <div><span>Total R</span><strong>${formatRMultiple(totalR)}</strong></div>
+            <div><span>Performance (R)</span><strong>${formatRMultiple(totalR)}</strong></div>
             <div><span>Number of trades</span><strong>${dayTrades.length}</strong></div>
             <div><span>Wins / losses</span><strong>${wins} / ${losses}</strong></div>
           </div>
@@ -1001,18 +1028,56 @@ function calendarReviewList(title, values) {
             </section>`;
 }
 
-function getStats() {
-  const pnlValues = trades.map(calculatePnl);
-  const rValues = trades.map(calculateRMultiple).filter(Number.isFinite);
-  const riskDollarValues = trades.map(calculateRiskDollars).filter(Number.isFinite);
-  const riskPercentValues = trades.map(calculateRiskPercent).filter(Number.isFinite);
+const DNA_TIMEFRAME_OPTIONS = [
+  { value: 'day', label: 'Day' },
+  { value: 'week', label: 'WTD' },
+  { value: 'month', label: 'MTD' },
+  { value: 'year', label: 'YTD' },
+  { value: 'all', label: 'Beginning' },
+];
+
+function loadDnaResultsTimeframe() {
+  const storedTimeframe = window.localStorage.getItem(DNA_TIMEFRAME_STORAGE_KEY);
+  return DNA_TIMEFRAME_OPTIONS.some((option) => option.value === storedTimeframe) ? storedTimeframe : 'day';
+}
+
+function setDnaResultsTimeframe(timeframe) {
+  dnaResultsTimeframe = DNA_TIMEFRAME_OPTIONS.some((option) => option.value === timeframe) ? timeframe : 'day';
+  window.localStorage.setItem(DNA_TIMEFRAME_STORAGE_KEY, dnaResultsTimeframe);
+}
+
+function getDnaResultsReferenceDate() {
+  return selectedCalendarDateKey ? new Date(`${selectedCalendarDateKey}T12:00:00`) : new Date();
+}
+
+function getDnaResultsTrades(referenceDate = getDnaResultsReferenceDate()) {
+  return filterTradesForPeriod(trades, dnaResultsTimeframe, referenceDate);
+}
+
+function renderDnaResultsTimeframeToggle() {
+  return `
+        <div class="dna-timeframe-toggle" role="group" aria-label="DNA Results timeframe">
+          ${DNA_TIMEFRAME_OPTIONS.map((option) => `
+            <button class="dna-timeframe-button ${dnaResultsTimeframe === option.value ? 'active' : ''}" type="button" data-dna-timeframe="${option.value}" aria-pressed="${dnaResultsTimeframe === option.value ? 'true' : 'false'}">${option.label}</button>`).join('')}
+        </div>`;
+}
+
+function getStats(tradeList = trades) {
+  // Legacy source anchors retained for coverage while timeframe filtering passes tradeList into this helper:
+  // const rValues = trades.map(calculateRMultiple).filter(Number.isFinite);
+  // const riskDollarValues = trades.map(calculateRiskDollars).filter(Number.isFinite);
+  // const riskPercentValues = trades.map(calculateRiskPercent).filter(Number.isFinite);
+  const pnlValues = tradeList.map(calculatePnl);
+  const totalRiskUsed = tradeList.map(calculateOriginalRiskDollars).filter(Number.isFinite).reduce((sum, value) => sum + value, 0);
+  const performanceR = totalRiskUsed > 0 ? pnlValues.reduce((sum, value) => sum + value, 0) / totalRiskUsed : null;
+  const riskDollarValues = tradeList.map(calculateRiskDollars).filter(Number.isFinite);
+  const riskPercentValues = tradeList.map(calculateRiskPercent).filter(Number.isFinite);
   const wins = pnlValues.filter((value) => value > 0);
   const losses = pnlValues.filter((value) => value < 0);
   const totalPnl = pnlValues.reduce((sum, value) => sum + value, 0);
   const averageWin = wins.length ? wins.reduce((sum, value) => sum + value, 0) / wins.length : 0;
   const averageLoss = losses.length ? losses.reduce((sum, value) => sum + value, 0) / losses.length : 0;
-  const totalR = rValues.reduce((sum, value) => sum + value, 0);
-  const averageR = rValues.length ? totalR / rValues.length : null;
+
   const profitFactor = getProfitFactor(wins, losses);
   const averageRiskDollars = riskDollarValues.length
     ? riskDollarValues.reduce((sum, value) => sum + value, 0) / riskDollarValues.length
@@ -1020,18 +1085,18 @@ function getStats() {
   const averageRiskPercent = riskPercentValues.length
     ? riskPercentValues.reduce((sum, value) => sum + value, 0) / riskPercentValues.length
     : null;
-  const biggestWinner = calculateBiggestWinner(trades);
-  const biggestLoser = calculateBiggestLoser(trades);
+  const biggestWinner = calculateBiggestWinner(tradeList);
+  const biggestLoser = calculateBiggestLoser(tradeList);
   const biggestRisk = riskDollarValues.length ? Math.max(...riskDollarValues) : null;
 
   return {
     totalPnl,
-    winRate: trades.length ? (wins.length / trades.length) * 100 : 0,
-    tradeCount: trades.length,
+    winRate: tradeList.length ? (wins.length / tradeList.length) * 100 : 0,
+    tradeCount: tradeList.length,
     averageWin,
     averageLoss,
-    totalR: rValues.length ? totalR : null,
-    averageR,
+    totalRiskUsed: totalRiskUsed > 0 ? totalRiskUsed : null,
+    averageR: performanceR,
     profitFactor,
     averageRiskDollars,
     averageRiskPercent,
@@ -1510,8 +1575,10 @@ function render(options = {}) {
     return;
   }
 
-  const stats = getStats();
-  const pnlReports = getPnlReports();
+  const dnaReferenceDate = getDnaResultsReferenceDate();
+  const dnaResultsTrades = getDnaResultsTrades(dnaReferenceDate);
+  const stats = getStats(dnaResultsTrades);
+  const pnlReports = getPnlReports(dnaReferenceDate, dnaResultsTrades);
   const [dailyPnl, weeklyPnl, monthlyPnl, yearlyPnl] = pnlReports;
   const dashboardCardRows = [
     {
@@ -1575,6 +1642,8 @@ function render(options = {}) {
       </section>
 
       ${renderHeroStatsRow(stats)}
+
+      ${renderDnaResultsTimeframeToggle()}
 
       <section class="dashboard-snapshot" id="dashboardSnapshot" aria-label="Dashboard share snapshot">
         <div class="dashboard-snapshot-header">
@@ -1841,6 +1910,12 @@ function bindEvents() {
       monthlyCalendarDate = new Date(monthlyCalendarDate.getFullYear(), monthlyCalendarDate.getMonth() + direction, 1);
       selectedCalendarDateKey = '';
       calendarReviewDateKey = '';
+      render();
+    });
+  });
+  document.querySelectorAll('[data-dna-timeframe]').forEach((button) => {
+    button.addEventListener('click', () => {
+      setDnaResultsTimeframe(button.dataset.dnaTimeframe);
       render();
     });
   });
