@@ -60,6 +60,8 @@ test('cTrader sync stores selected account balance on imported trades for Risk %
   assert.equal(journalTrade.accountSize, 25000);
   assert.equal(journalTrade.accountBalance, 25000);
   assert.equal(journalTrade.accountBalanceFetchedAt, '2026-06-12T14:59:00.000Z');
+  assert.equal(journalTrade.stopLoss, 1.095);
+  assert.equal(journalTrade.adjustedStopLoss, 1.095);
 });
 
 test('cTrader sync imports only trades not already in the journal', () => {
@@ -169,7 +171,7 @@ test('cTrader sync refreshes account balance fields on existing imported trades'
   assert.equal(updatedExistingTrades.trades[0].accountBalanceFetchedAt, '2026-06-12T14:59:00.000Z');
 });
 
-test('cTrader sync updates stop loss on matching imported trades without overwriting journal fields', () => {
+test('cTrader sync updates adjusted stop loss on matching imported trades without overwriting original stop loss or journal fields', () => {
   const existingTrades = [
     {
       id: 'ctrader-501',
@@ -178,6 +180,7 @@ test('cTrader sync updates stop loss on matching imported trades without overwri
       symbol: 'EURUSD',
       brokerSymbol: 'EURUSD',
       stopLoss: 1.095,
+      adjustedStopLoss: 1.095,
       notes: 'User journal notes',
       setup: 'Breakout',
       closeReason: 'Target hit',
@@ -197,7 +200,8 @@ test('cTrader sync updates stop loss on matching imported trades without overwri
   assert.equal(updatedExistingTrades.updatedCount, 1);
   assert.equal(updatedExistingTrades.stopLossUpdatedCount, 1);
   assert.equal(updatedExistingTrades.trades.length, 1);
-  assert.equal(updatedExistingTrades.trades[0].stopLoss, 1.0975);
+  assert.equal(updatedExistingTrades.trades[0].stopLoss, 1.095);
+  assert.equal(updatedExistingTrades.trades[0].adjustedStopLoss, 1.0975);
   assert.equal(updatedExistingTrades.trades[0].notes, 'User journal notes');
   assert.equal(updatedExistingTrades.trades[0].setup, 'Breakout');
   assert.equal(updatedExistingTrades.trades[0].closeReason, 'Target hit');
