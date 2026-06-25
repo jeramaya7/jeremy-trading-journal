@@ -1624,7 +1624,7 @@ function render(options = {}) {
   const dnaReferenceDate = getDnaResultsReferenceDate();
   const dnaResultsTrades = getDnaResultsTrades(dnaReferenceDate);
   const stats = getStats(dnaResultsTrades);
-  const pnlReports = getPnlReports(dnaReferenceDate, dnaResultsTrades);
+  const pnlReports = getPnlReports(dnaReferenceDate, trades);
   const [dailyPnl, weeklyPnl, monthlyPnl, yearlyPnl] = pnlReports;
   const dashboardCardRows = [
     {
