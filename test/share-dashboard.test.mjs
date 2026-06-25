@@ -12,9 +12,9 @@ function assertIncludes(text, expected, message) {
 test('dashboard snapshot has a share button and captures required dashboard content', () => {
   assertIncludes(source, 'id="shareDashboard"', 'The dashboard renders a Share Dashboard button.');
   assertIncludes(source, 'pageMode === PAGE_MODES.dashboard ? `<button class="share-dashboard-button" type="button" id="shareDashboard">${icon(\'share\')} Share Dashboard</button>` : \'\'', 'The hero action Share Dashboard button is rendered in Dashboard Mode.');
-  assertIncludes(source, 'id="dashboardSnapshot"', 'The dashboard has a dedicated snapshot capture area.');
+  assertIncludes(source, 'id="dashboardSnapshot"', 'The dashboard has a dedicated snapshot area.');
   assertIncludes(source, "statCard('trend', 'Net P/L'", 'Top KPI row includes Net P/L.');
-  assertIncludes(source, "statCard('target', 'Win Rate'", 'Snapshot includes Win Rate.');
+  assertIncludes(source, "statCard('target', 'Win Rate'", 'Top KPI row includes Win Rate.');
   assertIncludes(source, "statCard('chart', 'Trades Analyzed'", 'Top KPI row includes Trades Analyzed.');
   assertIncludes(source, "statCard('trend', 'Biggest Winner'", 'Snapshot includes Biggest Winner.');
   assertIncludes(source, "statCard('trend', 'Average Winner'", 'Snapshot includes Average Winner.');
@@ -26,30 +26,31 @@ test('dashboard snapshot has a share button and captures required dashboard cont
   assertIncludes(source, "statCard('calendar', 'Weekly P/L'", 'Snapshot includes Weekly P/L.');
   assertIncludes(source, "statCard('calendar', 'Monthly P/L'", 'Snapshot includes Monthly P/L.');
   assertIncludes(source, "statCard('calendar', 'Yearly P/L'", 'Snapshot includes Yearly P/L.');
-  assertIncludes(source, '<section class="dashboard-snapshot" id="dashboardSnapshot"', 'DNA Results has a dedicated snapshot capture area.');
+  assertIncludes(source, '<section class="dashboard-snapshot" id="dashboardSnapshot"', 'DNA Results has a dedicated snapshot area.');
 });
 
-test('share dashboard exports a local PNG download without external sharing APIs', () => {
-  assertIncludes(source, "document.querySelector('#shareDashboard')?.addEventListener('click', shareDashboardSnapshot);", 'Share Dashboard is wired to the export handler.');
-  assertIncludes(source, 'new XMLSerializer().serializeToString(wrapper)', 'The snapshot DOM is serialized for image generation.');
-  assertIncludes(source, "canvasToPngBlob(canvas)", 'The snapshot canvas is converted to a PNG blob.');
-  assertIncludes(source, "downloadBlob(pngBlob, `jeremy-dashboard-snapshot-", 'The PNG is downloaded locally.');
-  assertIncludes(source, "class=\"dashboard-snapshot-generated-date\"", 'The generated date badge has an explicit class for targeted export inclusion.');
-  assertIncludes(source, "const dashboardSnapshot = document.querySelector('#dashboardSnapshot');", 'The export targets only the DNA Results snapshot section.');
-  assertIncludes(source, "const clonedDashboard = dashboardSnapshot.cloneNode(true);", 'Only the DNA Results section is cloned for export.');
-  assert.equal(source.includes("querySelector('.hero-stats-row')"), false, 'The export does not capture the top KPI row.');
-  assert.equal(source.includes("querySelector('.monthly-calendar-panel')"), false, 'The export does not capture the Monthly Trading Calendar.');
-  assert.equal(source.includes("querySelector('.setup-analytics-panel')"), false, 'The export does not capture Setup Analytics.');
-  assert.equal(source.includes("dashboard-snapshot-generated-date')?.remove()"), false, 'The generated date badge remains in the export.');
+test('share dashboard opens a clean share view without PNG/canvas/SVG export', () => {
+  assertIncludes(source, "document.querySelector('#shareDashboard')?.addEventListener('click', openShareDashboardView);", 'Share Dashboard is wired to the share view handler.');
+  assertIncludes(source, "window.open(shareUrl, '_blank', 'noopener,noreferrer');", 'Share Dashboard opens the share view in a new tab.');
+  assertIncludes(source, "window.location.hash === '#share-dashboard'", 'The app recognizes the share view URL.');
+  assertIncludes(source, 'function renderShareDashboardView()', 'A dedicated share view renderer is present.');
+  assertIncludes(source, '${renderHeroStatsRow(stats)}', 'The share view includes the top KPI row.');
+  assertIncludes(source, '${renderDashboardSnapshot(dashboardCardRows)}', 'The share view includes DNA Results.');
+  assertIncludes(source, 'class="dashboard-snapshot-generated-date"', 'The generated date badge remains in the share view.');
+  assert.equal(source.includes('canvasToPngBlob'), false, 'No PNG canvas conversion remains.');
+  assert.equal(source.includes('new XMLSerializer().serializeToString(wrapper)'), false, 'No SVG foreignObject serialization remains.');
+  assert.equal(source.includes('downloadBlob(pngBlob'), false, 'No PNG download remains.');
+  assert.equal(source.includes("querySelector('.monthly-calendar-panel')"), false, 'The share flow does not target the Monthly Trading Calendar.');
+  assert.equal(source.includes("querySelector('.setup-analytics-panel')"), false, 'The share flow does not target Setup Analytics.');
   assert.equal(source.includes('wa.me'), false, 'No WhatsApp deep link is used.');
   assert.equal(source.includes('whatsapp'), false, 'No WhatsApp API integration is added.');
 });
 
-test('dashboard snapshot styles are optimized for a clean exported image', () => {
+test('dashboard snapshot styles support a clean share view', () => {
   assertIncludes(styles, '.dashboard-snapshot', 'The snapshot area has dedicated styling.');
-  assertIncludes(styles, '.dashboard-snapshot-export', 'The export clone has fixed-width styling for consistent PNG output.');
-  assertIncludes(styles, 'width: 1200px;', 'The exported image uses a stable share-friendly width.');
-  assertIncludes(styles, '.dashboard-snapshot-export .dashboard-snapshot-header', 'The DNA Results export header has dedicated rendering styles.');
+  assertIncludes(styles, '.share-view-shell', 'The share page has dedicated shell styling.');
+  assertIncludes(styles, '.share-view-header', 'The share page has a dedicated header.');
+  assertIncludes(styles, '.share-view-shell .dashboard-snapshot-header h2', 'The share view keeps the DNA Results title unclipped.');
 });
 
 test('share dashboard hero action remains visible in Dashboard Mode', () => {
