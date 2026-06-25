@@ -983,10 +983,15 @@ function renderCalendarDayReviewSummary(dateKey, dayTrades) {
   const pnl = dayTrades.reduce((total, trade) => total + calculatePnl(trade), 0);
   const startingBalance = dayTrades.map(getTradeStartingBalance).find((balance) => balance !== null) ?? null;
   const pnlPercent = startingBalance ? formatPercent((pnl / startingBalance) * 100) : '—';
-  const totalRiskUsed = dayTrades.map(calculateOriginalRiskDollars).filter(Number.isFinite).reduce((total, value) => total + value, 0);
-  const totalR = totalRiskUsed > 0 ? pnl / totalRiskUsed : null;
-  const wins = dayTrades.filter((trade) => calculatePnl(trade) > 0).length;
-  const losses = dayTrades.filter((trade) => calculatePnl(trade) < 0).length;
+  const tradePnls = dayTrades.map(calculatePnl);
+  const winningPnls = tradePnls.filter((value) => value > 0);
+  const losingPnls = tradePnls.filter((value) => value < 0);
+  const rValues = dayTrades.map(calculateRMultiple).filter(Number.isFinite);
+  const wins = winningPnls.length;
+  const winRate = dayTrades.length ? (wins / dayTrades.length) * 100 : null;
+  const averageR = rValues.length ? rValues.reduce((total, value) => total + value, 0) / rValues.length : null;
+  const averageWinner = winningPnls.length ? winningPnls.reduce((total, value) => total + value, 0) / winningPnls.length : null;
+  const averageLoser = losingPnls.length ? losingPnls.reduce((total, value) => total + value, 0) / losingPnls.length : null;
   const setups = uniqueTradeValues(dayTrades, 'setup');
   const closeReasons = uniqueTradeValues(dayTrades, 'closeReason');
   const lossReasons = uniqueTradeValues(dayTrades, 'lossReason');
@@ -996,11 +1001,12 @@ function renderCalendarDayReviewSummary(dateKey, dayTrades) {
 
   return `
           <div class="calendar-review-stats">
-            <div><span>Date</span><strong>${escapeHtml(dateKey)}</strong></div>
-            <div><span>Daily P/L</span><strong class="${pnlTone}">${currency(pnl)} / ${pnlPercent}</strong></div>
-            <div><span>Performance (R)</span><strong>${formatRMultiple(totalR)}</strong></div>
-            <div><span>Number of trades</span><strong>${dayTrades.length}</strong></div>
-            <div><span>Wins / losses</span><strong>${wins} / ${losses}</strong></div>
+            <div><span>Daily P/L ($ / %)</span><strong class="${pnlTone}">${currency(pnl)} / ${pnlPercent}</strong></div>
+            <div><span>Win Rate (%)</span><strong>${formatPercent(winRate)}</strong></div>
+            <div><span>Trades</span><strong>${dayTrades.length}</strong></div>
+            <div><span>Average R</span><strong>${formatRMultiple(averageR)}</strong></div>
+            <div><span>Average Winner ($)</span><strong>${averageWinner === null ? '—' : currency(averageWinner)}</strong></div>
+            <div><span>Average Loser ($)</span><strong>${averageLoser === null ? '—' : currency(averageLoser)}</strong></div>
           </div>
           <div class="calendar-review-sections">
             ${calendarReviewList('Setups used', setups)}
