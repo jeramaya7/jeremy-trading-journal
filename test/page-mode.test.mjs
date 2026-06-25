@@ -23,6 +23,7 @@ test('Trading Mode renders a focused workbench without dashboard analytics secti
   assertIncludes(source, "statCard('calendar', 'Today P/L'", 'Today KPI strip shows Today P/L.');
   assertIncludes(source, "statCard('trend', 'Today %'", 'Today KPI strip shows Today %.');
   assertIncludes(source, "statCard('target', 'Win Rate'", 'Today KPI strip shows Win Rate.');
+  assertIncludes(source, "statCard('trend', 'Expectancy', formatRMultiple(todayStats.averageR))", 'Today KPI strip shows Expectancy.');
   assertIncludes(source, "statCard('chart', 'Trades'", 'Today KPI strip shows Trades.');
   assertIncludes(source, "const tradingModeSections = `${renderTodayKpiStrip(todayTrades, getStats(todayTrades))}${renderJournalWorkspace(filteredTrades, today, { showManualTradePanel: false })}`;", 'Trading Mode includes only the Today KPI strip and journal workspace without the manual trade panel.');
   assertIncludes(source, '? tradingModeSections', 'Trading Mode uses the focused workbench sections.');

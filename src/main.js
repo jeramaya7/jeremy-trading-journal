@@ -1263,6 +1263,7 @@ function renderTodayKpiStrip(todayTrades, todayStats) {
           ${statCard('trend', 'Today %', formatPercent(getTodayPnlPercent(todayTrades, todayPnl)))}
           ${statCard('target', 'Win Rate', formatPercent(todayStats.winRate))}
           ${statCard('chart', 'Trades', todayStats.tradeCount)}
+          ${statCard('trend', 'Expectancy', formatRMultiple(todayStats.averageR))}
         </section>`;
 }
 
