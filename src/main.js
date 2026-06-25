@@ -145,6 +145,7 @@ const CLOSE_REASON_OPTIONS = [
   'Closed Too Early',
   'Manual Close',
   'Other',
+  'Secured Profit Early',
   'Stop Loss',
   'Take Profit',
   'Trailed Stop',
