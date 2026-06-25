@@ -47,6 +47,18 @@ test('dashboard renders one shared DNA timeframe toggle that drives dashboard se
   assert.equal(source.includes('[data-equity-period]'), false, 'Old independent equity curve period controls should be removed.');
 });
 
+test('DNA Results P/L cards calculate from independent calendar periods', () => {
+  assert.ok(source.includes('const pnlReports = getPnlReports(dnaReferenceDate);'), 'Period P/L cards should not reuse the shared DNA timeframe-filtered trade list.');
+  assert.ok(source.includes("{ label: 'Daily P&L', period: 'day', ...calculatePnlForPeriod(tradeList, 'day', referenceDate) }"), 'Daily P/L should calculate with the day period.');
+  assert.ok(source.includes("{ label: 'Weekly P&L', period: 'week', ...calculatePnlForPeriod(tradeList, 'week', referenceDate) }"), 'Weekly P/L should calculate with the week period.');
+  assert.ok(source.includes("{ label: 'Monthly P&L', period: 'month', ...calculatePnlForPeriod(tradeList, 'month', referenceDate) }"), 'Monthly P/L should calculate with the month period.');
+  assert.ok(source.includes("{ label: 'Yearly P&L', period: 'year', ...calculatePnlForPeriod(tradeList, 'year', referenceDate) }"), 'Yearly P/L should calculate with the year period.');
+  assert.ok(source.includes("statCard('calendar', 'Daily P/L', currency(dailyPnl.pnl), getMoneyTone(dailyPnl.pnl))"), 'Daily card should render the daily calculation.');
+  assert.ok(source.includes("statCard('calendar', 'Weekly P/L', currency(weeklyPnl.pnl), getMoneyTone(weeklyPnl.pnl))"), 'Weekly card should render the weekly calculation.');
+  assert.ok(source.includes("statCard('calendar', 'Monthly P/L', currency(monthlyPnl.pnl), getMoneyTone(monthlyPnl.pnl))"), 'Monthly card should render the monthly calculation.');
+  assert.ok(source.includes("statCard('calendar', 'Yearly P/L', currency(yearlyPnl.pnl), getMoneyTone(yearlyPnl.pnl))"), 'Yearly card should render the yearly calculation.');
+});
+
 test('dashboard average risk metrics only use valid risk values', () => {
   assert.ok(source.includes('const riskDollarValues = tradeList.map(calculateRiskDollars).filter(Number.isFinite);'), 'Average Risk $ should ignore missing or invalid Risk $ values.');
   assert.ok(source.includes('const riskPercentValues = tradeList.map(calculateRiskPercent).filter(Number.isFinite);'), 'Average Risk % should ignore missing or invalid Risk % values.');
