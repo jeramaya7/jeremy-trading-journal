@@ -8,6 +8,14 @@ const SELECTED_CTRADER_ACCOUNT_STORAGE_KEY = 'jeremy-trading-journal:ctrader-sel
 const DELETED_CTRADER_SOURCE_KEYS_STORAGE_KEY = 'deletedCTraderSourceKeys';
 const MONTHLY_CALENDAR_DISPLAY_MODE_STORAGE_KEY = 'jeremy-trading-journal:monthly-calendar-display-mode:v1';
 const DNA_TIMEFRAME_STORAGE_KEY = 'jeremy-trading-journal:dna-timeframe:v1';
+const DNA_TIMEFRAME_OPTIONS = [
+  { value: 'day', label: 'Day' },
+  { value: 'week', label: 'WTD' },
+  { value: 'month', label: 'MTD' },
+  { value: 'year', label: 'YTD' },
+  { value: 'all', label: 'Beginning' },
+];
+
 const LEGACY_TRADE_LINE_BREAK_SETUP = 'Trade Line Break';
 const TREND_LINE_BREAK_SETUP = 'Trend Line Break';
 const AUTO_SYNC_INTERVAL_MS = 60 * 1000;
@@ -1027,14 +1035,6 @@ function calendarReviewList(title, values) {
               ${values.length ? `<ul>${values.map((value) => `<li>${escapeHtml(value)}</li>`).join('')}</ul>` : '<p class="empty-state">None recorded.</p>'}
             </section>`;
 }
-
-const DNA_TIMEFRAME_OPTIONS = [
-  { value: 'day', label: 'Day' },
-  { value: 'week', label: 'WTD' },
-  { value: 'month', label: 'MTD' },
-  { value: 'year', label: 'YTD' },
-  { value: 'all', label: 'Beginning' },
-];
 
 function loadDnaResultsTimeframe() {
   const storedTimeframe = window.localStorage.getItem(DNA_TIMEFRAME_STORAGE_KEY);
