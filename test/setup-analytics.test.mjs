@@ -19,11 +19,11 @@ test('setup analytics groups non-blank setups using existing trade calculations'
 });
 
 test('setup analytics renders below the dashboard as a sortable table ordered by net P&L by default', () => {
-  const statsIndex = source.indexOf('<section class="dashboard-card-groups" aria-label="Trading performance summary">');
+  const statsIndex = source.indexOf('${dashboardSnapshot}');
   const setupIndex = source.indexOf('${setupAnalyticsSection}');
   const workspaceIndex = source.indexOf('<section class="workspace-grid">');
 
-  assert.ok(statsIndex > -1, 'Existing dashboard section still renders.');
+  assert.ok(statsIndex > -1, 'Existing dashboard section still renders before setup analytics.');
   assert.ok(setupIndex > statsIndex, 'Setup analytics renders below the dashboard.');
   assert.ok(workspaceIndex > setupIndex, 'Setup analytics renders above the workspace.');
   assertIncludes(source, "let setupAnalyticsSort = { key: 'netPnl', direction: 'desc' };", 'Setup analytics defaults to highest Net P&L first.');

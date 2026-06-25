@@ -349,39 +349,70 @@ h2 {
   margin: 0;
 }
 
-.dashboard-summary-export {
-  box-sizing: border-box;
-  display: grid;
-  gap: 24px;
-  padding: 24px 0;
-  width: 1200px;
+
+.share-view-shell {
+  max-width: 1240px;
+  padding-block: clamp(1.25rem, 3vw, 2.5rem);
 }
 
-.dashboard-summary-export .hero-stats-row,
-.dashboard-summary-export .monthly-calendar-panel,
-.dashboard-summary-export .setup-analytics-panel {
+.share-view-header {
+  align-items: center;
+  background: linear-gradient(135deg, #ffffff 0%, #fdfbf7 58%, #f9fbff 100%);
+  border: 1px solid rgba(16, 26, 46, 0.1);
+  border-radius: 28px;
+  box-shadow: 0 24px 70px rgba(16, 26, 46, 0.12);
+  display: flex;
+  gap: 1.5rem;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  padding: clamp(1.2rem, 2.6vw, 2rem);
+}
+
+.share-view-header h1 {
+  margin: 0.35rem 0 0.5rem;
+  white-space: normal;
+}
+
+.share-view-header .hero-tagline {
   margin: 0;
+  white-space: normal;
 }
 
-.dashboard-snapshot-export {
-  border-radius: 0;
-  box-sizing: border-box;
-  margin: 0;
-  padding: 24px;
-  width: 1200px;
+.share-view-back {
+  text-decoration: none;
 }
 
-.dashboard-snapshot-export .dashboard-snapshot-header {
-  backdrop-filter: none;
+.share-view-shell .hero-stats-row {
+  margin-inline: 0;
 }
 
-.dashboard-snapshot-export .dashboard-snapshot-header h2 {
-  line-height: 1.05;
-}
-
-.dashboard-snapshot-export .setup-analytics-table-wrap,
-.dashboard-summary-export .setup-analytics-table-wrap {
+.share-view-shell .dashboard-snapshot {
+  margin-bottom: 0;
   overflow: visible;
+}
+
+.share-view-shell .dashboard-snapshot-header {
+  align-items: flex-start;
+  gap: 1rem;
+  overflow: visible;
+}
+
+.share-view-shell .dashboard-snapshot-header h2 {
+  line-height: 1.08;
+  overflow: visible;
+  padding-bottom: 0.08em;
+}
+
+@media (max-width: 760px) {
+  .share-view-header,
+  .share-view-shell .dashboard-snapshot-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .share-view-back {
+    justify-content: center;
+  }
 }
 
 .dashboard-card-groups {

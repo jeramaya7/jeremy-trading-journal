@@ -1624,6 +1624,11 @@ function isCTraderImportedTrade(trade) {
 }
 
 function render(options = {}) {
+  if (isShareDashboardView()) {
+    renderShareDashboardView();
+    return;
+  }
+
   if (isTradeEditLocked() && !options.force) {
     return;
   }
@@ -1669,6 +1674,7 @@ function render(options = {}) {
   const todayTrades = filterTradesForPeriod(trades, 'day', dnaReferenceDate);
   const tradingModeSections = `${renderTodayKpiStrip(todayTrades, getStats(todayTrades))}${renderJournalWorkspace(filteredTrades, today, { showManualTradePanel: false })}`;
   const journalWorkspaceSection = renderJournalWorkspace(filteredTrades, today);
+  const dashboardSnapshot = renderDashboardSnapshot(dashboardCardRows);
   const dashboardSections = `
       ${renderDnaResultsTimeframeToggle()}
 
@@ -1678,22 +1684,7 @@ function render(options = {}) {
 
       ${renderHeroStatsRow(stats)}
 
-      <section class="dashboard-snapshot" id="dashboardSnapshot" aria-label="Dashboard share snapshot">
-        <div class="dashboard-snapshot-header">
-          <div>
-            <p class="eyebrow">${icon('share')} Dashboard Snapshot</p>
-            <h2>DNA Results</h2>
-          </div>
-          <p class="dashboard-snapshot-generated-date">Generated ${new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
-        </div>
-        <section class="dashboard-card-groups" aria-label="Trading performance summary">
-          ${dashboardCardRows.map((row) => `
-            <section class="stats-grid dashboard-card-row" aria-label="${row.label}">
-              ${row.cards.join('')}
-            </section>`).join('')}
-        </section>
-
-      </section>
+      ${dashboardSnapshot}
 
       ${monthlyTradingCalendarSection}
 
@@ -1734,6 +1725,82 @@ function render(options = {}) {
   `;
 
   bindEvents();
+}
+
+
+function renderDashboardSnapshot(dashboardCardRows) {
+  return `
+      <section class="dashboard-snapshot" id="dashboardSnapshot" aria-label="Dashboard share snapshot">
+        <div class="dashboard-snapshot-header">
+          <div>
+            <p class="eyebrow">${icon('share')} Dashboard Snapshot</p>
+            <h2>DNA Results</h2>
+          </div>
+          <p class="dashboard-snapshot-generated-date">Generated ${new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+        </div>
+        <section class="dashboard-card-groups" aria-label="Trading performance summary">
+          ${dashboardCardRows.map((row) => `
+            <section class="stats-grid dashboard-card-row" aria-label="${row.label}">
+              ${row.cards.join('')}
+            </section>`).join('')}
+        </section>
+      </section>`;
+}
+
+function renderShareDashboardView() {
+  const dnaReferenceDate = getDnaResultsReferenceDate();
+  const dnaResultsTrades = getDnaResultsTrades(dnaReferenceDate);
+  const stats = getStats(dnaResultsTrades);
+  const [dailyPnl, weeklyPnl, monthlyPnl, yearlyPnl] = getPnlReports(dnaReferenceDate, trades);
+  const dashboardCardRows = [
+    {
+      label: 'R Metrics',
+      cards: [
+        statCard('target', 'Average R', formatRMultiple(stats.averageR)),
+        statCard('trend', 'Biggest Winner', stats.biggestWinner === null ? '—' : currency(stats.biggestWinner)),
+        statCard('trend', 'Biggest Loser', stats.biggestLoser === null ? '—' : currency(stats.biggestLoser), getMoneyTone(stats.biggestLoser)),
+        statCard('line', 'Biggest Risk', stats.biggestRisk === null ? '—' : currency(stats.biggestRisk)),
+      ],
+    },
+    {
+      label: 'Risk Metrics',
+      cards: [
+        statCard('trend', 'Average Winner', currency(stats.averageWin)),
+        statCard('trend', 'Average Loser', currency(stats.averageLoss), getMoneyTone(stats.averageLoss)),
+        statCard('target', 'Average Risk $', stats.averageRiskDollars === null ? '—' : currency(stats.averageRiskDollars)),
+        statCard('target', 'Average Risk %', formatRiskPercent(stats.averageRiskPercent)),
+      ],
+    },
+    {
+      label: 'Time Performance',
+      cards: [
+        statCard('calendar', 'Daily P/L', currency(dailyPnl.pnl), getMoneyTone(dailyPnl.pnl)),
+        statCard('calendar', 'Weekly P/L', currency(weeklyPnl.pnl), getMoneyTone(weeklyPnl.pnl)),
+        statCard('calendar', 'Monthly P/L', currency(monthlyPnl.pnl), getMoneyTone(monthlyPnl.pnl)),
+        statCard('calendar', 'Yearly P/L', currency(yearlyPnl.pnl), getMoneyTone(yearlyPnl.pnl)),
+      ],
+    },
+  ];
+
+  app.innerHTML = `
+    <main class="app-shell share-view-shell">
+      <section class="share-view-header" aria-label="Share view header">
+        <div>
+          <p class="eyebrow">${icon('share')} Share View</p>
+          <h1>Dashboard Snapshot</h1>
+          <p class="hero-tagline">A clean dashboard view built for manual screenshots.</p>
+        </div>
+        <a class="secondary-button share-view-back" href="${window.location.pathname}${window.location.search}">Back to Dashboard</a>
+      </section>
+
+      ${renderHeroStatsRow(stats)}
+
+      ${renderDashboardSnapshot(dashboardCardRows)}
+    </main>`;
+}
+
+function isShareDashboardView() {
+  return window.location.hash === '#share-dashboard';
 }
 
 function renderJournalWorkspace(filteredTrades, today, options = {}) {
@@ -1798,124 +1865,9 @@ function renderManualTradeForm(today) {
   `;
 }
 
-function getInlineStylesheetText() {
-  return [...document.styleSheets]
-    .map((styleSheet) => {
-      try {
-        return [...styleSheet.cssRules].map((rule) => rule.cssText).join('\n');
-      } catch {
-        return '';
-      }
-    })
-    .join('\n');
-}
-
-function downloadBlob(blob, filename) {
-  const objectUrl = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = objectUrl;
-  link.download = filename;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(objectUrl);
-}
-
-function loadImage(src) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('Dashboard snapshot image could not be generated.'));
-    image.src = src;
-  });
-}
-
-function canvasToPngBlob(canvas) {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob) {
-        resolve(blob);
-        return;
-      }
-
-      reject(new Error('Dashboard snapshot PNG could not be created.'));
-    }, 'image/png');
-  });
-}
-
-function waitForNextFrame() {
-  return new Promise((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(resolve));
-  });
-}
-
-async function shareDashboardSnapshot() {
-  const shareButton = document.querySelector('#shareDashboard');
-  const dashboardSnapshot = document.querySelector('#dashboardSnapshot');
-  if (!shareButton || !dashboardSnapshot) {
-    return;
-  }
-
-  const originalButtonText = shareButton.innerHTML;
-  shareButton.disabled = true;
-  shareButton.innerHTML = `${icon('download')} Preparing PNG...`;
-
-  try {
-    const exportWidth = 1200;
-    const scale = 2;
-    const clonedDashboard = dashboardSnapshot.cloneNode(true);
-    clonedDashboard.removeAttribute('id');
-    clonedDashboard.classList.add('dashboard-snapshot-export');
-    const clonedSnapshotHeader = clonedDashboard.querySelector('.dashboard-snapshot-header');
-    if (clonedSnapshotHeader) {
-      clonedSnapshotHeader.style.setProperty('backdrop-filter', 'none', 'important');
-      clonedSnapshotHeader.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
-    }
-
-    const measurementHost = document.createElement('div');
-    measurementHost.style.left = '-10000px';
-    measurementHost.style.position = 'fixed';
-    measurementHost.style.top = '0';
-    measurementHost.style.visibility = 'hidden';
-    measurementHost.append(clonedDashboard);
-    document.body.append(measurementHost);
-    await waitForNextFrame();
-
-    const snapshotBounds = clonedDashboard.getBoundingClientRect();
-    const height = Math.ceil(Math.max(clonedDashboard.scrollHeight, snapshotBounds.height));
-    measurementHost.remove();
-
-    const wrapper = document.createElement('div');
-    wrapper.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-    wrapper.append(clonedDashboard);
-
-    const serializedHtml = new XMLSerializer().serializeToString(wrapper);
-    const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="${exportWidth}" height="${height}" viewBox="0 0 ${exportWidth} ${height}">
-        <foreignObject width="100%" height="100%">
-          <div xmlns="http://www.w3.org/1999/xhtml">
-            <style>${getInlineStylesheetText()}</style>
-            ${serializedHtml}
-          </div>
-        </foreignObject>
-      </svg>`;
-
-    const image = await loadImage(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
-    const canvas = document.createElement('canvas');
-    canvas.width = exportWidth * scale;
-    canvas.height = height * scale;
-    const context = canvas.getContext('2d');
-    context.fillStyle = '#eef3fb';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.scale(scale, scale);
-    context.drawImage(image, 0, 0);
-
-    const pngBlob = await canvasToPngBlob(canvas);
-    downloadBlob(pngBlob, `jeremy-dashboard-snapshot-${new Date().toISOString().slice(0, 10)}.png`);
-  } finally {
-    shareButton.disabled = false;
-    shareButton.innerHTML = originalButtonText;
-  }
+function openShareDashboardView() {
+  const shareUrl = `${window.location.origin}${window.location.pathname}${window.location.search}#share-dashboard`;
+  window.open(shareUrl, '_blank', 'noopener,noreferrer');
 }
 
 function field(label, control) {
@@ -1927,7 +1879,7 @@ function bindEvents() {
   const screenshotInput = tradeForm?.querySelector('input[name="screenshot"]');
 
   document.querySelector('#toggleManualTrade')?.addEventListener('click', toggleManualTradeForm);
-  document.querySelector('#shareDashboard')?.addEventListener('click', shareDashboardSnapshot);
+  document.querySelector('#shareDashboard')?.addEventListener('click', openShareDashboardView);
   document.querySelectorAll('[data-page-mode]').forEach((button) => {
     button.addEventListener('click', () => {
       setPageMode(button.dataset.pageMode);
@@ -2842,6 +2794,7 @@ function importTrades(event) {
   event.target.value = '';
 }
 
+window.addEventListener('hashchange', render);
 render();
 scheduleCTraderAutoSync();
 handleCTraderOAuthReturn().then((handledOAuthReturn) => {
