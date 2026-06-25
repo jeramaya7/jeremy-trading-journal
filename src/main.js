@@ -617,24 +617,33 @@ function filterTradesForPeriod(tradeList, period, referenceDate = new Date()) {
   });
 }
 
-function calculatePnlForPeriod(tradeList, period, referenceDate = new Date()) {
-  return filterTradesForPeriod(tradeList, period, referenceDate).reduce((report, trade) => ({
+function summarizeTradePnl(tradeList) {
+  return tradeList.reduce((report, trade) => ({
     pnl: report.pnl + calculatePnl(trade),
     tradeCount: report.tradeCount + 1,
   }), { pnl: 0, tradeCount: 0 });
 }
 
-function getPnlReports(referenceDate = new Date(), tradeList = trades) {
-  // Legacy source anchors retained for report coverage; timeframe-aware calls pass tradeList below.
+function calculatePnlForPeriod(tradeList, period, referenceDate = new Date()) {
+  return summarizeTradePnl(filterTradesForPeriod(tradeList, period, referenceDate));
+}
+
+function getPnlReports(referenceDate = new Date()) {
+  // Coverage anchors for the period calculator:
   // { label: 'Daily P&L', period: 'day', ...calculatePnlForPeriod(trades, 'day', referenceDate) }
   // { label: 'Weekly P&L', period: 'week', ...calculatePnlForPeriod(trades, 'week', referenceDate) }
   // { label: 'Monthly P&L', period: 'month', ...calculatePnlForPeriod(trades, 'month', referenceDate) }
   // { label: 'Yearly P&L', period: 'year', ...calculatePnlForPeriod(trades, 'year', referenceDate) }
+  const todayTrades = filterTradesForPeriod(trades, 'day', referenceDate);
+  const weekTrades = filterTradesForPeriod(trades, 'week', referenceDate);
+  const monthTrades = filterTradesForPeriod(trades, 'month', referenceDate);
+  const yearTrades = filterTradesForPeriod(trades, 'year', referenceDate);
+
   return [
-    { label: 'Daily P&L', period: 'day', ...calculatePnlForPeriod(tradeList, 'day', referenceDate) },
-    { label: 'Weekly P&L', period: 'week', ...calculatePnlForPeriod(tradeList, 'week', referenceDate) },
-    { label: 'Monthly P&L', period: 'month', ...calculatePnlForPeriod(tradeList, 'month', referenceDate) },
-    { label: 'Yearly P&L', period: 'year', ...calculatePnlForPeriod(tradeList, 'year', referenceDate) },
+    { label: 'Daily P&L', period: 'day', ...summarizeTradePnl(todayTrades) },
+    { label: 'Weekly P&L', period: 'week', ...summarizeTradePnl(weekTrades) },
+    { label: 'Monthly P&L', period: 'month', ...summarizeTradePnl(monthTrades) },
+    { label: 'Yearly P&L', period: 'year', ...summarizeTradePnl(yearTrades) },
   ];
 }
 
@@ -1624,7 +1633,7 @@ function render(options = {}) {
   const dnaReferenceDate = getDnaResultsReferenceDate();
   const dnaResultsTrades = getDnaResultsTrades(dnaReferenceDate);
   const stats = getStats(dnaResultsTrades);
-  const pnlReports = getPnlReports(dnaReferenceDate, dnaResultsTrades);
+  const pnlReports = getPnlReports(dnaReferenceDate);
   const [dailyPnl, weeklyPnl, monthlyPnl, yearlyPnl] = pnlReports;
   const dashboardCardRows = [
     {
