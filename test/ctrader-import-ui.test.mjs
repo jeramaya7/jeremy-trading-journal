@@ -223,7 +223,8 @@ test('close reason dropdown is optional and only renders on trade cards when fil
   assertIncludes(source, "'Manual Close'", 'Close reason includes Manual Close.');
   assertIncludes(source, "'Break Even'", 'Close reason includes Break Even.');
   assertIncludes(source, "'Closed Too Early'", 'Close reason includes Closed Too Early.');
-  assertIncludes(source, "const CLOSE_REASON_OPTIONS = [\n  'Break Even',\n  'Closed Too Early',\n  'Manual Close',\n  'Other',\n  'Stop Loss',\n  'Take Profit',\n  'Trailed Stop',\n  'Trend Change',\n];", 'Close reason options remain alphabetized.');
+  assertIncludes(source, "'Secured Profit Early'", 'Close reason includes Secured Profit Early.');
+  assertIncludes(source, "const CLOSE_REASON_OPTIONS = [\n  'Break Even',\n  'Closed Too Early',\n  'Manual Close',\n  'Other',\n  'Secured Profit Early',\n  'Stop Loss',\n  'Take Profit',\n  'Trailed Stop',\n  'Trend Change',\n];", 'Close reason options remain alphabetized.');
   assertIncludes(source, '<option value="">No close reason</option>', 'Close reason can be left blank for existing trades.');
   assertIncludes(source, '${trade.closeReason ? `<p class="close-reason"><strong>Close Reason:</strong> ${escapeHtml(trade.closeReason)}</p>` : \'\'}', 'Trade cards only show close reason when a saved value exists.');
 });
