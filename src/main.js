@@ -1239,6 +1239,27 @@ function signedCurrency(value) {
   return `${amount > 0 ? '+' : ''}${currency(amount)}`;
 }
 
+
+function getTodayPnlPercent(todayTrades, todayPnl) {
+  const accountSize = todayTrades
+    .map((trade) => toOptionalNumber(trade.accountSize) ?? toOptionalNumber(trade.accountBalance))
+    .find((value) => value !== null && value > 0);
+
+  return accountSize ? (todayPnl / accountSize) * 100 : null;
+}
+
+function renderTodayKpiStrip(todayTrades, todayStats) {
+  const todayPnl = todayStats.totalPnl;
+
+  return `
+        <section class="stats-grid hero-stats-row trading-today-kpi-strip" aria-label="Today trading statistics">
+          ${statCard('calendar', 'Today P/L', currency(todayPnl), getMoneyTone(todayPnl))}
+          ${statCard('trend', 'Today %', formatPercent(getTodayPnlPercent(todayTrades, todayPnl)))}
+          ${statCard('target', 'Win Rate', formatPercent(todayStats.winRate))}
+          ${statCard('chart', 'Trades', todayStats.tradeCount)}
+        </section>`;
+}
+
 function renderHeroStatsRow(stats) {
   return `
         <section class="stats-grid hero-stats-row" aria-label="DNA trading statistics">
@@ -1638,6 +1659,8 @@ function render(options = {}) {
   const monthlyTradingCalendarSection = renderMonthlyTradingCalendar(monthlyCalendarDate, dnaResultsTrades);
   const setupAnalyticsSection = renderSetupAnalytics(dnaResultsTrades);
   const today = new Date().toISOString().slice(0, 10);
+  const todayTrades = filterTradesForPeriod(trades, 'day', dnaReferenceDate);
+  const tradingModeSections = `${renderTodayKpiStrip(todayTrades, getStats(todayTrades))}${renderJournalWorkspace(filteredTrades, today, { showManualTradePanel: false })}`;
   const journalWorkspaceSection = renderJournalWorkspace(filteredTrades, today);
   const dashboardSections = `
       ${renderDnaResultsTimeframeToggle()}
@@ -1671,7 +1694,7 @@ function render(options = {}) {
 
       ${setupAnalyticsSection}`;
   const pageSections = pageMode === PAGE_MODES.trading
-    ? `${journalWorkspaceSection}${dashboardSections}`
+    ? tradingModeSections
     : `${dashboardSections}${journalWorkspaceSection}`;
 
   app.innerHTML = `
@@ -1692,7 +1715,7 @@ function render(options = {}) {
           </p>
         </div>
         <div class="hero-actions">
-          <button class="share-dashboard-button" type="button" id="shareDashboard">${icon('share')} Share Dashboard</button>
+          ${pageMode === PAGE_MODES.dashboard ? `<button class="share-dashboard-button" type="button" id="shareDashboard">${icon('share')} Share Dashboard</button>` : ''}
           ${renderCTraderConnectionCard()}
         </div>
       </section>
@@ -1706,7 +1729,8 @@ function render(options = {}) {
   bindEvents();
 }
 
-function renderJournalWorkspace(filteredTrades, today) {
+function renderJournalWorkspace(filteredTrades, today, options = {}) {
+  const showManualTradePanel = options.showManualTradePanel !== false;
   return `
       <section class="workspace-grid">
         <section class="panel journal-panel">
@@ -1722,12 +1746,13 @@ function renderJournalWorkspace(filteredTrades, today) {
           </div>
         </section>
 
+        ${showManualTradePanel ? `
         <section class="manual-trade-panel">
           <button class="secondary-button manual-trade-toggle" type="button" id="toggleManualTrade" aria-expanded="${isManualTradeFormOpen ? 'true' : 'false'}" aria-controls="tradeForm">
             ${icon(isManualTradeFormOpen ? 'minus' : 'plus')} ${isManualTradeFormOpen ? 'Hide Manual Trade Form' : '+ Add Manual Trade'}
           </button>
           ${isManualTradeFormOpen ? renderManualTradeForm(manualTradeDateKey || today) : '<p class="manual-trade-helper">Use this only for trades that did not come from cTrader import.</p>'}
-        </section>
+        </section>` : ''}
       </section>`;
 }
 
@@ -1893,8 +1918,8 @@ function bindEvents() {
   const tradeForm = document.querySelector('#tradeForm');
   const screenshotInput = tradeForm?.querySelector('input[name="screenshot"]');
 
-  document.querySelector('#toggleManualTrade').addEventListener('click', toggleManualTradeForm);
-  document.querySelector('#shareDashboard').addEventListener('click', shareDashboardSnapshot);
+  document.querySelector('#toggleManualTrade')?.addEventListener('click', toggleManualTradeForm);
+  document.querySelector('#shareDashboard')?.addEventListener('click', shareDashboardSnapshot);
   document.querySelectorAll('[data-page-mode]').forEach((button) => {
     button.addEventListener('click', () => {
       setPageMode(button.dataset.pageMode);
