@@ -30,18 +30,26 @@ test('dashboard renders top KPI row above the DNA Results with requested perform
   assert.ok(source.includes("statCard('target', 'Average Risk %'"), 'Average Risk % should render as a dashboard card.');
 });
 
-test('dashboard renders equity curve card with All Time Month Week toggles', () => {
-  assert.ok(source.includes('function getEquityCurve(period = equityCurvePeriod)'), 'Equity curve should be built from cumulative trade P&L.');
-  assert.ok(source.includes('function renderEquityCurveCard(period = equityCurvePeriod)'), 'Equity curve card should render on the dashboard.');
-  assert.ok(source.includes("all: 'All Time'"), 'Equity curve should include an All Time toggle.');
-  assert.ok(source.includes("month: 'Month'"), 'Equity curve should include a Month toggle.');
-  assert.ok(source.includes("week: 'Week'"), 'Equity curve should include a Week toggle.');
-  assert.ok(source.includes('[data-equity-period]'), 'Equity curve period controls should be bound for toggling.');
+test('dashboard renders one shared DNA timeframe toggle that drives dashboard sections', () => {
+  assert.ok(source.includes("const DNA_TIMEFRAME_STORAGE_KEY = 'jeremy-trading-journal:dna-timeframe:v1';"), 'DNA timeframe should use the shared localStorage key.');
+  assert.ok(source.includes("{ value: 'day', label: 'Day' }"), 'DNA timeframe should include Day.');
+  assert.ok(source.includes("{ value: 'week', label: 'WTD' }"), 'DNA timeframe should include WTD.');
+  assert.ok(source.includes("{ value: 'month', label: 'MTD' }"), 'DNA timeframe should include MTD.');
+  assert.ok(source.includes("{ value: 'year', label: 'YTD' }"), 'DNA timeframe should include YTD.');
+  assert.ok(source.includes("{ value: 'all', label: 'Beginning' }"), 'DNA timeframe should include Beginning.');
+  assert.ok(source.includes("return isValidDnaTimeframe(storedTimeframe) ? storedTimeframe : 'all';"), 'DNA timeframe should default invalid or missing storage to Beginning.');
+  assert.ok(source.includes('const dnaResultsTrades = getDnaResultsTrades(dnaReferenceDate);'), 'Render should build one DNA-filtered trade list.');
+  assert.ok(source.includes('${renderDnaResultsTimeframeToggle()}'), 'The timeframe toggle should render visibly in the dashboard.');
+  assert.ok(source.indexOf('${renderDnaResultsTimeframeToggle()}') < source.indexOf('${renderHeroStatsRow(stats)}'), 'The timeframe toggle should render above the KPI row.');
+  assert.ok(source.includes('${renderEquityCurveCard(dnaResultsTrades)}'), 'Equity curve should use the shared DNA-filtered trades.');
+  assert.ok(source.includes('renderMonthlyTradingCalendar(monthlyCalendarDate, dnaResultsTrades)'), 'Calendar summary should use the shared DNA-filtered trades.');
+  assert.ok(source.includes('renderSetupAnalytics(dnaResultsTrades)'), 'Setup Analytics should use the shared DNA-filtered trades.');
+  assert.equal(source.includes('[data-equity-period]'), false, 'Old independent equity curve period controls should be removed.');
 });
 
 test('dashboard average risk metrics only use valid risk values', () => {
-  assert.ok(source.includes('const riskDollarValues = trades.map(calculateRiskDollars).filter(Number.isFinite);'), 'Average Risk $ should ignore missing or invalid Risk $ values.');
-  assert.ok(source.includes('const riskPercentValues = trades.map(calculateRiskPercent).filter(Number.isFinite);'), 'Average Risk % should ignore missing or invalid Risk % values.');
+  assert.ok(source.includes('const riskDollarValues = tradeList.map(calculateRiskDollars).filter(Number.isFinite);'), 'Average Risk $ should ignore missing or invalid Risk $ values.');
+  assert.ok(source.includes('const riskPercentValues = tradeList.map(calculateRiskPercent).filter(Number.isFinite);'), 'Average Risk % should ignore missing or invalid Risk % values.');
   assert.ok(source.includes('riskDollarValues.reduce((sum, value) => sum + value, 0) / riskDollarValues.length'), 'Average Risk $ should average only valid Risk $ values.');
   assert.ok(source.includes('riskPercentValues.reduce((sum, value) => sum + value, 0) / riskPercentValues.length'), 'Average Risk % should average only valid Risk % values.');
 });
