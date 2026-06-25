@@ -58,10 +58,12 @@ export function applyCTraderImportedTradeUpdates(existingTrades, skippedTrades) 
       accountBalance: skippedTrade.trade?.accountBalance,
       accountBalanceFetchedAt: skippedTrade.trade?.accountBalanceFetchedAt,
       contractSize: skippedTrade.trade?.contractSize,
+      stopLoss: skippedTrade.trade?.stopLoss,
     });
   }
 
   let updatedCount = 0;
+  let stopLossUpdatedCount = 0;
   const trades = (Array.isArray(existingTrades) ? existingTrades : []).map((trade) => {
     const update = sourceUpdates.get(getImportedTradeSourceKey(trade));
     if (!update) {
@@ -79,6 +81,7 @@ export function applyCTraderImportedTradeUpdates(existingTrades, skippedTrades) 
       ...(update.accountBalance !== undefined ? { accountBalance: update.accountBalance } : {}),
       ...(update.accountBalanceFetchedAt !== undefined ? { accountBalanceFetchedAt: update.accountBalanceFetchedAt } : {}),
       ...(update.contractSize !== undefined ? { contractSize: update.contractSize } : {}),
+      ...(update.stopLoss !== undefined && update.stopLoss !== trade.stopLoss ? { stopLoss: update.stopLoss } : {}),
     };
     const didChange = nextTrade.symbol !== trade.symbol
       || nextTrade.brokerSymbol !== trade.brokerSymbol
@@ -88,16 +91,20 @@ export function applyCTraderImportedTradeUpdates(existingTrades, skippedTrades) 
       || nextTrade.accountSize !== trade.accountSize
       || nextTrade.accountBalance !== trade.accountBalance
       || nextTrade.accountBalanceFetchedAt !== trade.accountBalanceFetchedAt
-      || nextTrade.contractSize !== trade.contractSize;
+      || nextTrade.contractSize !== trade.contractSize
+      || nextTrade.stopLoss !== trade.stopLoss;
     if (didChange) {
       updatedCount += 1;
+      if (nextTrade.stopLoss !== trade.stopLoss) {
+        stopLossUpdatedCount += 1;
+      }
       return nextTrade;
     }
 
     return trade;
   });
 
-  return { trades, updatedCount };
+  return { trades, updatedCount, stopLossUpdatedCount };
 }
 
 export function convertCTraderPreviewTradeToJournalEntry(previewTrade, options = {}) {

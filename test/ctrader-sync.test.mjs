@@ -169,6 +169,43 @@ test('cTrader sync refreshes account balance fields on existing imported trades'
   assert.equal(updatedExistingTrades.trades[0].accountBalanceFetchedAt, '2026-06-12T14:59:00.000Z');
 });
 
+test('cTrader sync updates stop loss on matching imported trades without overwriting journal fields', () => {
+  const existingTrades = [
+    {
+      id: 'ctrader-501',
+      provider: 'ctrader',
+      sourceTradeId: '501',
+      symbol: 'EURUSD',
+      brokerSymbol: 'EURUSD',
+      stopLoss: 1.095,
+      notes: 'User journal notes',
+      setup: 'Breakout',
+      closeReason: 'Target hit',
+      lossReason: 'Chased entry',
+      screenshots: ['chart.png'],
+      tags: 'ctrader, reviewed',
+    },
+  ];
+
+  const syncPlan = buildCTraderSyncPlan([{ ...closedPreviewTrade, stopLoss: 1.0975 }], existingTrades, {
+    now: () => Date.parse('2026-06-12T15:00:00.000Z'),
+  });
+  const updatedExistingTrades = applyCTraderImportedTradeUpdates(existingTrades, syncPlan.skippedTrades);
+
+  assert.equal(syncPlan.importedCount, 0);
+  assert.equal(syncPlan.skippedCount, 1);
+  assert.equal(updatedExistingTrades.updatedCount, 1);
+  assert.equal(updatedExistingTrades.stopLossUpdatedCount, 1);
+  assert.equal(updatedExistingTrades.trades.length, 1);
+  assert.equal(updatedExistingTrades.trades[0].stopLoss, 1.0975);
+  assert.equal(updatedExistingTrades.trades[0].notes, 'User journal notes');
+  assert.equal(updatedExistingTrades.trades[0].setup, 'Breakout');
+  assert.equal(updatedExistingTrades.trades[0].closeReason, 'Target hit');
+  assert.equal(updatedExistingTrades.trades[0].lossReason, 'Chased entry');
+  assert.deepEqual(updatedExistingTrades.trades[0].screenshots, ['chart.png']);
+  assert.equal(updatedExistingTrades.trades[0].tags, 'ctrader, reviewed');
+});
+
 test('existing duplicate protection still keys cTrader trades by source trade ID', () => {
   const candidateTrade = {
     provider: 'ctrader',

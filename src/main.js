@@ -2632,7 +2632,7 @@ async function syncCTrader(options = {}) {
     persistCTraderLastSyncTime(syncedAt);
     cTraderSyncStatus = {
       tone: 'success',
-      message: `${isAutoSync ? 'Auto Sync complete.' : 'Sync complete.'} New trades imported: ${syncPlan.importedCount}. Trades skipped: ${syncPlan.skippedCount}. Imported trades updated: ${updatedExistingTrades.updatedCount}.`,
+      message: `${isAutoSync ? 'Auto Sync complete.' : 'Sync complete.'} New trades imported: ${syncPlan.importedCount}. Trades skipped: ${syncPlan.skippedCount}. Imported trades updated: ${updatedExistingTrades.updatedCount}. Stop losses updated: ${updatedExistingTrades.stopLossUpdatedCount}.`,
     };
   } catch (error) {
     console.error('[cTrader sync] Frontend request failed', {
