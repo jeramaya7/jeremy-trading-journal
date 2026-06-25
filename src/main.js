@@ -121,6 +121,7 @@ const PLAY_BOOK_SETUP_OPTIONS = [
   'Hedge',
   'MATX',
   'MAX',
+  'ORB',
   'Return to 200',
   'Ride the 🐋',
   'Set & Forget',
