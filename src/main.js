@@ -995,7 +995,7 @@ function renderCalendarDayReviewSummary(dateKey, dayTrades) {
   const setups = uniqueTradeValues(dayTrades, 'setup');
   const closeReasons = uniqueTradeValues(dayTrades, 'closeReason');
   const lossReasons = uniqueTradeValues(dayTrades, 'lossReason');
-  const notes = dayTrades.map((trade) => String(trade.notes || '').trim()).filter(Boolean);
+  const notes = dayTrades.map(getCalendarReviewUserNote).filter(Boolean);
   const screenshots = dayTrades.filter((trade) => trade.screenshot?.dataUrl);
   const pnlTone = getMoneyTone(pnl);
 
@@ -1022,6 +1022,15 @@ function renderCalendarDayReviewSummary(dateKey, dayTrades) {
           </div>`;
 }
 
+function getCalendarReviewUserNote(trade) {
+  const note = String(trade.notes || '').trim();
+  if (!note) {
+    return '';
+  }
+
+  return note.replace(/^Imported from cTrader (?:unknown source trade|source trade [^.]+)\.\s*/i, '').trim();
+}
+
 function uniqueTradeValues(dayTrades, fieldName) {
   return [...new Set(dayTrades.map((trade) => String(trade[fieldName] || '').trim()).filter(Boolean))];
 }
@@ -1030,7 +1039,7 @@ function calendarReviewList(title, values) {
   return `
             <section>
               <h3>${escapeHtml(title)}</h3>
-              ${values.length ? `<ul>${values.map((value) => `<li>${escapeHtml(value)}</li>`).join('')}</ul>` : '<p class="empty-state">None recorded.</p>'}
+              ${values.length ? `<ul>${values.map((value) => `<li>${escapeHtml(value)}</li>`).join('')}</ul>` : `<p class="empty-state">${title === 'Notes from journal entries' ? 'No journal notes for this day.' : 'None recorded.'}</p>`}
             </section>`;
 }
 
