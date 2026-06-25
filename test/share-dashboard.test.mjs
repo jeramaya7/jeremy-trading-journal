@@ -29,7 +29,7 @@ test('dashboard snapshot has a share button and captures required dashboard cont
 });
 
 test('share dashboard exports a local PNG download without external sharing APIs', () => {
-  assertIncludes(source, "document.querySelector('#shareDashboard').addEventListener('click', shareDashboardSnapshot);", 'Share Dashboard is wired to the export handler.');
+  assertIncludes(source, "document.querySelector('#shareDashboard')?.addEventListener('click', shareDashboardSnapshot);", 'Share Dashboard is wired to the export handler.');
   assertIncludes(source, 'new XMLSerializer().serializeToString(wrapper)', 'The snapshot DOM is serialized for image generation.');
   assertIncludes(source, "canvasToPngBlob(canvas)", 'The snapshot canvas is converted to a PNG blob.');
   assertIncludes(source, "downloadBlob(pngBlob, `jeremy-dashboard-snapshot-", 'The PNG is downloaded locally.');
