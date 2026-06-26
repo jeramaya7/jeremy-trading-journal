@@ -2875,3 +2875,146 @@ h1 {
   margin: 0;
   white-space: pre-wrap;
 }
+
+/* Redesigned Journal Entry trade card layout */
+.trade-title-content {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.trade-header-badges {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.trade-badge {
+  align-items: center;
+  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid rgba(16, 26, 46, 0.1);
+  border-radius: 999px;
+  color: #475569;
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 850;
+  gap: 0.35rem;
+  line-height: 1.25;
+  padding: 0.28rem 0.55rem;
+}
+
+.trade-badge strong {
+  color: var(--dna-gold);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.trade-badge.setup {
+  background: linear-gradient(135deg, rgba(201, 148, 32, 0.15), rgba(242, 210, 117, 0.22));
+  border-color: rgba(201, 148, 32, 0.26);
+  color: #7c5611;
+}
+
+.trade-badge.long {
+  color: var(--performance-positive);
+}
+
+.trade-badge.short {
+  color: var(--performance-negative);
+}
+
+.trade-summary-strip,
+.trade-info-panel dl {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+}
+
+.trade-summary-strip {
+  background: rgba(248, 250, 252, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 18px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  margin: 0.75rem 0;
+  padding: 0.7rem;
+}
+
+.trade-metric {
+  min-width: 0;
+}
+
+.trade-metric dt {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.18rem;
+  text-transform: uppercase;
+}
+
+.trade-metric dd {
+  color: var(--dna-navy);
+  font-size: 0.9rem;
+  font-weight: 900;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.trade-metric dd.positive {
+  color: var(--performance-positive);
+}
+
+.trade-metric dd.negative {
+  color: var(--performance-negative);
+}
+
+.trade-panel-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.trade-info-panel {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(201, 148, 32, 0.18);
+  border-radius: 20px;
+  padding: 0.8rem;
+}
+
+.trade-info-panel h4 {
+  color: var(--dna-gold);
+  font-size: 0.76rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  margin: 0 0 0.65rem;
+  text-transform: uppercase;
+}
+
+.trade-info-panel dl {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 1100px) {
+  .trade-summary-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .trade-panel-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .trade-summary-strip,
+  .trade-info-panel dl {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .trade-title-row {
+    flex-direction: column;
+  }
+}
