@@ -108,6 +108,7 @@ let editingTradeId = null;
 let isManualTradeFormOpen = false;
 let manualTradeDateKey = formatDateKey(new Date());
 let setupAnalyticsSort = { key: 'netPnl', direction: 'desc' };
+let assetAnalyticsSort = { key: 'netPnl', direction: 'desc' };
 let monthlyCalendarDate = new Date();
 let selectedCalendarDateKey = '';
 let calendarReviewDateKey = '';
@@ -766,6 +767,145 @@ function compareSetupAnalyticsRows(firstRow, secondRow) {
   }
 
   return result * direction;
+}
+
+
+function getAssetAnalytics(tradeList = trades) {
+  const assetReports = new Map();
+
+  tradeList.forEach((trade) => {
+    const asset = getTradeDisplaySymbol(trade).trim();
+    if (!asset) {
+      return;
+    }
+
+    const pnl = calculatePnl(trade);
+    const rMultiple = calculateRMultiple(trade);
+    const report = assetReports.get(asset) ?? {
+      asset,
+      tradeCount: 0,
+      winCount: 0,
+      rCount: 0,
+      totalR: 0,
+      winningPnlCount: 0,
+      totalWinningPnl: 0,
+      losingPnlCount: 0,
+      totalLosingPnl: 0,
+      netPnl: 0,
+    };
+
+    report.tradeCount += 1;
+    report.winCount += pnl > 0 ? 1 : 0;
+    report.netPnl += pnl;
+
+    if (pnl > 0) {
+      report.winningPnlCount += 1;
+      report.totalWinningPnl += pnl;
+    }
+
+    if (pnl < 0) {
+      report.losingPnlCount += 1;
+      report.totalLosingPnl += pnl;
+    }
+
+    if (rMultiple !== null) {
+      report.rCount += 1;
+      report.totalR += rMultiple;
+    }
+
+    assetReports.set(asset, report);
+  });
+
+  return [...assetReports.values()]
+    .map((report) => ({
+      asset: report.asset,
+      tradeCount: report.tradeCount,
+      winRate: report.tradeCount ? (report.winCount / report.tradeCount) * 100 : 0,
+      netPnl: report.netPnl,
+      averageR: report.rCount ? report.totalR / report.rCount : null,
+      averageWinner: report.winningPnlCount ? report.totalWinningPnl / report.winningPnlCount : null,
+      averageLoser: report.losingPnlCount ? report.totalLosingPnl / report.losingPnlCount : null,
+    }))
+    .sort(compareAssetAnalyticsRows);
+}
+
+function compareAssetAnalyticsRows(firstRow, secondRow) {
+  const direction = assetAnalyticsSort.direction === 'asc' ? 1 : -1;
+  const firstValue = firstRow[assetAnalyticsSort.key];
+  const secondValue = secondRow[assetAnalyticsSort.key];
+  let result = 0;
+
+  if (typeof firstValue === 'string' || typeof secondValue === 'string') {
+    result = String(firstValue ?? '').localeCompare(String(secondValue ?? ''), undefined, { sensitivity: 'base' });
+  } else {
+    result = (firstValue ?? Number.NEGATIVE_INFINITY) - (secondValue ?? Number.NEGATIVE_INFINITY);
+  }
+
+  if (result === 0 && assetAnalyticsSort.key !== 'netPnl') {
+    result = firstRow.netPnl - secondRow.netPnl;
+  }
+
+  return result * direction;
+}
+
+function renderAssetAnalytics(tradeList = trades) {
+  const assetAnalytics = getAssetAnalytics(tradeList);
+  const sortLabels = { asset: 'Asset', tradeCount: 'Total Trades', winRate: 'Win Rate', netPnl: 'Net P&L', averageR: 'Average R', averageWinner: 'Average Winner', averageLoser: 'Average Loser' };
+
+  return `
+      <section class="panel setup-analytics-panel asset-analytics-panel" aria-label="Asset Analytics">
+        <div class="setup-analytics-header">
+          <div>
+            <div class="section-title">${icon('chart')}<h2>Asset Analytics</h2></div>
+            <p class="section-helper">Performance grouped by trading asset from the current DNA timeframe.</p>
+          </div>
+          <p class="setup-sort-helper">Sorted by ${escapeHtml(sortLabels[assetAnalyticsSort.key])} ${assetAnalyticsSort.direction === 'asc' ? 'ascending' : 'descending'}</p>
+        </div>
+        <div class="setup-analytics-table-wrap">
+          <table class="setup-analytics-table asset-analytics-table">
+            <thead>
+              <tr>
+                ${assetAnalyticsHeader('asset', 'Asset')}
+                ${assetAnalyticsHeader('tradeCount', 'Total Trades')}
+                ${assetAnalyticsHeader('winRate', 'Win Rate')}
+                ${assetAnalyticsHeader('netPnl', 'Net P&L')}
+                ${assetAnalyticsHeader('averageR', 'Average R')}
+                ${assetAnalyticsHeader('averageWinner', 'Average Winner')}
+                ${assetAnalyticsHeader('averageLoser', 'Average Loser')}
+              </tr>
+            </thead>
+            <tbody>
+              ${assetAnalytics.length ? assetAnalytics.map(assetAnalyticsRow).join('') : '<tr><td colspan="7" class="empty-state">No asset analytics yet. Add trades with symbols to see this report.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </section>`;
+}
+
+function assetAnalyticsHeader(key, label) {
+  const isActive = assetAnalyticsSort.key === key;
+  const nextDirection = isActive && assetAnalyticsSort.direction === 'desc' ? 'asc' : 'desc';
+  const indicator = isActive ? (assetAnalyticsSort.direction === 'desc' ? ' ↓' : ' ↑') : '';
+
+  return `<th scope="col"><button class="table-sort-button" type="button" data-asset-sort-key="${escapeHtml(key)}" data-asset-sort-direction="${nextDirection}" aria-label="Sort asset analytics by ${escapeHtml(label)} ${nextDirection}">${escapeHtml(label)}${indicator}</button></th>`;
+}
+
+function assetAnalyticsRow(report) {
+  const pnlTone = getPerformanceTone(report.netPnl);
+  const rTone = getPerformanceTone(report.averageR);
+  const averageWinnerTone = getPerformanceTone(report.averageWinner);
+  const averageLoserTone = getPerformanceTone(report.averageLoser);
+
+  return `
+              <tr>
+                <td>${escapeHtml(report.asset)}</td>
+                <td>${report.tradeCount}</td>
+                <td>${formatPercent(report.winRate)}</td>
+                <td class="${pnlTone}">${currency(report.netPnl)}</td>
+                <td class="${rTone}">${formatRMultiple(report.averageR)}</td>
+                <td class="${averageWinnerTone}">${report.averageWinner === null ? '—' : currency(report.averageWinner)}</td>
+                <td class="${averageLoserTone}">${report.averageLoser === null ? '—' : currency(report.averageLoser)}</td>
+              </tr>`;
 }
 
 function renderSetupAnalytics(tradeList = trades) {
@@ -1672,6 +1812,7 @@ function render(options = {}) {
   const filteredTrades = getFilteredTrades();
   const monthlyTradingCalendarSection = renderMonthlyTradingCalendar(monthlyCalendarDate, dnaResultsTrades);
   const setupAnalyticsSection = renderSetupAnalytics(dnaResultsTrades);
+  const assetAnalyticsSection = renderAssetAnalytics(dnaResultsTrades);
   const today = new Date().toISOString().slice(0, 10);
   const todayTrades = filterTradesForPeriod(trades, 'day', dnaReferenceDate);
   const tradingModeSections = `${renderTodayKpiStrip(todayTrades, getStats(todayTrades))}${renderJournalWorkspace(filteredTrades, today, { showManualTradePanel: false })}`;
@@ -1692,7 +1833,9 @@ function render(options = {}) {
 
       ${renderCalendarDayReviewPanel()}
 
-      ${setupAnalyticsSection}`;
+      ${setupAnalyticsSection}
+
+      ${assetAnalyticsSection}`;
   const pageSections = pageMode === PAGE_MODES.trading
     ? tradingModeSections
     : `${dashboardSections}${journalWorkspaceSection}`;
@@ -1916,6 +2059,15 @@ function bindEvents() {
       setupAnalyticsSort = {
         key: button.dataset.setupSortKey,
         direction: button.dataset.setupSortDirection,
+      };
+      render();
+    });
+  });
+  document.querySelectorAll('[data-asset-sort-key]').forEach((button) => {
+    button.addEventListener('click', () => {
+      assetAnalyticsSort = {
+        key: button.dataset.assetSortKey,
+        direction: button.dataset.assetSortDirection,
       };
       render();
     });

@@ -1326,6 +1326,14 @@ h2 {
   margin: 1.25rem 0;
 }
 
+.asset-analytics-panel {
+  margin-top: 1.25rem;
+}
+
+.asset-analytics-table {
+  min-width: 980px;
+}
+
 .setup-analytics-header {
   align-items: flex-start;
   display: flex;
