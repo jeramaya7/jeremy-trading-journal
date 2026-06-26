@@ -1656,6 +1656,12 @@ function tradeCard(trade) {
   const pnl = calculatePnl(trade);
   const stopLoss = toOptionalNumber(trade.stopLoss);
   const adjustedStopLoss = toOptionalNumber(trade.adjustedStopLoss) ?? stopLoss;
+  const takeProfit = toOptionalNumber(trade.takeProfit);
+  const adjustedTakeProfit = toOptionalNumber(trade.adjustedTakeProfit);
+  const takeProfitDetails = [
+    takeProfit === null ? '' : `<span>Original Take Profit: ${currency(takeProfit)}</span>`,
+    adjustedTakeProfit === null ? '' : `<span>Adjusted Take Profit: ${currency(adjustedTakeProfit)}</span>`,
+  ].join('');
   const activeStopLoss = getActiveStopLoss(trade);
   const riskDollars = calculateRiskDollars(trade);
   const riskPercent = calculateRiskPercent(trade);
@@ -1691,6 +1697,7 @@ function tradeCard(trade) {
         <span>Size: ${escapeHtml(trade.size)}</span>
         <span>Original Stop Loss: ${stopLoss === null ? '—' : currency(stopLoss)}</span>
         <span>Adjusted Stop Loss: ${adjustedStopLoss === null ? '—' : currency(adjustedStopLoss)}</span>
+        ${takeProfitDetails}
         ${activeStopLoss === null ? '<span>Risk Stop: —</span>' : `<span>Risk Stop: ${currency(activeStopLoss)}</span>`}
         <span>Risk $: ${riskDollars === null ? '—' : currency(riskDollars)}</span>
         <span>Risk %: ${formatRiskPercent(riskPercent)}</span>
