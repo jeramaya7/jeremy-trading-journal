@@ -229,6 +229,37 @@ test('cTrader sync updates adjusted stop loss on matching imported trades withou
   assert.equal(updatedExistingTrades.trades[0].tags, 'ctrader, reviewed');
 });
 
+
+test('cTrader sync recognizes legacy imported trades without provider before importing duplicates', () => {
+  const existingTrades = [
+    {
+      id: 'ctrader-501',
+      sourceTradeId: '501',
+      symbol: 'EURUSD',
+      setup: 'Breakout Review',
+      notes: 'Saved journal notes',
+      tags: 'reviewed',
+      closeReason: 'Take Profit',
+      lossReason: 'Good Trade, Normal Loss',
+      screenshot: { dataUrl: 'data:image/png;base64,abc123', name: 'chart.png' },
+    },
+  ];
+
+  const syncPlan = buildCTraderSyncPlan([closedPreviewTrade], existingTrades, {
+    now: () => Date.parse('2026-06-12T15:00:00.000Z'),
+  });
+
+  assert.equal(syncPlan.importedCount, 0);
+  assert.equal(syncPlan.skippedCount, 1);
+  assert.equal(syncPlan.skippedTrades[0].reason, 'already in journal');
+  assert.equal(existingTrades[0].setup, 'Breakout Review');
+  assert.equal(existingTrades[0].notes, 'Saved journal notes');
+  assert.equal(existingTrades[0].tags, 'reviewed');
+  assert.equal(existingTrades[0].closeReason, 'Take Profit');
+  assert.equal(existingTrades[0].lossReason, 'Good Trade, Normal Loss');
+  assert.deepEqual(existingTrades[0].screenshot, { dataUrl: 'data:image/png;base64,abc123', name: 'chart.png' });
+});
+
 test('existing duplicate protection still keys cTrader trades by source trade ID', () => {
   const candidateTrade = {
     provider: 'ctrader',

@@ -57,7 +57,7 @@ test('trade cards show clean details without emotion', () => {
 test('cTrader sync skips duplicates by source trade IDs and reports imported/skipped counts', () => {
   assertIncludes(syncSource, 'sourceTradeId,', 'Imported entries retain a source trade ID.');
   assertIncludes(syncSource, 'export function hasSourceTradeAlreadyBeenImported(candidateTrade, existingTrades)', 'Duplicate detection checks imported trades against existing journal entries.');
-  assertIncludes(syncSource, 'return sourceTradeId === null ? null : `ctrader:${sourceTradeId}`;', 'Duplicate detection keys cTrader trades by source trade ID.');
+  assertIncludes(syncSource, '? `ctrader:${sourceTradeId}`', 'Duplicate detection keys cTrader trades by source trade ID.');
   assertIncludes(syncSource, 'const seenSourceKeys = new Set();', 'The sync tracks source trade IDs seen in the current preview response.');
   assertIncludes(source, 'const syncPlan = buildCTraderSyncPlan(previewTrades, trades, {', 'Duplicate and deleted source trades are filtered out before saving.');
   assertIncludes(source, 'deletedSourceKeys: loadDeletedCTraderSourceKeys(),', 'Deleted cTrader source keys are passed into the sync planner.');
