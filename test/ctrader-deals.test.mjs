@@ -1106,9 +1106,7 @@ test('backend supports cross-origin GitHub Pages API checks', async () => {
   }
 });
 
-test('uses cTrader order history stop loss when deal stop loss fields are absent', () => {
-  const logs = [];
-  const logger = { info: (...args) => logs.push(args) };
+test('uses cTrader order history stop loss and take profit when deal fields are absent', () => {
   const [trade] = mapCtraderDealsToJournalTrades({
     deal: [
       {
@@ -1134,25 +1132,19 @@ test('uses cTrader order history stop loss when deal stop loss fields are absent
       },
     ],
   }, {
-    logger,
     symbolMetadata: { lotSize: 10000000 },
     ordersByPositionId: {
       510: [
         { orderId: 7001 },
-        { orderId: 7002, stopLoss: '1.0950' },
+        { orderId: 7002, stopLoss: '1.0950', takeProfit: '1.1500' },
       ],
     },
   });
 
   assert.equal(trade.stopLoss, 1.095);
-  const stopLossLog = logs.find(([message]) => message === '[cTrader journal mapper] Order stop loss selected');
-  assert.deepEqual(stopLossLog[1], {
-    dealId: 411,
-    positionId: 510,
-    ordersFound: 2,
-    selectedStopLoss: 1.095,
-    selectedOrderId: 7002,
-  });
+  assert.equal(trade.takeProfit, 1.15);
+  assert.equal(trade.adjustedStopLoss, undefined);
+  assert.equal(trade.adjustedTakeProfit, undefined);
 });
 
 test('cTrader mapper stores take profit from source payload as original take profit', () => {
