@@ -127,7 +127,7 @@ export function convertCTraderPreviewTradeToJournalEntry(previewTrade, options =
     symbol: brokerSymbol || previewTrade.symbol,
     setup: previewTrade.setup === 'cTrader import preview' ? 'cTrader import' : (previewTrade.setup || 'cTrader import'),
     emotion: previewTrade.emotion || 'Imported',
-    tags: normalizeImportedTags(previewTrade.tags),
+    tags: '',
     notes: '',
     ...(importedAdjustedStopLoss !== undefined ? { adjustedStopLoss: importedAdjustedStopLoss } : {}),
     importedAt: getImportedAt(options),
@@ -159,9 +159,6 @@ function getReadableImportedSymbol(...values) {
     .find((value) => value && !/^\d+$/.test(value)) || null;
 }
 
-export function normalizeImportedTags() {
-  return '';
-}
 
 export function shouldImportCTraderTrade(candidateTrade, existingTrades, seenSourceKeys, deletedSourceKeys) {
   return getCTraderTradeSkipReason(candidateTrade, existingTrades, seenSourceKeys, normalizeDeletedCTraderSourceKeys(deletedSourceKeys)) === null;

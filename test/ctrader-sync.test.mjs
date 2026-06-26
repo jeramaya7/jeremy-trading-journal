@@ -95,6 +95,7 @@ test('cTrader sync imports only trades not already in the journal', () => {
       id: 'ctrader-502',
       sourceDealId: 502,
       symbol: 'GBPUSD',
+      tags: 'ctrader, imported, import-preview',
     },
     {
       ...closedPreviewTrade,
@@ -112,6 +113,7 @@ test('cTrader sync imports only trades not already in the journal', () => {
   assert.equal(syncPlan.importedCount, 1);
   assert.equal(syncPlan.skippedCount, 2);
   assert.deepEqual(syncPlan.importedTrades.map((trade) => trade.sourceTradeId), ['502']);
+  assert.equal(syncPlan.importedTrades[0].tags, '');
   assert.deepEqual(syncPlan.skippedTrades.map(({ reason }) => reason), [
     'already in journal',
     'duplicate in cTrader response',

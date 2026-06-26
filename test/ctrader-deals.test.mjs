@@ -135,7 +135,7 @@ test('maps completed cTrader deals into journal preview trade objects', () => {
       fees: 0.08,
       setup: 'cTrader import preview',
       emotion: '',
-      tags: 'ctrader, import-preview',
+      tags: '',
       notes: 'Preview only. Not saved to the journal.',
     },
     {
@@ -158,7 +158,7 @@ test('maps completed cTrader deals into journal preview trade objects', () => {
       fees: 0.05,
       setup: 'cTrader import preview',
       emotion: '',
-      tags: 'ctrader, import-preview',
+      tags: '',
       notes: 'Preview only. Not saved to the journal.',
     },
   ]);
@@ -205,7 +205,7 @@ test('maps an individual cTrader closing deal into the journal trade schema', ()
     fees: 0.05,
     setup: 'cTrader import preview',
     emotion: '',
-    tags: 'ctrader, import-preview',
+    tags: '',
     notes: 'Preview only. Not saved to the journal.',
   });
 });
@@ -710,7 +710,7 @@ test('GET /api/ctrader/journal-preview returns mapped trades without saving jour
         fees: 0.03,
         setup: 'cTrader import preview',
         emotion: '',
-        tags: 'ctrader, import-preview',
+        tags: '',
         notes: 'Preview only. Not saved to the journal.',
       },
     ]);

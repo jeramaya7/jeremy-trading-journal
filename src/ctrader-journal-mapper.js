@@ -116,7 +116,7 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
     fees: Math.abs(commission) + Math.abs(swap) + Math.abs(pnlConversionFee),
     setup: 'cTrader import preview',
     emotion: '',
-    tags: 'ctrader, import-preview',
+    tags: '',
     notes: 'Preview only. Not saved to the journal.',
   };
 }
