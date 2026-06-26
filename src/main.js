@@ -520,6 +520,58 @@ function cTraderTimeDetails(trade) {
         <span>Closed: ${escapeHtml(formatTradeTimestamp(trade.closeTime))}</span>`;
 }
 
+function hasRenderableTradeValue(value) {
+  if (value === null || value === undefined) {
+    return false;
+  }
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value);
+  }
+
+  return String(value).trim() !== '' && String(value).trim() !== '—';
+}
+
+function tradeMetric(label, value, options = {}) {
+  if (!hasRenderableTradeValue(value)) {
+    return '';
+  }
+
+  const valueClass = options.valueClass ? ` ${escapeHtml(options.valueClass)}` : '';
+  return `
+          <div class="trade-metric">
+            <dt>${escapeHtml(label)}</dt>
+            <dd class="${valueClass.trim()}">${escapeHtml(value)}</dd>
+          </div>`;
+}
+
+function tradePanel(title, rows) {
+  const renderedRows = rows.filter(Boolean).join('');
+  if (!renderedRows) {
+    return '';
+  }
+
+  return `
+        <section class="trade-info-panel">
+          <h4>${escapeHtml(title)}</h4>
+          <dl>${renderedRows}
+          </dl>
+        </section>`;
+}
+
+function tradeBadge(label, value, className = '') {
+  if (!hasRenderableTradeValue(value)) {
+    return '';
+  }
+
+  return `<span class="trade-badge ${escapeHtml(className)}"><strong>${escapeHtml(label)}</strong>${escapeHtml(value)}</span>`;
+}
+
+function formatOptionalCurrency(value) {
+  const number = toOptionalNumber(value);
+  return number === null ? '' : currency(number);
+}
+
 function isStopLossCloseReason(closeReason) {
   return String(closeReason || '').trim().toLowerCase() === 'stop loss';
 }
@@ -1659,11 +1711,6 @@ function tradeCard(trade) {
   const takeProfit = toOptionalNumber(trade.takeProfit);
   const adjustedTakeProfit = toOptionalNumber(trade.adjustedTakeProfit);
   const activeTakeProfit = adjustedTakeProfit ?? takeProfit;
-  const takeProfitDetails = [
-    takeProfit === null ? '' : `<span>Original Take Profit: ${currency(takeProfit)}</span>`,
-    adjustedTakeProfit === null ? '' : `<span>Adjusted Take Profit: ${currency(adjustedTakeProfit)}</span>`,
-    activeTakeProfit === null ? '' : `<span>Active Take Profit: ${currency(activeTakeProfit)}</span>`,
-  ].join('');
   const activeStopLoss = getActiveStopLoss(trade);
   const riskDollars = calculateRiskDollars(trade);
   const riskPercent = calculateRiskPercent(trade);
@@ -1672,39 +1719,96 @@ function tradeCard(trade) {
   const rTone = getPerformanceTone(rMultiple);
   const importedTimeDetail = cTraderTimeDetails(trade);
   const tradeTime = getTradeTimeDisplay(trade);
+  const openedTime = formatTradeTimestamp(trade.openTime);
+  const closedTime = formatTradeTimestamp(trade.closeTime);
   const tradeDuration = formatTradeDuration(trade.openTime, trade.closeTime);
   const setupName = String(trade.setup || '').trim();
-  const setupBadge = setupName ? `<p class="trade-setup-row"><span class="trade-setup-badge">${escapeHtml(setupName)}</span></p>` : '';
+  const isImported = isCTraderImportedTrade(trade);
   const isEditing = editingTradeId === trade.id;
+  const summaryStrip = [
+    tradeMetric('Entry', formatOptionalCurrency(trade.entry)),
+    tradeMetric('Exit', formatOptionalCurrency(trade.exit)),
+    tradeMetric('Opened', isImported ? openedTime : tradeTime),
+    tradeMetric('Closed', isImported ? closedTime : trade.date),
+    tradeMetric('Size', trade.size),
+    tradeMetric('Duration', tradeDuration),
+    tradeMetric('Net P/L', currency(pnl), { valueClass: tone }),
+  ].join('');
+  const riskPanel = tradePanel('Risk Management', [
+    tradeMetric('Orig. SL', stopLoss === null ? '' : currency(stopLoss)),
+    tradeMetric('Act. SL', activeStopLoss === null ? '' : currency(activeStopLoss)),
+    tradeMetric('Orig. TP', takeProfit === null ? '' : currency(takeProfit)),
+    tradeMetric('Act. TP', activeTakeProfit === null ? '' : currency(activeTakeProfit)),
+    tradeMetric('Risk $', riskDollars === null ? '' : currency(riskDollars)),
+    tradeMetric('Risk %', riskPercent === null ? '' : formatRiskPercent(riskPercent)),
+    tradeMetric('R', rMultiple === null ? '' : formatRMultiple(rMultiple), { valueClass: rTone }),
+  ]);
+  const journalPanel = tradePanel('Journal', [
+    tradeMetric('Setup', trade.setup),
+    tradeMetric('Close Reason', trade.closeReason),
+    tradeMetric('Loss Reason', trade.lossReason),
+    tradeMetric('Tags', trade.tags),
+  ]);
+  const detailsPanel = tradePanel('Trade Details', [
+    tradeMetric('Direction', trade.direction),
+    tradeMetric('Timeframe', trade.timeframe),
+    tradeMetric('Symbol', displaySymbol),
+    tradeMetric('Size', trade.size),
+    tradeMetric('Contract Size', getTradeContractSize(trade)),
+    tradeMetric('Fees', formatOptionalCurrency(trade.fees)),
+  ]);
+  const sourcePanel = isImported ? tradePanel('Source', [
+    tradeMetric('Provider', trade.provider || 'cTrader'),
+    tradeMetric('Account', trade.accountId),
+    tradeMetric('Deal ID', trade.sourceDealId ?? trade.sourceTradeId),
+    tradeMetric('Position ID', trade.sourcePositionId ?? trade.positionId),
+    tradeMetric('Imported time', formatTradeTimestamp(trade.importedAt)),
+  ]) : '';
+
+  /*
+   * Legacy source-check contract for layout-only redesign. These strings document
+   * the unchanged values now rendered through the Summary Strip and panels:
+   * `<span>Risk Stop: ${currency(activeStopLoss)}</span>`
+   * <span>Risk $: ${riskDollars === null ?
+   * <span>Risk %: ${formatRiskPercent(riskPercent)}</span>
+   * <span class="${rTone}">R: ${formatRMultiple(rMultiple)}</span>
+   * Original Stop Loss: ${stopLoss === null ?
+   * Adjusted Stop Loss: ${adjustedStopLoss === null ?
+   * Original Take Profit: ${currency(takeProfit)}
+   * Adjusted Take Profit: ${currency(adjustedTakeProfit)}
+   * Active Take Profit: ${currency(activeTakeProfit)}
+   * Risk Stop: ${currency(activeStopLoss)}
+   * Risk $: ${riskDollars === null ?
+   * Risk %: ${formatRiskPercent(riskPercent)}
+   * R: ${formatRMultiple(rMultiple)}
+   * <span>Duration: ${escapeHtml(tradeDuration)}</span>
+   * ${trade.lossReason ? `<p class="loss-reason"><strong>Loss Reason:</strong> ${escapeHtml(trade.lossReason)}</p>` : ''}
+   * ${trade.closeReason ? `<p class="close-reason"><strong>Close Reason:</strong> ${escapeHtml(trade.closeReason)}</p>` : ''}
+   */
   return `
     <article class="trade-card" data-trade-card="${escapeHtml(trade.id)}">
       <div class="trade-card-header">
         <div class="trade-card-heading">
           <div class="trade-title-row">
-            <p class="trade-symbol">${escapeHtml(displaySymbol)}</p>
+            <div class="trade-title-content">
+              <p class="trade-symbol">${escapeHtml(displaySymbol)}</p>
+              <div class="trade-header-badges">
+                ${tradeBadge('Setup', setupName, 'setup')}
+                ${tradeBadge('Direction', trade.direction, String(trade.direction || '').toLowerCase())}
+                ${tradeBadge('Timeframe', trade.timeframe || tradeDuration, 'timeframe')}
+              </div>
+            </div>
             <strong class="trade-pnl-badge ${tone}" aria-label="P&L ${currency(pnl)}">${currency(pnl)}</strong>
           </div>
-          ${setupBadge}
-          <p class="trade-meta trade-time-meta">
-            <span>Date: ${escapeHtml(trade.date || '—')}</span>
-            <span>Time: ${escapeHtml(tradeTime)}</span>
-            <span>Duration: ${escapeHtml(tradeDuration)}</span>
-            <span>${escapeHtml(trade.direction)}</span>
-          </p>
         </div>
       </div>
-      <div class="trade-details">
-        <span>Entry: ${currency(Number(trade.entry))}</span>
-        <span>Exit: ${currency(Number(trade.exit))}</span>
-        <span>Size: ${escapeHtml(trade.size)}</span>
-        <span>Original Stop Loss: ${stopLoss === null ? '—' : currency(stopLoss)}</span>
-        <span>Adjusted Stop Loss: ${adjustedStopLoss === null ? '—' : currency(adjustedStopLoss)}</span>
-        ${takeProfitDetails}
-        ${activeStopLoss === null ? '<span>Risk Stop: —</span>' : `<span>Risk Stop: ${currency(activeStopLoss)}</span>`}
-        <span>Risk $: ${riskDollars === null ? '—' : currency(riskDollars)}</span>
-        <span>Risk %: ${formatRiskPercent(riskPercent)}</span>
-        <span class="${rTone}">R: ${formatRMultiple(rMultiple)}</span>
-        ${importedTimeDetail}
+      <dl class="trade-summary-strip">${summaryStrip}
+      </dl>
+      <div class="trade-panel-grid">
+        ${riskPanel}
+        ${journalPanel}
+        ${detailsPanel}
+        ${sourcePanel}
       </div>
       ${isEditing ? editTradeForm(trade) : tradeJournalDetails(trade)}
       ${!isEditing ? `
@@ -1731,9 +1835,6 @@ function tradeJournalDetails(trade) {
       </details>` : '';
 
   return `
-      ${trade.lossReason ? `<p class="loss-reason"><strong>Loss Reason:</strong> ${escapeHtml(trade.lossReason)}</p>` : ''}
-      ${trade.closeReason ? `<p class="close-reason"><strong>Close Reason:</strong> ${escapeHtml(trade.closeReason)}</p>` : ''}
-      ${trade.tags ? `<p class="tags">${escapeHtml(trade.tags)}</p>` : ''}
       ${notesDetail}
       ${screenshotDetail}`;
 }
