@@ -173,34 +173,12 @@ function getCtraderDealSymbolId(deal, openingDeal = null) {
 }
 
 function getCtraderTakeProfit(deal, openingDeal = null, options = {}, positionId = deal?.positionId ?? openingDeal?.positionId) {
-  const dealTakeProfit = toFiniteNumber(firstDefined(
-    deal?.takeProfit,
-    deal?.takeProfitPrice,
-    deal?.tpPrice,
-    deal?.tp,
-    deal?.order?.takeProfit,
-    deal?.order?.takeProfitPrice,
-    deal?.position?.takeProfit,
-    deal?.position?.takeProfitPrice,
-    deal?.closePositionDetail?.takeProfit,
-    deal?.closePositionDetail?.takeProfitPrice,
-    deal?.closePositionDetail?.tpPrice,
-    deal?.closePositionDetail?.tp,
-    deal?.closePositionDetail?.order?.takeProfit,
-    deal?.closePositionDetail?.order?.takeProfitPrice,
-    deal?.closePositionDetail?.position?.takeProfit,
-    deal?.closePositionDetail?.position?.takeProfitPrice,
-    openingDeal?.takeProfit,
-    openingDeal?.takeProfitPrice,
-    openingDeal?.tpPrice,
-    openingDeal?.tp,
-    openingDeal?.order?.takeProfit,
-    openingDeal?.order?.takeProfitPrice,
-    openingDeal?.position?.takeProfit,
-    openingDeal?.position?.takeProfitPrice,
+  const sourceTakeProfit = toFiniteNumber(firstDefined(
+    ...getCtraderTakeProfitCandidates(deal),
+    ...getCtraderTakeProfitCandidates(openingDeal),
   ));
-  if (dealTakeProfit !== null) {
-    return dealTakeProfit;
+  if (sourceTakeProfit !== null) {
+    return sourceTakeProfit;
   }
 
   const selectedOrder = getCtraderOrdersForPosition(options.ordersByPositionId, positionId)
@@ -209,34 +187,12 @@ function getCtraderTakeProfit(deal, openingDeal = null, options = {}, positionId
 }
 
 function getCtraderStopLoss(deal, openingDeal = null, options = {}, positionId = deal?.positionId ?? openingDeal?.positionId) {
-  const dealStopLoss = toFiniteNumber(firstDefined(
-    deal?.stopLoss,
-    deal?.stopLossPrice,
-    deal?.slPrice,
-    deal?.sl,
-    deal?.order?.stopLoss,
-    deal?.order?.stopLossPrice,
-    deal?.position?.stopLoss,
-    deal?.position?.stopLossPrice,
-    deal?.closePositionDetail?.stopLoss,
-    deal?.closePositionDetail?.stopLossPrice,
-    deal?.closePositionDetail?.slPrice,
-    deal?.closePositionDetail?.sl,
-    deal?.closePositionDetail?.order?.stopLoss,
-    deal?.closePositionDetail?.order?.stopLossPrice,
-    deal?.closePositionDetail?.position?.stopLoss,
-    deal?.closePositionDetail?.position?.stopLossPrice,
-    openingDeal?.stopLoss,
-    openingDeal?.stopLossPrice,
-    openingDeal?.slPrice,
-    openingDeal?.sl,
-    openingDeal?.order?.stopLoss,
-    openingDeal?.order?.stopLossPrice,
-    openingDeal?.position?.stopLoss,
-    openingDeal?.position?.stopLossPrice,
+  const sourceStopLoss = toFiniteNumber(firstDefined(
+    ...getCtraderStopLossCandidates(deal),
+    ...getCtraderStopLossCandidates(openingDeal),
   ));
-  if (dealStopLoss !== null) {
-    return dealStopLoss;
+  if (sourceStopLoss !== null) {
+    return sourceStopLoss;
   }
 
   const selectedOrder = getCtraderOrdersForPosition(options.ordersByPositionId, positionId)
@@ -244,12 +200,74 @@ function getCtraderStopLoss(deal, openingDeal = null, options = {}, positionId =
   return selectedOrder ? getCtraderOrderStopLoss(selectedOrder) : null;
 }
 
+function getCtraderStopLossCandidates(source) {
+  return [
+    source?.stopLoss,
+    source?.stopLossPrice,
+    source?.slPrice,
+    source?.sl,
+    source?.order?.stopLoss,
+    source?.order?.stopLossPrice,
+    source?.position?.stopLoss,
+    source?.position?.stopLossPrice,
+    source?.closePositionDetail?.stopLoss,
+    source?.closePositionDetail?.stopLossPrice,
+    source?.closePositionDetail?.slPrice,
+    source?.closePositionDetail?.sl,
+    source?.closePositionDetail?.order?.stopLoss,
+    source?.closePositionDetail?.order?.stopLossPrice,
+    source?.closePositionDetail?.position?.stopLoss,
+    source?.closePositionDetail?.position?.stopLossPrice,
+  ];
+}
+
+function getCtraderTakeProfitCandidates(source) {
+  return [
+    source?.takeProfit,
+    source?.takeProfitPrice,
+    source?.tpPrice,
+    source?.tp,
+    source?.order?.takeProfit,
+    source?.order?.takeProfitPrice,
+    source?.position?.takeProfit,
+    source?.position?.takeProfitPrice,
+    source?.closePositionDetail?.takeProfit,
+    source?.closePositionDetail?.takeProfitPrice,
+    source?.closePositionDetail?.tpPrice,
+    source?.closePositionDetail?.tp,
+    source?.closePositionDetail?.order?.takeProfit,
+    source?.closePositionDetail?.order?.takeProfitPrice,
+    source?.closePositionDetail?.position?.takeProfit,
+    source?.closePositionDetail?.position?.takeProfitPrice,
+  ];
+}
+
 function getCtraderOrdersForPosition(ordersByPositionId, positionId) {
   if (positionId === undefined || positionId === null || positionId === '' || !ordersByPositionId) {
     return [];
   }
-  const orders = ordersByPositionId[String(positionId)] ?? ordersByPositionId[positionId];
-  return Array.isArray(orders) ? orders : [];
+
+  if (ordersByPositionId instanceof Map) {
+    return normalizeCtraderOrdersForPosition(ordersByPositionId.get(String(positionId)) ?? ordersByPositionId.get(positionId));
+  }
+
+  if (Array.isArray(ordersByPositionId)) {
+    return ordersByPositionId
+      .filter((entry) => String(entry?.positionId) === String(positionId))
+      .flatMap((entry) => normalizeCtraderOrdersForPosition(entry));
+  }
+
+  return normalizeCtraderOrdersForPosition(ordersByPositionId[String(positionId)] ?? ordersByPositionId[positionId]);
+}
+
+function normalizeCtraderOrdersForPosition(orders) {
+  if (Array.isArray(orders)) {
+    return orders;
+  }
+  if (Array.isArray(orders?.order)) {
+    return orders.order;
+  }
+  return orders ? [orders] : [];
 }
 
 function getCtraderOrderStopLoss(order) {

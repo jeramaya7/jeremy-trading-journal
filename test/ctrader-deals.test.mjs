@@ -1147,6 +1147,37 @@ test('uses cTrader order history stop loss and take profit when deal fields are 
   assert.equal(trade.adjustedTakeProfit, undefined);
 });
 
+
+test('cTrader mapper prefers deal and opening-deal stop loss and take profit before order history fallback', () => {
+  const trade = mapCtraderClosingDealToJournalTrade({
+    dealId: 413,
+    positionId: 512,
+    symbolName: 'EURUSD',
+    tradeSide: 'SELL',
+    executionPrice: 1.2,
+    executionTimestamp: 1_700_000_000_000,
+    closePositionDetail: {
+      entryPrice: 1.1,
+      closedVolume: 10000000,
+    },
+  }, {
+    positionId: 512,
+    tradeSide: 'BUY',
+    executionTimestamp: 1_699_000_000_000,
+    filledVolume: 10000000,
+    stopLoss: '1.0900',
+    takeProfit: '1.1600',
+  }, {
+    symbolMetadata: { lotSize: 10000000 },
+    ordersByPositionId: {
+      512: { positionId: 512, order: [{ orderId: 7003, stopLoss: '1.0950', takeProfit: '1.1500' }] },
+    },
+  });
+
+  assert.equal(trade.stopLoss, 1.09);
+  assert.equal(trade.takeProfit, 1.16);
+});
+
 test('cTrader mapper stores take profit from source payload as original take profit', () => {
   const trade = mapCtraderClosingDealToJournalTrade({
     dealId: 412,
