@@ -59,6 +59,7 @@ export function applyCTraderImportedTradeUpdates(existingTrades, skippedTrades) 
       accountBalanceFetchedAt: skippedTrade.trade?.accountBalanceFetchedAt,
       contractSize: skippedTrade.trade?.contractSize,
       adjustedStopLoss: skippedTrade.trade?.stopLoss,
+      takeProfit: skippedTrade.trade?.takeProfit,
     });
   }
 
@@ -82,6 +83,7 @@ export function applyCTraderImportedTradeUpdates(existingTrades, skippedTrades) 
       ...(update.accountBalanceFetchedAt !== undefined ? { accountBalanceFetchedAt: update.accountBalanceFetchedAt } : {}),
       ...(update.contractSize !== undefined ? { contractSize: update.contractSize } : {}),
       ...(update.adjustedStopLoss !== undefined && update.adjustedStopLoss !== trade.adjustedStopLoss ? { adjustedStopLoss: update.adjustedStopLoss } : {}),
+      ...(update.takeProfit !== undefined && isBlankTradeValue(trade.takeProfit) ? { takeProfit: update.takeProfit } : {}),
     };
     const didChange = nextTrade.symbol !== trade.symbol
       || nextTrade.brokerSymbol !== trade.brokerSymbol
@@ -92,7 +94,8 @@ export function applyCTraderImportedTradeUpdates(existingTrades, skippedTrades) 
       || nextTrade.accountBalance !== trade.accountBalance
       || nextTrade.accountBalanceFetchedAt !== trade.accountBalanceFetchedAt
       || nextTrade.contractSize !== trade.contractSize
-      || nextTrade.adjustedStopLoss !== trade.adjustedStopLoss;
+      || nextTrade.adjustedStopLoss !== trade.adjustedStopLoss
+      || nextTrade.takeProfit !== trade.takeProfit;
     if (didChange) {
       updatedCount += 1;
       if (nextTrade.adjustedStopLoss !== trade.adjustedStopLoss) {
@@ -133,6 +136,10 @@ export function convertCTraderPreviewTradeToJournalEntry(previewTrade, options =
     importedAt: getImportedAt(options),
     ...getImportedAccountBalanceFields(options.accountBalance),
   };
+}
+
+function isBlankTradeValue(value) {
+  return value === undefined || value === null || value === '';
 }
 
 function getImportedAccountBalanceFields(accountBalance) {

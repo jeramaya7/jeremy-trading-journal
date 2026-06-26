@@ -1658,9 +1658,11 @@ function tradeCard(trade) {
   const adjustedStopLoss = toOptionalNumber(trade.adjustedStopLoss) ?? stopLoss;
   const takeProfit = toOptionalNumber(trade.takeProfit);
   const adjustedTakeProfit = toOptionalNumber(trade.adjustedTakeProfit);
+  const activeTakeProfit = adjustedTakeProfit ?? takeProfit;
   const takeProfitDetails = [
     takeProfit === null ? '' : `<span>Original Take Profit: ${currency(takeProfit)}</span>`,
     adjustedTakeProfit === null ? '' : `<span>Adjusted Take Profit: ${currency(adjustedTakeProfit)}</span>`,
+    activeTakeProfit === null ? '' : `<span>Active Take Profit: ${currency(activeTakeProfit)}</span>`,
   ].join('');
   const activeStopLoss = getActiveStopLoss(trade);
   const riskDollars = calculateRiskDollars(trade);

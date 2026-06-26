@@ -1154,3 +1154,29 @@ test('uses cTrader order history stop loss when deal stop loss fields are absent
     selectedOrderId: 7002,
   });
 });
+
+test('cTrader mapper stores take profit from source payload as original take profit', () => {
+  const trade = mapCtraderClosingDealToJournalTrade({
+    dealId: 412,
+    positionId: 511,
+    symbolName: 'EURUSD',
+    tradeSide: 'SELL',
+    executionPrice: 1.2,
+    executionTimestamp: 1_700_000_000_000,
+    takeProfit: '1.1500',
+    closePositionDetail: {
+      entryPrice: 1.1,
+      closedVolume: 10000000,
+    },
+  }, {
+    positionId: 511,
+    tradeSide: 'BUY',
+    executionTimestamp: 1_699_000_000_000,
+    filledVolume: 10000000,
+  }, {
+    symbolMetadata: { lotSize: 10000000 },
+  });
+
+  assert.equal(trade.takeProfit, 1.15);
+  assert.equal(trade.adjustedTakeProfit, undefined);
+});
