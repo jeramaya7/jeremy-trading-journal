@@ -338,21 +338,8 @@ function rememberDeletedCTraderSourceKey(trade) {
   persistDeletedCTraderSourceKeys(deletedSourceKeys);
 }
 
-function rememberDeletedCTraderSourceKeys(deletedTrades) {
-  const deletedSourceKeys = loadDeletedCTraderSourceKeys();
-  let hasNewSourceKey = false;
-
-  deletedTrades.forEach((trade) => {
-    const sourceKey = getImportedTradeSourceKey(trade);
-    if (sourceKey && !deletedSourceKeys.has(sourceKey)) {
-      deletedSourceKeys.add(sourceKey);
-      hasNewSourceKey = true;
-    }
-  });
-
-  if (hasNewSourceKey) {
-    persistDeletedCTraderSourceKeys(deletedSourceKeys);
-  }
+function clearDeletedCTraderSourceKeys() {
+  window.localStorage.removeItem(DELETED_CTRADER_SOURCE_KEYS_STORAGE_KEY);
 }
 
 function currency(value) {
@@ -2203,14 +2190,13 @@ function deleteAllCTraderImports() {
     return;
   }
 
-  const deletedTrades = trades.filter((trade) => trade?.provider === 'ctrader');
-  rememberDeletedCTraderSourceKeys(deletedTrades);
+  clearDeletedCTraderSourceKeys();
   const remainingTrades = trades.filter((trade) => trade?.provider !== 'ctrader');
   const deletedCount = trades.length - remainingTrades.length;
 
   cTraderSyncStatus = {
     tone: 'success',
-    message: `Deleted ${deletedCount} imported cTrader ${deletedCount === 1 ? 'trade' : 'trades'}. They will not be re-imported on future syncs.`,
+    message: `Deleted ${deletedCount} imported cTrader ${deletedCount === 1 ? 'trade' : 'trades'}. Sync cTrader to import them again.`,
   };
   persistTrades(remainingTrades);
 }
