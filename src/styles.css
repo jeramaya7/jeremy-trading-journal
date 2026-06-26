@@ -1214,6 +1214,10 @@ h2 {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.edit-take-profit-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .edit-classification-row {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -1278,6 +1282,7 @@ h2 {
 
 @media (max-width: 980px) {
   .edit-price-row,
+  .edit-take-profit-row,
   .edit-classification-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1285,6 +1290,7 @@ h2 {
 
 @media (max-width: 620px) {
   .edit-price-row,
+  .edit-take-profit-row,
   .edit-classification-row {
     grid-template-columns: 1fr;
   }

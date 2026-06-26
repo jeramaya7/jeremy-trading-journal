@@ -603,10 +603,31 @@ function calculateRiskPercent(trade) {
   return (riskDollars / accountSize) * 100;
 }
 
+function calculateProtectedProfitRMultiple(trade) {
+  const entry = toOptionalNumber(trade.entry);
+  const adjustedStopLoss = toOptionalNumber(trade.adjustedStopLoss);
+  const size = toOptionalNumber(trade.size);
+  const originalRiskDollars = calculateOriginalRiskDollars(trade);
+
+  if (entry === null || adjustedStopLoss === null || size === null || originalRiskDollars === null) {
+    return null;
+  }
+
+  const lockedProfitPerUnit = trade.direction === 'Short'
+    ? entry - adjustedStopLoss
+    : adjustedStopLoss - entry;
+  if (lockedProfitPerUnit <= 0) {
+    return null;
+  }
+
+  const lockedProfitDollars = lockedProfitPerUnit * size * getTradeContractSize(trade);
+  return lockedProfitDollars > 0 ? lockedProfitDollars / originalRiskDollars : null;
+}
+
 function calculateRMultiple(trade) {
   const riskDollars = calculateRiskDollars(trade);
   if (riskDollars === null) {
-    return null;
+    return calculateProtectedProfitRMultiple(trade);
   }
 
   return calculatePnl(trade) / riskDollars;
@@ -1781,6 +1802,10 @@ function editTradeForm(trade) {
           ${field('Original Stop Loss', `<input name="stopLoss" type="number" value="${escapeHtml(trade.stopLoss ?? '')}" readonly />`)}
           ${field('Adjusted Stop Loss', `<input name="adjustedStopLoss" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedStopLoss ?? '')}" placeholder="Optional" />`)}
         </div>
+        <div class="edit-form-row edit-take-profit-row" aria-label="Trade take profits">
+          ${field('Original Take Profit', `<input name="takeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.takeProfit ?? '')}" placeholder="Optional" />`)}
+          ${field('Adjusted Take Profit', `<input name="adjustedTakeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedTakeProfit ?? '')}" placeholder="Optional" />`)}
+        </div>
         <div class="edit-form-row edit-classification-row" aria-label="Trade classification">
           ${field('Setup', renderPlayBookSetupSelect(trade))}
           ${field('Close Reason', renderCloseReasonSelect(trade))}
@@ -2083,6 +2108,8 @@ function renderManualTradeForm(today) {
         ${field('Size', '<input name="size" type="number" min="0.01" step="0.01" required />')}
         ${field('Original Stop Loss', '<input name="stopLoss" type="number" min="0" step="0.01" placeholder="Optional" />')}
         ${field('Adjusted Stop Loss', '<input name="adjustedStopLoss" type="number" min="0" step="0.01" placeholder="Optional" />')}
+        ${field('Original Take Profit', '<input name="takeProfit" type="number" min="0" step="0.01" placeholder="Optional" />')}
+        ${field('Adjusted Take Profit', '<input name="adjustedTakeProfit" type="number" min="0" step="0.01" placeholder="Optional" />')}
         ${field('Account Size', '<input name="accountSize" type="number" min="0" step="0.01" placeholder="Optional" />')}
         ${field('Risk %', '<input name="riskPercent" type="number" min="0" step="0.01" placeholder="Calculated" readonly />')}
         ${field('Fees', '<input name="fees" type="number" min="0" step="0.01" value="0" />')}
@@ -2333,6 +2360,8 @@ async function submitTrade(event) {
     size: Number(formData.get('size')),
     stopLoss: toOptionalNumber(formData.get('stopLoss')),
     adjustedStopLoss: toOptionalNumber(formData.get('adjustedStopLoss')),
+    takeProfit: toOptionalNumber(formData.get('takeProfit')),
+    adjustedTakeProfit: toOptionalNumber(formData.get('adjustedTakeProfit')),
     accountSize: toOptionalNumber(formData.get('accountSize')),
     riskPercent: calculateRiskPercent({
       direction: formData.get('direction'),
@@ -2371,6 +2400,8 @@ async function submitTradeEdit(event) {
     tags: String(formData.get('tags')).trim(),
     notes: String(formData.get('notes')).trim(),
     adjustedStopLoss,
+    takeProfit: toOptionalNumber(formData.get('takeProfit')),
+    adjustedTakeProfit: toOptionalNumber(formData.get('adjustedTakeProfit')),
   };
   const resolvedScreenshot = screenshotDraft.removeScreenshot
     ? null

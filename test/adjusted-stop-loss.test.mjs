@@ -28,13 +28,30 @@ test('adjusted stop loss persists through reload using the existing journal stor
 
 test('analytics use the adjusted stop through shared risk and R helpers', () => {
   assertIncludes(source, 'return getStopLossHitPrice(trade) ?? toOptionalNumber(trade.adjustedStopLoss) ?? toOptionalNumber(trade.stopLoss);', 'Risk helpers prefer the stop-loss hit price, then adjusted stop loss, and fall back to original stop loss.');
-  assertIncludes(source, 'return calculatePnl(trade) / riskDollars;', 'R multiple is derived from active-stop Risk $.');
+  assertIncludes(source, 'return calculatePnl(trade) / riskDollars;', 'R multiple is derived from active-stop Risk $ for normal trades.');
+  assertIncludes(source, 'return calculateProtectedProfitRMultiple(trade);', 'R multiple falls back to protected-profit R when adjusted stop loss has moved beyond entry.');
   assertIncludes(source, 'const rMultiple = calculateRMultiple(trade);', 'Setup analytics consumes the shared adjusted-stop R calculation.');
   assertIncludes(source, 'const rValues = trades.map(calculateRMultiple).filter(Number.isFinite);', 'Dashboard Average R consumes the shared adjusted-stop R calculation.');
   assertIncludes(source, 'const riskDollarValues = trades.map(calculateRiskDollars).filter(Number.isFinite);', 'Dashboard Average Risk $ consumes the shared adjusted-stop risk calculation.');
   assertIncludes(source, 'const riskPercentValues = trades.map(calculateRiskPercent).filter(Number.isFinite);', 'Dashboard Average Risk % consumes the shared adjusted-stop risk calculation.');
 });
 
+
+test('take profit edit fields are visible and persisted', () => {
+  assertIncludes(source, 'edit-take-profit-row', 'Edit forms place take-profit controls in their own visible row.');
+  assertIncludes(source, "${field('Original Take Profit', `<input name=\"takeProfit\"", 'Edit forms keep the Original Take Profit label and input.');
+  assertIncludes(source, "${field('Adjusted Take Profit', `<input name=\"adjustedTakeProfit\"", 'Edit forms keep the Adjusted Take Profit label and input.');
+  assertIncludes(source, "takeProfit: toOptionalNumber(formData.get('takeProfit'))", 'Trade saves persist the original take profit value.');
+  assertIncludes(source, "adjustedTakeProfit: toOptionalNumber(formData.get('adjustedTakeProfit'))", 'Trade saves persist the adjusted take profit value.');
+});
+
+test('protected-profit R uses original risk when adjusted stop loss locks profit', () => {
+  assertIncludes(source, 'function calculateProtectedProfitRMultiple(trade)', 'Protected-profit R has a dedicated helper.');
+  assertIncludes(source, 'const originalRiskDollars = calculateOriginalRiskDollars(trade);', 'Protected-profit R divides locked profit by original stop-loss risk.');
+  assertIncludes(source, "? entry - adjustedStopLoss", 'Short protected-profit R uses entry minus adjusted stop loss.');
+  assertIncludes(source, ': adjustedStopLoss - entry;', 'Long protected-profit R uses adjusted stop loss minus entry.');
+  assertIncludes(source, 'const lockedProfitDollars = lockedProfitPerUnit * size * getTradeContractSize(trade);', 'Protected-profit R includes size and contract size.');
+});
 
 test('stop loss close reason uses exit price as the active risk stop', () => {
   assertIncludes(source, "function isStopLossCloseReason(closeReason) {", 'Stop Loss close reason detection is centralized.');
