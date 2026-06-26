@@ -2782,8 +2782,16 @@ h1 {
 }
 
 .session-notes-button {
-  min-height: 44px;
+  align-items: center;
+  display: inline-flex;
+  font-size: 1rem;
+  height: 40px;
+  justify-content: center;
+  line-height: 1;
+  min-height: 40px;
+  padding: 0.55rem;
   white-space: nowrap;
+  width: 40px;
 }
 
 .session-notes-modal-backdrop {
