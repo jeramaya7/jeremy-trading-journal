@@ -2767,3 +2767,97 @@ h1 {
   box-shadow: 0 10px 24px rgba(16, 26, 46, 0.18);
   color: #ffffff;
 }
+
+.mode-and-notes-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+
+.mode-and-notes-actions .page-mode-toggle {
+  margin: 0;
+}
+
+.session-notes-button {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.session-notes-modal-backdrop {
+  align-items: center;
+  background: rgba(16, 26, 46, 0.42);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: clamp(1rem, 2vw, 2rem);
+  position: fixed;
+  z-index: 30;
+}
+
+.session-notes-modal {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(250, 252, 255, 0.96));
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 26px;
+  box-shadow: 0 26px 70px rgba(16, 26, 46, 0.24);
+  display: grid;
+  gap: 1rem;
+  max-width: 460px;
+  padding: clamp(1rem, 2vw, 1.35rem);
+  width: min(100%, 460px);
+}
+
+.session-notes-modal h2,
+.calendar-session-notes h3 {
+  color: var(--dna-navy);
+}
+
+.session-notes-modal textarea {
+  min-height: 150px;
+  resize: vertical;
+}
+
+.session-notes-modal-actions {
+  display: flex;
+  gap: 0.65rem;
+  justify-content: flex-end;
+}
+
+.calendar-session-notes {
+  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  margin-bottom: 0.75rem;
+  padding: 0.85rem;
+}
+
+.session-notes-timeline {
+  display: grid;
+  gap: 0.65rem;
+  list-style: none;
+  margin: 0.65rem 0 0;
+  padding: 0;
+}
+
+.session-notes-timeline li {
+  border-left: 3px solid rgba(234, 179, 8, 0.75);
+  padding-left: 0.75rem;
+}
+
+.session-notes-timeline time {
+  color: #64748b;
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.2rem;
+  text-transform: uppercase;
+}
+
+.session-notes-timeline p {
+  color: var(--dna-navy);
+  margin: 0;
+  white-space: pre-wrap;
+}

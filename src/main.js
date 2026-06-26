@@ -9,6 +9,7 @@ const DELETED_CTRADER_SOURCE_KEYS_STORAGE_KEY = 'deletedCTraderSourceKeys';
 const MONTHLY_CALENDAR_DISPLAY_MODE_STORAGE_KEY = 'jeremy-trading-journal:monthly-calendar-display-mode:v1';
 const DNA_TIMEFRAME_STORAGE_KEY = 'jeremy-trading-journal:dna-timeframe:v1';
 const PAGE_MODE_STORAGE_KEY = 'jeremy-trading-journal:page-mode:v1';
+const SESSION_NOTES_STORAGE_KEY = 'jeremy-trading-journal:session-notes-by-day:v1';
 const PAGE_MODES = {
   dashboard: 'dashboard',
   trading: 'trading',
@@ -115,6 +116,8 @@ let calendarReviewDateKey = '';
 let monthlyCalendarDisplayMode = loadMonthlyCalendarDisplayMode();
 let dnaResultsTimeframe = loadDnaResultsTimeframe();
 let pageMode = loadPageMode();
+let sessionNotesByDay = loadSessionNotesByDay();
+let isSessionNotesModalOpen = false;
 
 const FRIENDLY_ASSET_NAMES = {
   XAUUSD: 'Gold',
@@ -198,6 +201,54 @@ function loadTrades() {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedTrades));
   }
   return migratedTrades;
+}
+
+function loadSessionNotesByDay() {
+  const savedNotes = window.localStorage.getItem(SESSION_NOTES_STORAGE_KEY);
+  if (!savedNotes) {
+    return {};
+  }
+
+  const parsedNotes = JSON.parse(savedNotes);
+  if (!parsedNotes || Array.isArray(parsedNotes) || typeof parsedNotes !== 'object') {
+    return {};
+  }
+
+  return Object.fromEntries(Object.entries(parsedNotes).map(([dateKey, notes]) => [
+    dateKey,
+    Array.isArray(notes) ? notes.filter((note) => note?.id && note?.createdAt && String(note?.text || '').trim()) : [],
+  ]));
+}
+
+function persistSessionNotesByDay(nextNotesByDay) {
+  sessionNotesByDay = nextNotesByDay;
+  window.localStorage.setItem(SESSION_NOTES_STORAGE_KEY, JSON.stringify(sessionNotesByDay));
+}
+
+function getSessionNotesForDay(dateKey) {
+  return [...(sessionNotesByDay[dateKey] || [])].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+}
+
+function saveTodaySessionNote(text) {
+  const trimmedText = String(text || '').trim();
+  if (!trimmedText) {
+    return false;
+  }
+
+  const now = new Date();
+  const todayKey = formatDateKey(now);
+  const note = {
+    id: crypto.randomUUID ? crypto.randomUUID() : `session-note-${now.getTime()}`,
+    createdAt: now.toISOString(),
+    text: trimmedText,
+  };
+
+  persistSessionNotesByDay({
+    ...sessionNotesByDay,
+    [todayKey]: [...(sessionNotesByDay[todayKey] || []), note],
+  });
+
+  return true;
 }
 
 function persistTrades(nextTrades, options = {}) {
@@ -1128,6 +1179,7 @@ function renderCalendarDayReviewSummary(dateKey, dayTrades) {
   const lossReasons = uniqueTradeValues(dayTrades, 'lossReason');
   const notes = dayTrades.map(getCalendarReviewUserNote).filter(Boolean);
   const screenshots = dayTrades.filter((trade) => trade.screenshot?.dataUrl);
+  const sessionNotes = getSessionNotesForDay(dateKey);
   const pnlTone = getMoneyTone(pnl);
 
   return `
@@ -1139,6 +1191,7 @@ function renderCalendarDayReviewSummary(dateKey, dayTrades) {
             <div><span>Average Winner ($)</span><strong>${averageWinner === null ? '—' : currency(averageWinner)}</strong></div>
             <div><span>Average Loser ($)</span><strong>${averageLoser === null ? '—' : currency(averageLoser)}</strong></div>
           </div>
+          ${renderSessionNotesTimeline(sessionNotes)}
           <div class="calendar-review-sections">
             ${calendarReviewList('Setups used', setups)}
             ${calendarReviewList('Close reasons', closeReasons)}
@@ -1151,6 +1204,29 @@ function renderCalendarDayReviewSummary(dateKey, dayTrades) {
                 : '<p class="empty-state">No screenshots available for this day.</p>'}
             </section>
           </div>`;
+}
+
+function renderSessionNotesTimeline(sessionNotes) {
+  return `
+          <section class="calendar-session-notes" aria-label="Session Notes">
+            <h3>Session Notes</h3>
+            ${sessionNotes.length
+              ? `<ol class="session-notes-timeline">${sessionNotes.map((note) => `
+                <li>
+                  <time datetime="${escapeHtml(note.createdAt)}">${escapeHtml(formatSessionNoteTime(note.createdAt))}</time>
+                  <p>${escapeHtml(note.text)}</p>
+                </li>`).join('')}</ol>`
+              : '<p class="empty-state">No session notes for this day.</p>'}
+          </section>`;
+}
+
+function formatSessionNoteTime(createdAt) {
+  const noteDate = new Date(createdAt);
+  if (Number.isNaN(noteDate.getTime())) {
+    return 'Unknown time';
+  }
+
+  return noteDate.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
 function getCalendarReviewUserNote(trade) {
@@ -1191,10 +1267,34 @@ function setPageMode(nextMode) {
 
 function renderPageModeToggle() {
   return `
-        <div class="page-mode-toggle" role="group" aria-label="Page mode">
-          <button class="page-mode-button ${pageMode === PAGE_MODES.dashboard ? 'active' : ''}" type="button" data-page-mode="${PAGE_MODES.dashboard}" aria-pressed="${pageMode === PAGE_MODES.dashboard ? 'true' : 'false'}">Dashboard Mode</button>
-          <button class="page-mode-button ${pageMode === PAGE_MODES.trading ? 'active' : ''}" type="button" data-page-mode="${PAGE_MODES.trading}" aria-pressed="${pageMode === PAGE_MODES.trading ? 'true' : 'false'}">Trading Mode</button>
+        <div class="mode-and-notes-actions">
+          <div class="page-mode-toggle" role="group" aria-label="Page mode">
+            <button class="page-mode-button ${pageMode === PAGE_MODES.dashboard ? 'active' : ''}" type="button" data-page-mode="${PAGE_MODES.dashboard}" aria-pressed="${pageMode === PAGE_MODES.dashboard ? 'true' : 'false'}">Dashboard Mode</button>
+            <button class="page-mode-button ${pageMode === PAGE_MODES.trading ? 'active' : ''}" type="button" data-page-mode="${PAGE_MODES.trading}" aria-pressed="${pageMode === PAGE_MODES.trading ? 'true' : 'false'}">Trading Mode</button>
+          </div>
+          <button class="secondary-button session-notes-button" type="button" data-session-notes-open>📝 Session Notes</button>
         </div>`;
+}
+
+function renderSessionNotesModal() {
+  if (!isSessionNotesModalOpen) {
+    return '';
+  }
+
+  return `
+      <div class="session-notes-modal-backdrop" role="presentation">
+        <form class="session-notes-modal" id="sessionNotesForm" role="dialog" aria-modal="true" aria-labelledby="sessionNotesTitle">
+          <h2 id="sessionNotesTitle">Today's Session Notes</h2>
+          <label class="field">
+            <span>Note</span>
+            <textarea name="sessionNoteText" rows="6" placeholder="What are you noticing about focus, discipline, emotions, or market conditions today?" autofocus></textarea>
+          </label>
+          <div class="session-notes-modal-actions">
+            <button class="secondary-button" type="button" data-session-notes-cancel>Cancel</button>
+            <button class="primary-button" type="submit">Save</button>
+          </div>
+        </form>
+      </div>`;
 }
 
 function loadDnaResultsTimeframe() {
@@ -1858,6 +1958,7 @@ function render(options = {}) {
       ${renderPageModeToggle()}
 
       ${pageSections}
+      ${renderSessionNotesModal()}
     </main>
   `;
 
@@ -2017,6 +2118,20 @@ function bindEvents() {
 
   document.querySelector('#toggleManualTrade')?.addEventListener('click', toggleManualTradeForm);
   document.querySelector('#shareDashboard')?.addEventListener('click', openShareDashboardView);
+  document.querySelector('[data-session-notes-open]')?.addEventListener('click', () => {
+    isSessionNotesModalOpen = true;
+    render();
+  });
+  document.querySelector('[data-session-notes-cancel]')?.addEventListener('click', () => {
+    isSessionNotesModalOpen = false;
+    render();
+  });
+  document.querySelector('#sessionNotesForm')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    saveTodaySessionNote(new FormData(event.currentTarget).get('sessionNoteText'));
+    isSessionNotesModalOpen = false;
+    render();
+  });
   document.querySelectorAll('[data-page-mode]').forEach((button) => {
     button.addEventListener('click', () => {
       setPageMode(button.dataset.pageMode);
