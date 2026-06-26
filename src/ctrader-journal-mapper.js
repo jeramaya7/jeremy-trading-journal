@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 
-export const CTRADER_JOURNAL_MAPPER_TRACE_VERSION = 'symbol-metadata-by-id-v7-sl-tp-price-normalize';
+export const CTRADER_JOURNAL_MAPPER_TRACE_VERSION = 'symbol-metadata-by-id-v8-sl-tp-clean';
 
 const BROKER_SYMBOL_FALLBACKS_BY_ID = {
   41: 'XAUUSD',
@@ -58,9 +58,8 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
       ?? openingDeal?.volume,
   );
   const positionId = deal.positionId ?? openingDeal?.positionId;
-  const entryPrice = toFiniteNumber(closePositionDetail.entryPrice ?? openingDeal?.executionPrice);
-  const stopLoss = getCtraderStopLoss(deal, openingDeal, options, positionId, entryPrice);
-  const takeProfit = getCtraderTakeProfit(deal, openingDeal, options, positionId, entryPrice);
+  const stopLoss = getCtraderStopLoss(deal, openingDeal, options, positionId);
+  const takeProfit = getCtraderTakeProfit(deal, openingDeal, options, positionId);
   const symbolMetadata = options.symbolMetadata || getCtraderSymbolMetadataForDeal(deal, openingDeal, options);
   const symbol = getCtraderDealSymbol(deal, openingDeal, symbolMetadata);
   const symbolId = getCtraderDealSymbolId(deal, openingDeal);
@@ -173,7 +172,7 @@ function getCtraderDealSymbolId(deal, openingDeal = null) {
   );
 }
 
-function getCtraderTakeProfit(deal, openingDeal = null, options = {}, positionId = deal?.positionId ?? openingDeal?.positionId, referencePrice = null) {
+function getCtraderTakeProfit(deal, openingDeal = null, options = {}, positionId = deal?.positionId ?? openingDeal?.positionId) {
   const dealTakeProfit = toFiniteNumber(firstDefined(
     deal?.takeProfit,
     deal?.takeProfitPrice,
@@ -201,16 +200,15 @@ function getCtraderTakeProfit(deal, openingDeal = null, options = {}, positionId
     openingDeal?.position?.takeProfitPrice,
   ));
   if (dealTakeProfit !== null) {
-    return normalizeCtraderPrice(dealTakeProfit, referencePrice);
+    return dealTakeProfit;
   }
 
   const selectedOrder = getCtraderOrdersForPosition(options.ordersByPositionId, positionId)
     .find((order) => getCtraderOrderTakeProfit(order) !== null);
-  const orderTp = selectedOrder ? getCtraderOrderTakeProfit(selectedOrder) : null;
-  return orderTp !== null ? normalizeCtraderPrice(orderTp, referencePrice) : null;
+  return selectedOrder ? getCtraderOrderTakeProfit(selectedOrder) : null;
 }
 
-function getCtraderStopLoss(deal, openingDeal = null, options = {}, positionId = deal?.positionId ?? openingDeal?.positionId, referencePrice = null) {
+function getCtraderStopLoss(deal, openingDeal = null, options = {}, positionId = deal?.positionId ?? openingDeal?.positionId) {
   const dealStopLoss = toFiniteNumber(firstDefined(
     deal?.stopLoss,
     deal?.stopLossPrice,
@@ -238,13 +236,12 @@ function getCtraderStopLoss(deal, openingDeal = null, options = {}, positionId =
     openingDeal?.position?.stopLossPrice,
   ));
   if (dealStopLoss !== null) {
-    return normalizeCtraderPrice(dealStopLoss, referencePrice);
+    return dealStopLoss;
   }
 
   const selectedOrder = getCtraderOrdersForPosition(options.ordersByPositionId, positionId)
     .find((order) => getCtraderOrderStopLoss(order) !== null);
-  const orderSl = selectedOrder ? getCtraderOrderStopLoss(selectedOrder) : null;
-  return orderSl !== null ? normalizeCtraderPrice(orderSl, referencePrice) : null;
+  return selectedOrder ? getCtraderOrderStopLoss(selectedOrder) : null;
 }
 
 function getCtraderOrdersForPosition(ordersByPositionId, positionId) {
@@ -281,20 +278,6 @@ function firstDefined(...values) {
   return values.find((value) => value !== undefined && value !== null && value !== '') ?? null;
 }
 
-function normalizeCtraderPrice(rawPrice, referencePrice) {
-  const parsed = toFiniteNumber(rawPrice);
-  if (parsed === null) {
-    return null;
-  }
-  // cTrader returns SL/TP as integer price * 100000 (piped integer format).
-  // Detect this by comparing against a reference price (entry/exit).
-  // If the raw value is more than 1000x the reference, divide by 100000.
-  const ref = toFiniteNumber(referencePrice);
-  if (ref !== null && ref > 0 && parsed > ref * 1000) {
-    return Number((parsed / 100000).toFixed(5));
-  }
-  return parsed;
-}
 
 function roundJournalSize(value) {
   return Number(value.toFixed(8));
@@ -446,4 +429,5 @@ function cryptoSafeId(options = {}) {
   }
   return randomBytes(16).toString('hex');
 }
+
 
