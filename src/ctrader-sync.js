@@ -174,12 +174,19 @@ export function hasSourceTradeAlreadyBeenImported(candidateTrade, existingTrades
 }
 
 export function getImportedTradeSourceKey(trade) {
-  if (trade?.provider !== 'ctrader') {
+  const sourceTradeId = getCTraderSourceTradeId(trade);
+  if (sourceTradeId === null) {
     return null;
   }
 
-  const sourceTradeId = getCTraderSourceTradeId(trade);
-  return sourceTradeId === null ? null : `ctrader:${sourceTradeId}`;
+  return trade?.provider === 'ctrader' || isLegacyCTraderImportedTrade(trade)
+    ? `ctrader:${sourceTradeId}`
+    : null;
+}
+
+function isLegacyCTraderImportedTrade(trade) {
+  return String(trade?.id || '').startsWith('ctrader-')
+    || String(trade?.tags || '').toLowerCase().includes('ctrader');
 }
 
 export function normalizeDeletedCTraderSourceKeys(deletedSourceKeys) {
