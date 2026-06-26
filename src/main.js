@@ -2058,9 +2058,11 @@ function render(options = {}) {
         ${renderEquityCurveCard(dnaResultsTrades)}
       </section>
 
-      ${renderHeroStatsRow(stats)}
+      <div id="shareCapture">
+        ${renderHeroStatsRow(stats)}
 
-      ${dashboardSnapshot}
+        ${dashboardSnapshot}
+      </div>
 
       ${monthlyTradingCalendarSection}
 
@@ -2247,7 +2249,7 @@ function renderManualTradeForm(today) {
 }
 
 async function openShareDashboardView() {
-  const snapshotEl = document.querySelector('#dashboardSnapshot');
+  const snapshotEl = document.querySelector('#shareCapture') || document.querySelector('#dashboardSnapshot');
   if (!snapshotEl) {
     window.alert('Dashboard snapshot not found. Make sure you are in Dashboard Mode.');
     return;
