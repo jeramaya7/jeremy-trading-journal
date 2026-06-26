@@ -28,8 +28,9 @@ test('cTrader connect button starts OAuth on the Render backend and checks statu
 
 test('cTrader preview trades are converted into saved journal entries', () => {
   assertIncludes(syncSource, 'function convertCTraderPreviewTradeToJournalEntry(previewTrade, options = {})', 'Preview trades are converted before saving.');
-  assertIncludes(syncSource, "setup: previewTrade.setup === 'cTrader import preview' ? 'cTrader import'", 'Preview-only setup copy is replaced with journal entry copy.');
+  assertIncludes(syncSource, "setup: '',", 'Imported entries leave saved journal setup blank by default.');
   assertIncludes(syncSource, "tags: '',", 'Imported entries leave saved journal tags blank by default.');
+  assertIncludes(syncSource, "notes: '',", 'Imported entries leave saved journal notes blank by default.');
   assertIncludes(syncSource, 'importedAt: getImportedAt(options)', 'Imported entries record when they were saved locally.');
   assertIncludes(source, 'persistTrades([...syncPlan.importedTrades, ...updatedExistingTrades.trades])', 'Imported trades are saved to the existing local journal storage path.');
   assertIncludes(source, 'applyCTraderImportedTradeUpdates(trades, syncPlan.skippedTrades)', 'Skipped duplicate imports refresh stale local cTrader symbols.');

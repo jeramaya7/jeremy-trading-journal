@@ -39,7 +39,7 @@ test('cTrader sync converts preview trades into journal entries', () => {
   assert.equal(journalTrade.id, 'ctrader-501');
   assert.equal(journalTrade.provider, 'ctrader');
   assert.equal(journalTrade.sourceTradeId, '501');
-  assert.equal(journalTrade.setup, 'cTrader import');
+  assert.equal(journalTrade.setup, '');
   assert.equal(journalTrade.emotion, 'Imported');
   assert.equal(journalTrade.tags, '');
   assert.equal(journalTrade.notes, '');
@@ -47,9 +47,10 @@ test('cTrader sync converts preview trades into journal entries', () => {
 });
 
 
-test('cTrader imports leave cTrader-provided notes and tags blank by default', () => {
+test('cTrader imports leave cTrader-provided setup, notes, and tags blank by default', () => {
   const journalTrade = convertCTraderPreviewTradeToJournalEntry({
     ...closedPreviewTrade,
+    setup: 'Broker setup',
     tags: 'ctrader, imported, import-preview, broker-tag, momentum',
     notes: 'Broker-provided import note',
   }, {
@@ -57,6 +58,7 @@ test('cTrader imports leave cTrader-provided notes and tags blank by default', (
   });
 
   assert.equal(journalTrade.sourceTradeId, '501');
+  assert.equal(journalTrade.setup, '');
   assert.equal(journalTrade.tags, '');
   assert.equal(journalTrade.notes, '');
 });

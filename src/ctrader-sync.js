@@ -125,7 +125,7 @@ export function convertCTraderPreviewTradeToJournalEntry(previewTrade, options =
     sourceTradeId,
     brokerSymbol,
     symbol: brokerSymbol || previewTrade.symbol,
-    setup: previewTrade.setup === 'cTrader import preview' ? 'cTrader import' : (previewTrade.setup || 'cTrader import'),
+    setup: '',
     emotion: previewTrade.emotion || 'Imported',
     tags: '',
     notes: '',

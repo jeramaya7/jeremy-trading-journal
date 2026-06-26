@@ -22,6 +22,7 @@ test('adjusted stop loss persists through reload using the existing journal stor
   assertIncludes(source, 'window.localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));', 'Persisted trades serialize the full trade object, including adjustedStopLoss.');
   assertIncludes(source, 'const parsedTrades = JSON.parse(savedTrades);', 'Reloaded trades are parsed from local storage.');
   assertIncludes(source, 'const migratedTrades = shouldMigrateSavedTrades ? normalizeTradeSetups(parsedTrades) : parsedTrades;', 'Reload keeps persisted trade fields instead of remapping cTrader import data.');
+  assertIncludes(source, "${field('Adjusted Stop Loss', `<input name=\"adjustedStopLoss\"", 'Edit forms label the editable stop field as Adjusted Stop Loss.');
   assertIncludes(source, 'value="${escapeHtml(trade.adjustedStopLoss ?? \'\')}"', 'Re-opened edit forms hydrate the saved adjusted stop loss value.');
 });
 
