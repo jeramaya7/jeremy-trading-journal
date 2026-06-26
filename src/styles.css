@@ -2983,6 +2983,14 @@ h1 {
   padding: 0.8rem;
 }
 
+.trade-info-panel.risk-management-panel {
+  border-left: 4px solid rgba(201, 148, 32, 0.68);
+}
+
+.trade-info-panel.source-panel {
+  background: rgba(248, 250, 252, 0.86);
+}
+
 .trade-info-panel h4 {
   color: var(--dna-gold);
   font-size: 0.76rem;

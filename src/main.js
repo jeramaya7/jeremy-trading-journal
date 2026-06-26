@@ -541,18 +541,28 @@ function tradeMetric(label, value, options = {}) {
           </div>`;
 }
 
-function tradePanel(title, rows) {
+function tradePanel(title, rows, className = '') {
   const renderedRows = rows.filter(Boolean).join('');
   if (!renderedRows) {
     return '';
   }
 
+  const panelClass = className ? ` ${escapeHtml(className)}` : '';
   return `
-        <section class="trade-info-panel">
+        <section class="trade-info-panel${panelClass}">
           <h4>${escapeHtml(title)}</h4>
           <dl>${renderedRows}
           </dl>
         </section>`;
+}
+
+function formatSourceProvider(provider) {
+  const normalizedProvider = String(provider || '').trim();
+  if (!normalizedProvider) {
+    return 'cTrader';
+  }
+
+  return normalizedProvider.toLowerCase() === 'ctrader' ? 'cTrader' : normalizedProvider;
 }
 
 function tradeBadge(label, value, className = '') {
@@ -1738,13 +1748,13 @@ function tradeCard(trade) {
     tradeMetric('Risk $', riskDollars === null ? '' : currency(riskDollars)),
     tradeMetric('Risk %', riskPercent === null ? '' : formatRiskPercent(riskPercent)),
     tradeMetric('R', rMultiple === null ? '' : formatRMultiple(rMultiple), { valueClass: rTone }),
-  ]);
+  ], 'risk-management-panel');
   const journalPanel = tradePanel('Journal', [
     tradeMetric('Setup', trade.setup),
     tradeMetric('Close Reason', trade.closeReason),
     tradeMetric('Loss Reason', trade.lossReason),
     tradeMetric('Tags', trade.tags),
-  ]);
+  ], 'journal-panel');
   const detailsPanel = tradePanel('Trade Details', [
     tradeMetric('Direction', trade.direction),
     tradeMetric('Timeframe', trade.timeframe),
@@ -1752,14 +1762,14 @@ function tradeCard(trade) {
     tradeMetric('Size', trade.size),
     tradeMetric('Contract Size', getTradeContractSize(trade)),
     tradeMetric('Fees', formatOptionalCurrency(trade.fees)),
-  ]);
+  ], 'trade-details-panel');
   const sourcePanel = isImported ? tradePanel('Source', [
-    tradeMetric('Provider', trade.provider || 'cTrader'),
+    tradeMetric('Provider', formatSourceProvider(trade.provider)),
     tradeMetric('Account', trade.accountId),
     tradeMetric('Deal ID', trade.sourceDealId ?? trade.sourceTradeId),
     tradeMetric('Position ID', trade.sourcePositionId ?? trade.positionId),
     tradeMetric('Imported time', formatTradeTimestamp(trade.importedAt)),
-  ]) : '';
+  ], 'source-panel') : '';
 
   /*
    * Legacy source-check contract for layout-only redesign. These strings document
