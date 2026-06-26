@@ -1635,6 +1635,8 @@ function tradeCard(trade) {
   const pnl = calculatePnl(trade);
   const stopLoss = toOptionalNumber(trade.stopLoss);
   const adjustedStopLoss = toOptionalNumber(trade.adjustedStopLoss) ?? stopLoss;
+  const takeProfit = toOptionalNumber(trade.takeProfit);
+  const adjustedTakeProfit = toOptionalNumber(trade.adjustedTakeProfit);
   const activeStopLoss = getActiveStopLoss(trade);
   const riskDollars = calculateRiskDollars(trade);
   const riskPercent = calculateRiskPercent(trade);
@@ -1670,6 +1672,8 @@ function tradeCard(trade) {
         <span>Size: ${escapeHtml(trade.size)}</span>
         <span>Original Stop Loss: ${stopLoss === null ? '—' : currency(stopLoss)}</span>
         <span>Adjusted Stop Loss: ${adjustedStopLoss === null ? '—' : currency(adjustedStopLoss)}</span>
+        ${takeProfit === null ? '' : `<span>Original Take Profit: ${currency(takeProfit)}</span>`}
+        ${adjustedTakeProfit === null ? '' : `<span>Adjusted Take Profit: ${currency(adjustedTakeProfit)}</span>`}
         ${activeStopLoss === null ? '<span>Risk Stop: —</span>' : `<span>Risk Stop: ${currency(activeStopLoss)}</span>`}
         <span>Risk $: ${riskDollars === null ? '—' : currency(riskDollars)}</span>
         <span>Risk %: ${formatRiskPercent(riskPercent)}</span>
@@ -1780,6 +1784,8 @@ function editTradeForm(trade) {
           ${field('Exit Price', `<input name="exit" type="number" value="${escapeHtml(trade.exit)}" readonly />`)}
           ${field('Original Stop Loss', `<input name="stopLoss" type="number" value="${escapeHtml(trade.stopLoss ?? '')}" readonly />`)}
           ${field('Adjusted Stop Loss', `<input name="adjustedStopLoss" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedStopLoss ?? '')}" placeholder="Optional" />`)}
+          ${field('Original Take Profit', `<input name="takeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.takeProfit ?? '')}" placeholder="Optional" />`)}
+          ${field('Adjusted Take Profit', `<input name="adjustedTakeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedTakeProfit ?? '')}" placeholder="Optional" />`)}
         </div>
         <div class="edit-form-row edit-classification-row" aria-label="Trade classification">
           ${field('Setup', renderPlayBookSetupSelect(trade))}
@@ -2083,6 +2089,8 @@ function renderManualTradeForm(today) {
         ${field('Size', '<input name="size" type="number" min="0.01" step="0.01" required />')}
         ${field('Original Stop Loss', '<input name="stopLoss" type="number" min="0" step="0.01" placeholder="Optional" />')}
         ${field('Adjusted Stop Loss', '<input name="adjustedStopLoss" type="number" min="0" step="0.01" placeholder="Optional" />')}
+        ${field('Original Take Profit', '<input name="takeProfit" type="number" min="0" step="0.01" placeholder="Optional" />')}
+        ${field('Adjusted Take Profit', '<input name="adjustedTakeProfit" type="number" min="0" step="0.01" placeholder="Optional" />')}
         ${field('Account Size', '<input name="accountSize" type="number" min="0" step="0.01" placeholder="Optional" />')}
         ${field('Risk %', '<input name="riskPercent" type="number" min="0" step="0.01" placeholder="Calculated" readonly />')}
         ${field('Fees', '<input name="fees" type="number" min="0" step="0.01" value="0" />')}
@@ -2333,6 +2341,8 @@ async function submitTrade(event) {
     size: Number(formData.get('size')),
     stopLoss: toOptionalNumber(formData.get('stopLoss')),
     adjustedStopLoss: toOptionalNumber(formData.get('adjustedStopLoss')),
+    takeProfit: toOptionalNumber(formData.get('takeProfit')),
+    adjustedTakeProfit: toOptionalNumber(formData.get('adjustedTakeProfit')),
     accountSize: toOptionalNumber(formData.get('accountSize')),
     riskPercent: calculateRiskPercent({
       direction: formData.get('direction'),
@@ -2370,6 +2380,8 @@ async function submitTradeEdit(event) {
     closeReason,
     tags: String(formData.get('tags')).trim(),
     notes: String(formData.get('notes')).trim(),
+    takeProfit: toOptionalNumber(formData.get('takeProfit')),
+    adjustedTakeProfit: toOptionalNumber(formData.get('adjustedTakeProfit')),
     adjustedStopLoss,
   };
   const resolvedScreenshot = screenshotDraft.removeScreenshot
