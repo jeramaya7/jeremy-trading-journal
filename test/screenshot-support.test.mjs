@@ -64,6 +64,9 @@ test('risk metrics render on trade cards and focused dashboard summary', () => {
   assertIncludes(source, 'const activeStopLoss = getActiveStopLoss(trade);', 'Trade cards compute the active risk stop through the shared helper.');
   assertIncludes(source, 'Original Stop Loss: ${stopLoss === null ?', 'Trade cards render the original stop loss for auditing.');
   assertIncludes(source, 'Adjusted Stop Loss: ${adjustedStopLoss === null ?', 'Trade cards render the adjusted stop loss display value.');
+  assertIncludes(source, 'Original Take Profit: ${currency(takeProfit)}', 'Trade cards render original take profit when present.');
+  assertIncludes(source, 'Adjusted Take Profit: ${currency(adjustedTakeProfit)}', 'Trade cards render adjusted take profit when present.');
+  assertIncludes(source, 'Active Take Profit: ${currency(activeTakeProfit)}', 'Trade cards render active take profit when present.');
   assertIncludes(source, 'Risk Stop: ${currency(activeStopLoss)}', 'Trade cards render the active risk stop used by risk and R calculations.');
   assertIncludes(source, 'Risk $: ${riskDollars === null ?', 'Trade cards render risk dollars with blank-field fallback.');
   assertIncludes(source, 'Risk %: ${formatRiskPercent(riskPercent)}', 'Trade cards render risk percent.');

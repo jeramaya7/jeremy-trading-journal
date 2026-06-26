@@ -230,6 +230,42 @@ test('cTrader sync updates adjusted stop loss on matching imported trades withou
 });
 
 
+
+test('cTrader sync fills original take profit on existing imported trades only when blank', () => {
+  const existingTrades = [
+    {
+      id: 'ctrader-501',
+      provider: 'ctrader',
+      sourceTradeId: '501',
+      symbol: 'EURUSD',
+      brokerSymbol: 'EURUSD',
+      takeProfit: '',
+    },
+    {
+      id: 'ctrader-502',
+      provider: 'ctrader',
+      sourceTradeId: '502',
+      symbol: 'GBPUSD',
+      brokerSymbol: 'GBPUSD',
+      takeProfit: 1.25,
+    },
+  ];
+
+  const syncPlan = buildCTraderSyncPlan([
+    { ...closedPreviewTrade, takeProfit: 1.11 },
+    { ...closedPreviewTrade, id: 'ctrader-502', sourceDealId: 502, symbol: 'GBPUSD', takeProfit: 1.26 },
+  ], existingTrades, {
+    now: () => Date.parse('2026-06-12T15:00:00.000Z'),
+  });
+  const updatedExistingTrades = applyCTraderImportedTradeUpdates(existingTrades, syncPlan.skippedTrades);
+
+  assert.equal(syncPlan.importedCount, 0);
+  assert.equal(syncPlan.skippedCount, 2);
+  assert.equal(updatedExistingTrades.trades[0].takeProfit, 1.11);
+  assert.equal(updatedExistingTrades.trades[0].adjustedTakeProfit, undefined);
+  assert.equal(updatedExistingTrades.trades[1].takeProfit, 1.25);
+});
+
 test('cTrader sync recognizes legacy imported trades without provider before importing duplicates', () => {
   const existingTrades = [
     {

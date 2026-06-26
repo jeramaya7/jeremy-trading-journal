@@ -59,6 +59,7 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
   );
   const stopLossSelection = getCtraderStopLossSelection(deal, openingDeal, options);
   const stopLoss = stopLossSelection.stopLoss;
+  const takeProfit = getCtraderTakeProfit(deal, openingDeal);
   logCtraderOrderStopLossSelection(options, {
     dealId: deal.dealId ?? null,
     positionId: deal.positionId ?? openingDeal?.positionId ?? null,
@@ -106,6 +107,7 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
     entry,
     exit,
     ...(stopLoss !== null ? { stopLoss } : {}),
+    ...(takeProfit !== null ? { takeProfit } : {}),
     size: volume,
     volume,
     ...(contractSize !== null && contractSize > 0 ? { contractSize } : {}),
@@ -175,6 +177,35 @@ function getCtraderDealSymbolId(deal, openingDeal = null) {
     openingDeal?.symbolId,
     isNumericIdentifier(openingDeal?.symbol) ? openingDeal.symbol : null,
   );
+}
+
+function getCtraderTakeProfit(deal, openingDeal = null) {
+  return toFiniteNumber(firstDefined(
+    deal?.takeProfit,
+    deal?.takeProfitPrice,
+    deal?.tpPrice,
+    deal?.tp,
+    deal?.order?.takeProfit,
+    deal?.order?.takeProfitPrice,
+    deal?.position?.takeProfit,
+    deal?.position?.takeProfitPrice,
+    deal?.closePositionDetail?.takeProfit,
+    deal?.closePositionDetail?.takeProfitPrice,
+    deal?.closePositionDetail?.tpPrice,
+    deal?.closePositionDetail?.tp,
+    deal?.closePositionDetail?.order?.takeProfit,
+    deal?.closePositionDetail?.order?.takeProfitPrice,
+    deal?.closePositionDetail?.position?.takeProfit,
+    deal?.closePositionDetail?.position?.takeProfitPrice,
+    openingDeal?.takeProfit,
+    openingDeal?.takeProfitPrice,
+    openingDeal?.tpPrice,
+    openingDeal?.tp,
+    openingDeal?.order?.takeProfit,
+    openingDeal?.order?.takeProfitPrice,
+    openingDeal?.position?.takeProfit,
+    openingDeal?.position?.takeProfitPrice,
+  ));
 }
 
 function getCtraderStopLossSelection(deal, openingDeal = null, options = {}) {
