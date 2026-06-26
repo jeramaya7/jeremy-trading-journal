@@ -41,9 +41,24 @@ test('cTrader sync converts preview trades into journal entries', () => {
   assert.equal(journalTrade.sourceTradeId, '501');
   assert.equal(journalTrade.setup, 'cTrader import');
   assert.equal(journalTrade.emotion, 'Imported');
-  assert.equal(journalTrade.tags, 'ctrader, imported');
-  assert.equal(journalTrade.notes, 'Imported from cTrader source trade 501.');
+  assert.equal(journalTrade.tags, '');
+  assert.equal(journalTrade.notes, '');
   assert.equal(journalTrade.importedAt, '2026-06-12T15:00:00.000Z');
+});
+
+
+test('cTrader imports leave cTrader-provided notes and tags blank by default', () => {
+  const journalTrade = convertCTraderPreviewTradeToJournalEntry({
+    ...closedPreviewTrade,
+    tags: 'ctrader, imported, import-preview, broker-tag, momentum',
+    notes: 'Broker-provided import note',
+  }, {
+    now: () => Date.parse('2026-06-12T15:00:00.000Z'),
+  });
+
+  assert.equal(journalTrade.sourceTradeId, '501');
+  assert.equal(journalTrade.tags, '');
+  assert.equal(journalTrade.notes, '');
 });
 
 test('cTrader sync stores selected account balance on imported trades for Risk % calculations', () => {

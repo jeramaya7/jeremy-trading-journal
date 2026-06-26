@@ -109,12 +109,6 @@ export function applyCTraderImportedTradeUpdates(existingTrades, skippedTrades) 
 
 export function convertCTraderPreviewTradeToJournalEntry(previewTrade, options = {}) {
   const sourceTradeId = getCTraderSourceTradeId(previewTrade);
-  const sourceLabel = sourceTradeId === null ? 'unknown source trade' : `source trade ${sourceTradeId}`;
-  const importedNotes = `Imported from cTrader ${sourceLabel}.`;
-  const previewNotes = String(previewTrade.notes || '').trim();
-  const notes = previewNotes && !previewNotes.toLowerCase().includes('preview only')
-    ? `${importedNotes} ${previewNotes}`
-    : importedNotes;
   const brokerSymbol = getReadableImportedSymbol(
     previewTrade.brokerSymbol,
     previewTrade.symbolName,
@@ -134,7 +128,7 @@ export function convertCTraderPreviewTradeToJournalEntry(previewTrade, options =
     setup: previewTrade.setup === 'cTrader import preview' ? 'cTrader import' : (previewTrade.setup || 'cTrader import'),
     emotion: previewTrade.emotion || 'Imported',
     tags: normalizeImportedTags(previewTrade.tags),
-    notes,
+    notes: '',
     ...(importedAdjustedStopLoss !== undefined ? { adjustedStopLoss: importedAdjustedStopLoss } : {}),
     importedAt: getImportedAt(options),
     ...getImportedAccountBalanceFields(options.accountBalance),
@@ -165,20 +159,8 @@ function getReadableImportedSymbol(...values) {
     .find((value) => value && !/^\d+$/.test(value)) || null;
 }
 
-export function normalizeImportedTags(tags) {
-  const normalizedTags = String(tags || '')
-    .split(',')
-    .map((tag) => tag.trim())
-    .filter((tag) => tag && tag !== 'import-preview');
-
-  if (!normalizedTags.includes('ctrader')) {
-    normalizedTags.unshift('ctrader');
-  }
-  if (!normalizedTags.includes('imported')) {
-    normalizedTags.push('imported');
-  }
-
-  return normalizedTags.join(', ');
+export function normalizeImportedTags() {
+  return '';
 }
 
 export function shouldImportCTraderTrade(candidateTrade, existingTrades, seenSourceKeys, deletedSourceKeys) {
