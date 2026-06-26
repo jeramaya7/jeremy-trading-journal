@@ -134,6 +134,7 @@ const PLAY_BOOK_SETUP_OPTIONS = [
   'ORB',
   'Return to 200',
   'Ride the 🐋',
+  'Scalp',
   'Set & Forget',
   'Support & Resistance',
   'TB Retrace',
