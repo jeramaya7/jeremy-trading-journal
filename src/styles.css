@@ -1334,6 +1334,19 @@ h2 {
   min-width: 980px;
 }
 
+.asset-filter-button {
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  text-align: inherit;
+}
+
+.asset-filter-button:hover {
+  color: var(--dna-gold);
+  transform: none;
+}
+
 .setup-analytics-header {
   align-items: flex-start;
   display: flex;

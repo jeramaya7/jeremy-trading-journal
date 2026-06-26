@@ -108,13 +108,22 @@ let editingTradeId = null;
 let isManualTradeFormOpen = false;
 let manualTradeDateKey = formatDateKey(new Date());
 let setupAnalyticsSort = { key: 'netPnl', direction: 'desc' };
-let assetAnalyticsSort = { key: 'netPnl', direction: 'desc' };
+let selectedAssetFilter = '';
 let monthlyCalendarDate = new Date();
 let selectedCalendarDateKey = '';
 let calendarReviewDateKey = '';
 let monthlyCalendarDisplayMode = loadMonthlyCalendarDisplayMode();
 let dnaResultsTimeframe = loadDnaResultsTimeframe();
 let pageMode = loadPageMode();
+
+const FRIENDLY_ASSET_NAMES = {
+  XAUUSD: 'Gold',
+  BTCUSD: 'Bitcoin',
+  ETHUSD: 'Ethereum',
+  US30: 'Dow Jones',
+  US100: 'Nasdaq',
+  SPX500: 'S&P 500',
+};
 
 const PLAY_BOOK_SETUP_OPTIONS = [
   'Buy the Retrace',
@@ -770,6 +779,11 @@ function compareSetupAnalyticsRows(firstRow, secondRow) {
 }
 
 
+function getFriendlyAssetName(symbol) {
+  const normalizedSymbol = String(symbol ?? '').trim().toUpperCase();
+  return FRIENDLY_ASSET_NAMES[normalizedSymbol] || String(symbol ?? '').trim();
+}
+
 function getAssetAnalytics(tradeList = trades) {
   const assetReports = new Map();
 
@@ -783,6 +797,7 @@ function getAssetAnalytics(tradeList = trades) {
     const rMultiple = calculateRMultiple(trade);
     const report = assetReports.get(asset) ?? {
       asset,
+      displayName: getFriendlyAssetName(asset),
       tradeCount: 0,
       winCount: 0,
       rCount: 0,
@@ -819,6 +834,7 @@ function getAssetAnalytics(tradeList = trades) {
   return [...assetReports.values()]
     .map((report) => ({
       asset: report.asset,
+      displayName: report.displayName,
       tradeCount: report.tradeCount,
       winRate: report.tradeCount ? (report.winCount / report.tradeCount) * 100 : 0,
       netPnl: report.netPnl,
@@ -830,28 +846,21 @@ function getAssetAnalytics(tradeList = trades) {
 }
 
 function compareAssetAnalyticsRows(firstRow, secondRow) {
-  const direction = assetAnalyticsSort.direction === 'asc' ? 1 : -1;
-  const firstValue = firstRow[assetAnalyticsSort.key];
-  const secondValue = secondRow[assetAnalyticsSort.key];
-  let result = 0;
-
-  if (typeof firstValue === 'string' || typeof secondValue === 'string') {
-    result = String(firstValue ?? '').localeCompare(String(secondValue ?? ''), undefined, { sensitivity: 'base' });
-  } else {
-    result = (firstValue ?? Number.NEGATIVE_INFINITY) - (secondValue ?? Number.NEGATIVE_INFINITY);
+  const netPnlResult = secondRow.netPnl - firstRow.netPnl;
+  if (netPnlResult !== 0) {
+    return netPnlResult;
   }
 
-  if (result === 0 && assetAnalyticsSort.key !== 'netPnl') {
-    result = firstRow.netPnl - secondRow.netPnl;
+  const tradeCountResult = secondRow.tradeCount - firstRow.tradeCount;
+  if (tradeCountResult !== 0) {
+    return tradeCountResult;
   }
 
-  return result * direction;
+  return String(firstRow.displayName ?? firstRow.asset).localeCompare(String(secondRow.displayName ?? secondRow.asset), undefined, { sensitivity: 'base' });
 }
 
 function renderAssetAnalytics(tradeList = trades) {
   const assetAnalytics = getAssetAnalytics(tradeList);
-  const sortLabels = { asset: 'Asset', tradeCount: 'Total Trades', winRate: 'Win Rate', netPnl: 'Net P&L', averageR: 'Average R', averageWinner: 'Average Winner', averageLoser: 'Average Loser' };
-
   return `
       <section class="panel setup-analytics-panel asset-analytics-panel" aria-label="Asset Analytics">
         <div class="setup-analytics-header">
@@ -859,19 +868,19 @@ function renderAssetAnalytics(tradeList = trades) {
             <div class="section-title">${icon('chart')}<h2>Asset Analytics</h2></div>
             <p class="section-helper">Performance grouped by trading asset from the current DNA timeframe.</p>
           </div>
-          <p class="setup-sort-helper">Sorted by ${escapeHtml(sortLabels[assetAnalyticsSort.key])} ${assetAnalyticsSort.direction === 'asc' ? 'ascending' : 'descending'}</p>
+          <p class="setup-sort-helper">Sorted by Net P&L descending, then Total Trades descending</p>
         </div>
         <div class="setup-analytics-table-wrap">
           <table class="setup-analytics-table asset-analytics-table">
             <thead>
               <tr>
-                ${assetAnalyticsHeader('asset', 'Asset')}
-                ${assetAnalyticsHeader('tradeCount', 'Total Trades')}
-                ${assetAnalyticsHeader('winRate', 'Win Rate')}
-                ${assetAnalyticsHeader('netPnl', 'Net P&L')}
-                ${assetAnalyticsHeader('averageR', 'Average R')}
-                ${assetAnalyticsHeader('averageWinner', 'Average Winner')}
-                ${assetAnalyticsHeader('averageLoser', 'Average Loser')}
+                <th scope="col">Asset</th>
+                <th scope="col">Total Trades</th>
+                <th scope="col">Win Rate</th>
+                <th scope="col">Net P&L</th>
+                <th scope="col">Average R</th>
+                <th scope="col">Average Winner</th>
+                <th scope="col">Average Loser</th>
               </tr>
             </thead>
             <tbody>
@@ -882,14 +891,6 @@ function renderAssetAnalytics(tradeList = trades) {
       </section>`;
 }
 
-function assetAnalyticsHeader(key, label) {
-  const isActive = assetAnalyticsSort.key === key;
-  const nextDirection = isActive && assetAnalyticsSort.direction === 'desc' ? 'asc' : 'desc';
-  const indicator = isActive ? (assetAnalyticsSort.direction === 'desc' ? ' ↓' : ' ↑') : '';
-
-  return `<th scope="col"><button class="table-sort-button" type="button" data-asset-sort-key="${escapeHtml(key)}" data-asset-sort-direction="${nextDirection}" aria-label="Sort asset analytics by ${escapeHtml(label)} ${nextDirection}">${escapeHtml(label)}${indicator}</button></th>`;
-}
-
 function assetAnalyticsRow(report) {
   const pnlTone = getPerformanceTone(report.netPnl);
   const rTone = getPerformanceTone(report.averageR);
@@ -898,7 +899,7 @@ function assetAnalyticsRow(report) {
 
   return `
               <tr>
-                <td>${escapeHtml(report.asset)}</td>
+                <td><button class="asset-filter-button" type="button" data-asset-filter="${escapeHtml(report.asset)}" aria-pressed="${selectedAssetFilter === report.asset ? 'true' : 'false'}">${escapeHtml(report.displayName)}</button></td>
                 <td>${report.tradeCount}</td>
                 <td>${formatPercent(report.winRate)}</td>
                 <td class="${pnlTone}">${currency(report.netPnl)}</td>
@@ -1305,6 +1306,7 @@ function openJournalForCalendarDate(dateKey) {
   calendarReviewDateKey = '';
   manualTradeDateKey = dateKey;
   searchQuery = '';
+  selectedAssetFilter = '';
   isManualTradeFormOpen = !hasTradesForDate(dateKey);
   render();
   document.querySelector('.journal-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1312,16 +1314,18 @@ function openJournalForCalendarDate(dateKey) {
 
 function getFilteredTrades() {
   const normalizedQuery = searchQuery.trim().toLowerCase();
+  const normalizedAssetFilter = selectedAssetFilter.trim().toLowerCase();
 
   return trades.filter((trade) => {
     const tradeDate = getTradeReportDate(trade);
     const matchesCalendarDate = !selectedCalendarDateKey || (tradeDate && formatDateKey(tradeDate) === selectedCalendarDateKey);
+    const matchesAsset = !normalizedAssetFilter || getTradeDisplaySymbol(trade).trim().toLowerCase() === normalizedAssetFilter;
     const matchesSearch = !normalizedQuery || [trade.symbol, trade.setup, trade.direction, trade.tags, trade.notes]
       .join(' ')
       .toLowerCase()
       .includes(normalizedQuery);
 
-    return matchesCalendarDate && matchesSearch;
+    return matchesCalendarDate && matchesAsset && matchesSearch;
   });
 }
 
@@ -2063,13 +2067,11 @@ function bindEvents() {
       render();
     });
   });
-  document.querySelectorAll('[data-asset-sort-key]').forEach((button) => {
+  document.querySelectorAll('[data-asset-filter]').forEach((button) => {
     button.addEventListener('click', () => {
-      assetAnalyticsSort = {
-        key: button.dataset.assetSortKey,
-        direction: button.dataset.assetSortDirection,
-      };
+      selectedAssetFilter = selectedAssetFilter === button.dataset.assetFilter ? '' : button.dataset.assetFilter;
       render();
+      document.querySelector('.journal-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   });
   document.querySelectorAll('[data-calendar-date]').forEach((button) => {
