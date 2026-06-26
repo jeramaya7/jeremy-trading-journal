@@ -2091,7 +2091,7 @@ function render(options = {}) {
           </p>
         </div>
         <div class="hero-actions">
-          ${pageMode === PAGE_MODES.dashboard ? `<button class="share-dashboard-button" type="button" id="shareDashboard">${icon('share')} Share Dashboard</button>` : ''}
+          ${pageMode === PAGE_MODES.dashboard ? `<button class="share-dashboard-button" type="button" id="shareDashboard">${icon('download')} Download PNG</button>` : ''}
           ${renderCTraderConnectionCard()}
         </div>
       </section>
@@ -2246,9 +2246,57 @@ function renderManualTradeForm(today) {
   `;
 }
 
-function openShareDashboardView() {
-  const shareUrl = `${window.location.origin}${window.location.pathname}${window.location.search}#share-dashboard`;
-  window.open(shareUrl, '_blank', 'noopener,noreferrer');
+async function openShareDashboardView() {
+  const snapshotEl = document.querySelector('#dashboardSnapshot');
+  if (!snapshotEl) {
+    window.alert('Dashboard snapshot not found. Make sure you are in Dashboard Mode.');
+    return;
+  }
+
+  const btn = document.querySelector('#shareDashboard');
+  if (btn) {
+    btn.textContent = 'Generating PNG…';
+    btn.disabled = true;
+  }
+
+  try {
+    // Dynamically load html2canvas if not already present
+    if (!window.html2canvas) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        script.onload = resolve;
+        script.onerror = () => reject(new Error('Could not load html2canvas'));
+        document.head.appendChild(script);
+      });
+    }
+
+    const canvas = await window.html2canvas(snapshotEl, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#f8f8f6',
+      scrollX: 0,
+      scrollY: 0,
+      width: snapshotEl.scrollWidth,
+      height: snapshotEl.scrollHeight,
+      windowWidth: snapshotEl.scrollWidth,
+      logging: false,
+    });
+
+    const link = document.createElement('a');
+    const date = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+    link.download = `DNA-dashboard-${date}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  } catch (error) {
+    window.alert(`PNG export failed: ${error.message}`);
+    console.error('[share dashboard] PNG export failed', error);
+  } finally {
+    if (btn) {
+      btn.innerHTML = `${icon('share')} Share Dashboard`;
+      btn.disabled = false;
+    }
+  }
 }
 
 function field(label, control) {
@@ -3207,3 +3255,4 @@ handleCTraderOAuthReturn().then((handledOAuthReturn) => {
     syncCTraderOnStartup();
   }
 });
+
