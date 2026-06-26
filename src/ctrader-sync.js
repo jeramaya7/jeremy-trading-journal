@@ -58,7 +58,7 @@ export function applyCTraderImportedTradeUpdates(existingTrades, skippedTrades) 
       accountBalance: skippedTrade.trade?.accountBalance,
       accountBalanceFetchedAt: skippedTrade.trade?.accountBalanceFetchedAt,
       contractSize: skippedTrade.trade?.contractSize,
-      adjustedStopLoss: skippedTrade.trade?.stopLoss,
+      stopLoss: skippedTrade.trade?.stopLoss,
       takeProfit: skippedTrade.trade?.takeProfit,
     });
   }
@@ -82,7 +82,7 @@ export function applyCTraderImportedTradeUpdates(existingTrades, skippedTrades) 
       ...(update.accountBalance !== undefined ? { accountBalance: update.accountBalance } : {}),
       ...(update.accountBalanceFetchedAt !== undefined ? { accountBalanceFetchedAt: update.accountBalanceFetchedAt } : {}),
       ...(update.contractSize !== undefined ? { contractSize: update.contractSize } : {}),
-      ...(update.adjustedStopLoss !== undefined && update.adjustedStopLoss !== trade.adjustedStopLoss ? { adjustedStopLoss: update.adjustedStopLoss } : {}),
+      ...(update.stopLoss !== undefined && isBlankTradeValue(trade.stopLoss) ? { stopLoss: update.stopLoss } : {}),
       ...(update.takeProfit !== undefined && isBlankTradeValue(trade.takeProfit) ? { takeProfit: update.takeProfit } : {}),
     };
     const didChange = nextTrade.symbol !== trade.symbol
@@ -94,11 +94,11 @@ export function applyCTraderImportedTradeUpdates(existingTrades, skippedTrades) 
       || nextTrade.accountBalance !== trade.accountBalance
       || nextTrade.accountBalanceFetchedAt !== trade.accountBalanceFetchedAt
       || nextTrade.contractSize !== trade.contractSize
-      || nextTrade.adjustedStopLoss !== trade.adjustedStopLoss
+      || nextTrade.stopLoss !== trade.stopLoss
       || nextTrade.takeProfit !== trade.takeProfit;
     if (didChange) {
       updatedCount += 1;
-      if (nextTrade.adjustedStopLoss !== trade.adjustedStopLoss) {
+      if (nextTrade.stopLoss !== trade.stopLoss) {
         stopLossUpdatedCount += 1;
       }
       return nextTrade;
@@ -118,9 +118,6 @@ export function convertCTraderPreviewTradeToJournalEntry(previewTrade, options =
     previewTrade.symbol,
   );
 
-  const importedStopLoss = previewTrade.stopLoss;
-  const importedAdjustedStopLoss = previewTrade.adjustedStopLoss ?? importedStopLoss;
-
   return {
     ...previewTrade,
     id: sourceTradeId === null ? createFallbackId(options) : `ctrader-${sourceTradeId}`,
@@ -132,7 +129,6 @@ export function convertCTraderPreviewTradeToJournalEntry(previewTrade, options =
     emotion: previewTrade.emotion || 'Imported',
     tags: '',
     notes: '',
-    ...(importedAdjustedStopLoss !== undefined ? { adjustedStopLoss: importedAdjustedStopLoss } : {}),
     importedAt: getImportedAt(options),
     ...getImportedAccountBalanceFields(options.accountBalance),
   };

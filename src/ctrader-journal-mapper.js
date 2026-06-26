@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 
-export const CTRADER_JOURNAL_MAPPER_TRACE_VERSION = 'symbol-metadata-by-id-v5-order-stop-loss';
+export const CTRADER_JOURNAL_MAPPER_TRACE_VERSION = 'symbol-metadata-by-id-v6-order-sl-tp';
 
 const BROKER_SYMBOL_FALLBACKS_BY_ID = {
   41: 'XAUUSD',
@@ -57,16 +57,9 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
       ?? openingDeal?.filledVolume
       ?? openingDeal?.volume,
   );
-  const stopLossSelection = getCtraderStopLossSelection(deal, openingDeal, options);
-  const stopLoss = stopLossSelection.stopLoss;
-  const takeProfit = getCtraderTakeProfit(deal, openingDeal);
-  logCtraderOrderStopLossSelection(options, {
-    dealId: deal.dealId ?? null,
-    positionId: deal.positionId ?? openingDeal?.positionId ?? null,
-    ordersFound: stopLossSelection.ordersFound,
-    selectedStopLoss: stopLoss,
-    selectedOrderId: stopLossSelection.selectedOrderId,
-  });
+  const positionId = deal.positionId ?? openingDeal?.positionId;
+  const stopLoss = getCtraderStopLoss(deal, openingDeal, options, positionId);
+  const takeProfit = getCtraderTakeProfit(deal, openingDeal, options, positionId);
   const symbolMetadata = options.symbolMetadata || getCtraderSymbolMetadataForDeal(deal, openingDeal, options);
   const symbol = getCtraderDealSymbol(deal, openingDeal, symbolMetadata);
   const symbolId = getCtraderDealSymbolId(deal, openingDeal);
@@ -179,8 +172,8 @@ function getCtraderDealSymbolId(deal, openingDeal = null) {
   );
 }
 
-function getCtraderTakeProfit(deal, openingDeal = null) {
-  return toFiniteNumber(firstDefined(
+function getCtraderTakeProfit(deal, openingDeal = null, options = {}, positionId = deal?.positionId ?? openingDeal?.positionId) {
+  const dealTakeProfit = toFiniteNumber(firstDefined(
     deal?.takeProfit,
     deal?.takeProfitPrice,
     deal?.tpPrice,
@@ -206,9 +199,16 @@ function getCtraderTakeProfit(deal, openingDeal = null) {
     openingDeal?.position?.takeProfit,
     openingDeal?.position?.takeProfitPrice,
   ));
+  if (dealTakeProfit !== null) {
+    return dealTakeProfit;
+  }
+
+  const selectedOrder = getCtraderOrdersForPosition(options.ordersByPositionId, positionId)
+    .find((order) => getCtraderOrderTakeProfit(order) !== null);
+  return selectedOrder ? getCtraderOrderTakeProfit(selectedOrder) : null;
 }
 
-function getCtraderStopLossSelection(deal, openingDeal = null, options = {}) {
+function getCtraderStopLoss(deal, openingDeal = null, options = {}, positionId = deal?.positionId ?? openingDeal?.positionId) {
   const dealStopLoss = toFiniteNumber(firstDefined(
     deal?.stopLoss,
     deal?.stopLossPrice,
@@ -236,16 +236,12 @@ function getCtraderStopLossSelection(deal, openingDeal = null, options = {}) {
     openingDeal?.position?.stopLossPrice,
   ));
   if (dealStopLoss !== null) {
-    return { stopLoss: dealStopLoss, ordersFound: getCtraderOrdersForPosition(options.ordersByPositionId, deal?.positionId ?? openingDeal?.positionId).length, selectedOrderId: null };
+    return dealStopLoss;
   }
 
-  const orders = getCtraderOrdersForPosition(options.ordersByPositionId, deal?.positionId ?? openingDeal?.positionId);
-  const selectedOrder = orders.find((order) => getCtraderOrderStopLoss(order) !== null) || null;
-  return {
-    stopLoss: selectedOrder ? getCtraderOrderStopLoss(selectedOrder) : null,
-    ordersFound: orders.length,
-    selectedOrderId: selectedOrder?.orderId ?? selectedOrder?.id ?? null,
-  };
+  const selectedOrder = getCtraderOrdersForPosition(options.ordersByPositionId, positionId)
+    .find((order) => getCtraderOrderStopLoss(order) !== null);
+  return selectedOrder ? getCtraderOrderStopLoss(selectedOrder) : null;
 }
 
 function getCtraderOrdersForPosition(ordersByPositionId, positionId) {
@@ -267,6 +263,17 @@ function getCtraderOrderStopLoss(order) {
   ));
 }
 
+function getCtraderOrderTakeProfit(order) {
+  return toFiniteNumber(firstDefined(
+    order?.takeProfit,
+    order?.takeProfitPrice,
+    order?.tpPrice,
+    order?.tp,
+    order?.position?.takeProfit,
+    order?.position?.takeProfitPrice,
+  ));
+}
+
 function firstDefined(...values) {
   return values.find((value) => value !== undefined && value !== null && value !== '') ?? null;
 }
@@ -277,15 +284,6 @@ function roundJournalSize(value) {
 
 function roundCurrency(value) {
   return Number(value.toFixed(2));
-}
-
-function logCtraderOrderStopLossSelection(options, selection) {
-  const logger = options.logger || console;
-  if (!options.ordersByPositionId || typeof logger.info !== 'function') {
-    return;
-  }
-
-  logger.info('[cTrader journal mapper] Order stop loss selected', selection);
 }
 
 function logCtraderVolumeMapping(options, mapping) {
