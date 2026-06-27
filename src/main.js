@@ -1713,11 +1713,12 @@ function tradeCard(trade) {
   const displaySymbol = getTradeDisplaySymbol(trade);
   const pnl = calculatePnl(trade);
   const stopLoss = toOptionalNumber(trade.stopLoss);
-  const adjustedStopLoss = toOptionalNumber(trade.adjustedStopLoss) ?? stopLoss;
+  const adjustedStopLoss = toOptionalNumber(trade.adjustedStopLoss);
   const takeProfit = toOptionalNumber(trade.takeProfit);
   const adjustedTakeProfit = toOptionalNumber(trade.adjustedTakeProfit);
   const activeTakeProfit = adjustedTakeProfit ?? takeProfit;
-  const activeStopLoss = getActiveStopLoss(trade);
+  const stopLossHitPrice = getStopLossHitPrice(trade);
+  const activeStopLoss = stopLossHitPrice ?? adjustedStopLoss;
   const riskDollars = calculateRiskDollars(trade);
   const riskPercent = calculateRiskPercent(trade);
   const rMultiple = calculateRMultiple(trade);
