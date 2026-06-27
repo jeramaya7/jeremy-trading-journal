@@ -263,6 +263,27 @@ export function decryptTokenPayload(encryptedPayload, secret) {
   return JSON.parse(plaintext);
 }
 
+async function refreshCtraderTokens(config, refreshToken, options = {}, fetchImpl = fetch) {
+  const tokenUrl = new URL(CTRADER_TOKEN_URL);
+  tokenUrl.searchParams.set('grant_type', 'refresh_token');
+  tokenUrl.searchParams.set('refresh_token', refreshToken);
+  tokenUrl.searchParams.set('client_id', config.clientId);
+  tokenUrl.searchParams.set('client_secret', config.clientSecret);
+
+  const tokenResponse = await fetchImpl(tokenUrl, { method: 'GET' });
+  const responseBody = await tokenResponse.json();
+  if (!tokenResponse.ok) {
+    throw new Error(responseBody.error_description || responseBody.error || 'cTrader token refresh failed');
+  }
+
+  return {
+    accessToken: responseBody.accessToken || responseBody.access_token,
+    refreshToken: responseBody.refreshToken || responseBody.refresh_token || refreshToken,
+    tokenType: responseBody.tokenType || responseBody.token_type || 'Bearer',
+    expiresIn: Number(responseBody.expiresIn || responseBody.expires_in || 0),
+  };
+}
+
 export async function loadStoredCtraderTokens(config, options = {}) {
   let tokenRecord;
   try {
@@ -284,6 +305,28 @@ export async function loadStoredCtraderTokens(config, options = {}) {
   const decryptedTokens = decryptTokenPayload(tokenRecord.encryptedTokens, config.encryptionSecret);
   if (!decryptedTokens.accessToken) {
     throw new Error('Stored cTrader tokens do not include an access token');
+  }
+
+  // Auto-refresh if token is expired or within 5 minutes of expiry
+  const REFRESH_BUFFER_MS = 5 * 60 * 1000;
+  const expiresAt = tokenRecord.expiresAt ? new Date(tokenRecord.expiresAt).getTime() : null;
+  const isExpiredOrExpiring = expiresAt !== null && Date.now() >= expiresAt - REFRESH_BUFFER_MS;
+
+  if (isExpiredOrExpiring && decryptedTokens.refreshToken) {
+    try {
+      console.log('[cTrader auth] Access token expired or expiring — refreshing automatically');
+      const freshTokens = await refreshCtraderTokens(config, decryptedTokens.refreshToken, options);
+      const freshRecord = await storeEncryptedTokens(config, freshTokens, options);
+      console.log('[cTrader auth] Token refreshed successfully, expires:', freshRecord.expiresAt);
+      return {
+        ...freshTokens,
+        tokenType: freshTokens.tokenType || 'Bearer',
+        record: freshRecord,
+      };
+    } catch (refreshError) {
+      console.error('[cTrader auth] Token refresh failed:', refreshError.message);
+      // Fall through and try the existing token — it may still work
+    }
   }
 
   return {
