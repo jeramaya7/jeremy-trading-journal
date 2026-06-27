@@ -1544,6 +1544,57 @@ function setPageMode(nextMode) {
   window.localStorage.setItem(PAGE_MODE_STORAGE_KEY, pageMode);
 }
 
+const STORAGE_LIMIT_BYTES = 5 * 1024 * 1024; // 5MB standard limit
+const STORAGE_WARN_THRESHOLD = 0.80; // warn at 80%
+const STORAGE_WARNING_DISMISSED_KEY = 'dna-storage-warning-dismissed-v1';
+
+function getStorageUsageBytes() {
+  try {
+    return JSON.stringify(localStorage).length * 2;
+  } catch {
+    return 0;
+  }
+}
+
+function getStorageUsagePercent() {
+  return getStorageUsageBytes() / STORAGE_LIMIT_BYTES;
+}
+
+function isStorageWarningDismissed() {
+  // Re-show warning each session — dismiss only lasts until page reload
+  return sessionStorage.getItem(STORAGE_WARNING_DISMISSED_KEY) === 'true';
+}
+
+function dismissStorageWarning() {
+  sessionStorage.setItem(STORAGE_WARNING_DISMISSED_KEY, 'true');
+  const banner = document.querySelector('#storage-warning-banner');
+  if (banner) banner.remove();
+}
+
+function renderStorageWarning() {
+  const usagePct = getStorageUsagePercent();
+  if (usagePct < STORAGE_WARN_THRESHOLD) return '';
+  if (isStorageWarningDismissed()) return '';
+
+  const usedMB = (getStorageUsageBytes() / (1024 * 1024)).toFixed(1);
+  const pct = Math.round(usagePct * 100);
+
+  return `
+    <div id="storage-warning-banner" class="storage-warning-banner" role="alert">
+      <div class="storage-warning-content">
+        ${icon('trend')}
+        <div>
+          <strong>Storage almost full (${pct}% used — ${usedMB}MB of ~5MB)</strong>
+          <span>Your browser storage is running low. Export a JSON backup now to avoid losing data.</span>
+        </div>
+      </div>
+      <div class="storage-warning-actions">
+        <button class="storage-warning-export" type="button" id="storageWarnExport">${icon('download')} Export Backup</button>
+        <button class="storage-warning-dismiss" type="button" id="storageWarnDismiss" aria-label="Dismiss warning">✕</button>
+      </div>
+    </div>`;
+}
+
 function renderPageModeToggle() {
   return `
         <div class="mode-and-notes-actions">
@@ -2276,6 +2327,7 @@ function render(options = {}) {
 
   app.innerHTML = `
     <main class="app-shell">
+      ${renderStorageWarning()}
       <section class="hero-card">
         <div class="hero-branding">
           <div class="dna-brand-lockup" aria-label="DNA Decisions Numbers Analysis">
@@ -2521,6 +2573,8 @@ function bindEvents() {
   document.querySelector('#syncCTrader').addEventListener('click', () => syncCTrader({ source: 'manual' }));
   document.querySelector('#deleteAllCTraderImports').addEventListener('click', deleteAllCTraderImports);
   document.querySelector('#exportTrades').addEventListener('click', exportTrades);
+  document.querySelector('#storageWarnExport')?.addEventListener('click', () => { exportTrades(); dismissStorageWarning(); });
+  document.querySelector('#storageWarnDismiss')?.addEventListener('click', dismissStorageWarning);
   document.querySelector('#importTrades').addEventListener('change', importTrades);
   document.querySelectorAll('[data-setup-sort-key]').forEach((button) => {
     button.addEventListener('click', () => {
