@@ -1561,12 +1561,23 @@ function getStorageUsagePercent() {
 }
 
 function isStorageWarningDismissed() {
-  // Re-show warning each session — dismiss only lasts until page reload
-  return sessionStorage.getItem(STORAGE_WARNING_DISMISSED_KEY) === 'true';
+  try {
+    const dismissed = localStorage.getItem(STORAGE_WARNING_DISMISSED_KEY);
+    if (!dismissed) return false;
+    const dismissedAt = parseInt(dismissed, 10);
+    const hours24 = 24 * 60 * 60 * 1000;
+    return Date.now() - dismissedAt < hours24;
+  } catch {
+    return false;
+  }
 }
 
 function dismissStorageWarning() {
-  sessionStorage.setItem(STORAGE_WARNING_DISMISSED_KEY, 'true');
+  try {
+    localStorage.setItem(STORAGE_WARNING_DISMISSED_KEY, String(Date.now()));
+  } catch {
+    // If localStorage is full we can't store the dismissal — just hide the banner
+  }
   const banner = document.querySelector('#storage-warning-banner');
   if (banner) banner.remove();
 }
