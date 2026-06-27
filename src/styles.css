@@ -2845,3 +2845,209 @@ h2,
   transform: translateX(-50%);
   width: 1.5rem;
 }
+
+/* ─── DNA Doctor ─────────────────────────────────────────── */
+
+.dna-doctor-panel {
+  border: 1px solid rgba(201, 148, 32, 0.2);
+}
+
+.dna-doctor-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.dna-doctor-scan-btn {
+  align-items: center;
+  background: var(--dna-navy);
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(16, 26, 46, 0.18);
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  gap: 0.4rem;
+  letter-spacing: 0.01em;
+  padding: 0.65rem 1.4rem;
+  transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+
+.dna-doctor-scan-btn:hover:not(:disabled) {
+  background: #1e3460;
+  box-shadow: 0 6px 24px rgba(16, 26, 46, 0.24);
+  transform: translateY(-1px);
+}
+
+.dna-doctor-scan-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Loading */
+.dna-doctor-loading {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 2.5rem 1rem;
+}
+
+.dna-doctor-spinner {
+  animation: dna-spin 0.9s linear infinite;
+  border: 3px solid rgba(201, 148, 32, 0.2);
+  border-radius: 50%;
+  border-top-color: var(--dna-gold);
+  height: 36px;
+  width: 36px;
+}
+
+@keyframes dna-spin {
+  to { transform: rotate(360deg); }
+}
+
+.dna-doctor-loading p {
+  color: var(--dna-muted);
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+/* Error */
+.dna-doctor-error {
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.dna-doctor-error p { color: #b91c1c; font-size: 0.85rem; margin: 0; }
+.dna-doctor-error-hint { color: var(--dna-muted) !important; margin-top: 0.35rem !important; }
+
+/* Report */
+.dna-doctor-report {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.dna-doctor-report-header {
+  align-items: center;
+  border-bottom: 1px solid rgba(16, 26, 46, 0.08);
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 1rem;
+}
+
+.dna-doctor-report-header h3 {
+  color: var(--dna-navy);
+  font-size: 1.05rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.dna-doctor-score {
+  align-items: baseline;
+  display: flex;
+  gap: 0.4rem;
+}
+
+.dna-doctor-score-number {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.dna-doctor-score-grade {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.dna-doctor-score-number.positive,
+.dna-doctor-score-grade.positive { color: #15803d; }
+.dna-doctor-score-number.neutral,
+.dna-doctor-score-grade.neutral { color: var(--dna-gold); }
+.dna-doctor-score-number.negative,
+.dna-doctor-score-grade.negative { color: #b91c1c; }
+
+.dna-doctor-section h4 {
+  color: var(--dna-navy);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.6rem;
+  text-transform: uppercase;
+}
+
+.dna-doctor-section p {
+  color: var(--color-text);
+  font-size: 0.88rem;
+  line-height: 1.65;
+  margin: 0;
+}
+
+.dna-doctor-section ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dna-doctor-section li {
+  color: var(--color-text);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  padding-left: 1.1rem;
+  position: relative;
+}
+
+.dna-doctor-section li::before {
+  content: "•";
+  color: var(--dna-gold);
+  left: 0;
+  position: absolute;
+}
+
+.dna-doctor-columns {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: 1fr 1fr;
+}
+
+.dna-doctor-risk {
+  background: rgba(239, 68, 68, 0.04);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+}
+
+.dna-doctor-risk h4 { color: #b91c1c; }
+.dna-doctor-risk li::before { color: #ef4444; }
+
+.dna-doctor-score-explanation {
+  background: rgba(16, 26, 46, 0.03);
+  border: 1px solid rgba(16, 26, 46, 0.08);
+  border-radius: 10px;
+  color: var(--dna-muted);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  padding: 0.75rem 1rem;
+}
+
+.dna-doctor-score-explanation strong {
+  color: var(--dna-navy);
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .dna-doctor-columns { grid-template-columns: 1fr; }
+  .dna-doctor-header { flex-direction: column; }
+  .dna-doctor-scan-btn { align-self: stretch; justify-content: center; }
+}
