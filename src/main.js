@@ -967,7 +967,7 @@ function getTimeOfDayBucket(openTime) {
   if (!openTime) return 'Unknown';
   const date = new Date(openTime);
   if (isNaN(date.getTime())) return 'Unknown';
-  const hour = date.getUTCHours();
+  const hour = parseInt(date.toLocaleString('en-US', { timeZone: 'America/Cancun', hour: 'numeric', hour12: false }), 10);
   if (hour >= 6 && hour < 12) return 'Morning';
   if (hour >= 12 && hour < 18) return 'Afternoon';
   if (hour >= 18 && hour < 23) return 'Evening';
@@ -1029,7 +1029,7 @@ function renderTimeOfDayAnalytics(tradeList = trades) {
     <section class="panel setup-analytics-panel" aria-label="Time of Day Analytics">
       <div class="analytics-panel-header">
         <div class="section-title">${icon('calendar')}<h2>Time of Day</h2></div>
-        <p class="analytics-panel-description">Sorted by Net P&amp;L descending. Times are UTC.</p>
+        <p class="analytics-panel-description">Sorted by Net P&amp;L descending. Grouped by trade open time in Cancún time.</p>
       </div>
       <div class="analytics-table-wrapper">
         <table class="analytics-table">
