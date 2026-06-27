@@ -2871,12 +2871,20 @@ h2,
   min-width: 0;
 }
 
-.dna-doctor-logo {
+.dna-doctor-heading-row {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.dna-doctor-icon {
+  border-radius: 50%;
   display: block;
-  height: auto;
-  margin-bottom: 1.1rem;
+  flex-shrink: 0;
+  height: 48px;
   object-fit: contain;
-  width: clamp(180px, 22vw, 300px);
+  width: 48px;
 }
 
 .dna-doctor-title {
@@ -2884,7 +2892,7 @@ h2,
   font-size: clamp(1.1rem, 2vw, 1.45rem);
   font-weight: 800;
   letter-spacing: 0.08em;
-  margin: 0 0 0.35rem;
+  margin: 0;
 }
 
 .dna-doctor-subtitle {
