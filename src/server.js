@@ -76,6 +76,11 @@ export function createAppServer(options = {}) {
       return;
     }
 
+    if (request.method === 'POST' && url.pathname === '/api/dna-doctor') {
+      await runDnaDoctorEndpoint(request, response, options);
+      return;
+    }
+
     if (request.method === 'GET') {
       await serveStaticFile(response, url.pathname);
       return;
@@ -1202,10 +1207,124 @@ function serializeCookie(name, value, options = {}) {
 }
 
 
+async function readRequestBody(request) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    request.on('data', (chunk) => chunks.push(chunk));
+    request.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    request.on('error', reject);
+  });
+}
+
+async function runDnaDoctorEndpoint(request, response, options = {}, fetchImpl = fetch) {
+  const apiKey = options.anthropicApiKey || process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    sendJson(response, 500, { error: 'Anthropic API key is not configured on the server.' });
+    return;
+  }
+
+  let payload;
+  try {
+    const body = await readRequestBody(request);
+    payload = JSON.parse(body);
+  } catch {
+    sendJson(response, 400, { error: 'Invalid JSON payload.' });
+    return;
+  }
+
+  if (!payload || typeof payload.tradeCount !== 'number') {
+    sendJson(response, 400, { error: 'Invalid payload: tradeCount is required.' });
+    return;
+  }
+
+  const systemPrompt = `You are DNA Doctor, a professional trading performance analyst.
+Produce a concise, honest, data-driven trading diagnosis based ONLY on the statistics provided.
+Never invent data. Never hallucinate. If data is missing or fewer than 10 trades exist, say so explicitly.
+Write in professional language. Be direct and specific. Avoid generic advice.
+Respond ONLY with valid JSON matching this exact schema — no markdown, no explanation outside the JSON:
+{
+  "score": number (0-100),
+  "grade": "string (A+/A/B+/B/C+/C/D/F)",
+  "scoreExplanation": "string — 1-2 sentences explaining the score",
+  "diagnosis": "string — 2-4 sentence summary of this trader",
+  "strengths": ["string"],
+  "weaknesses": ["string"],
+  "prescription": ["string"],
+  "riskFactors": ["string"]
+}`;
+
+  const userPrompt = `Here are my trading statistics. Produce a DNA Doctor Report.
+
+Total Trades: ${payload.tradeCount}
+Win Rate: ${payload.winRate != null ? Number(payload.winRate).toFixed(1) + '%' : 'N/A'}
+Total P&L: ${payload.totalPnl != null ? '$' + Number(payload.totalPnl).toFixed(2) : 'N/A'}
+Average Winner: ${payload.averageWin != null ? '$' + Number(payload.averageWin).toFixed(2) : 'N/A'}
+Average Loser: ${payload.averageLoss != null ? '$' + Number(payload.averageLoss).toFixed(2) : 'N/A'}
+Average R: ${payload.averageR != null ? Number(payload.averageR).toFixed(2) + 'R' : 'N/A'}
+Profit Factor: ${payload.profitFactor != null && isFinite(payload.profitFactor) ? Number(payload.profitFactor).toFixed(2) : 'N/A'}
+Biggest Winner: ${payload.biggestWinner != null ? '$' + Number(payload.biggestWinner).toFixed(2) : 'N/A'}
+Biggest Loser: ${payload.biggestLoser != null ? '$' + Number(payload.biggestLoser).toFixed(2) : 'N/A'}
+Average Risk $: ${payload.averageRiskDollars != null ? '$' + Number(payload.averageRiskDollars).toFixed(2) : 'N/A'}
+Average Risk %: ${payload.averageRiskPercent != null ? Number(payload.averageRiskPercent).toFixed(2) + '%' : 'N/A'}
+
+By Asset:
+${(payload.assets || []).map((a) => `${a.symbol}: ${a.trades} trades, ${Number(a.winRate).toFixed(1)}% WR, $${Number(a.netPnl).toFixed(2)} P&L, ${a.averageR != null ? Number(a.averageR).toFixed(2) + 'R' : 'N/A'} avg R`).join('\n') || 'No asset data'}
+
+By Setup:
+${(payload.setups || []).map((s) => `${s.name}: ${s.trades} trades, ${Number(s.winRate).toFixed(1)}% WR, $${Number(s.netPnl).toFixed(2)} P&L, ${s.averageR != null ? Number(s.averageR).toFixed(2) + 'R' : 'N/A'} avg R`).join('\n') || 'No setup data'}
+
+By Trading Session:
+${(payload.sessions || []).map((s) => `${s.session}: ${s.trades} trades, ${Number(s.winRate).toFixed(1)}% WR, $${Number(s.netPnl).toFixed(2)} P&L, PF ${s.profitFactor != null && isFinite(s.profitFactor) ? Number(s.profitFactor).toFixed(2) : 'N/A'}`).join('\n') || 'No session data'}`;
+
+  const TIMEOUT_MS = 30_000;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    const claudeResponse = await fetchImpl('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+      }),
+    });
+    clearTimeout(timeout);
+
+    if (!claudeResponse.ok) {
+      const err = await claudeResponse.json().catch(() => ({}));
+      const msg = err.error?.message || `Claude API error ${claudeResponse.status}`;
+      sendJson(response, 502, { error: msg });
+      return;
+    }
+
+    const data = await claudeResponse.json();
+    const text = data.content?.find((b) => b.type === 'text')?.text || '';
+    const clean = text.replace(/```json|```/g, '').trim();
+    const report = JSON.parse(clean);
+    sendJson(response, 200, report);
+  } catch (error) {
+    clearTimeout(timeout);
+    if (error.name === 'AbortError') {
+      sendJson(response, 504, { error: 'DNA Doctor timed out. Try again.' });
+    } else {
+      sendJson(response, 502, { error: `Claude unavailable: ${error.message}` });
+    }
+  }
+}
+
+
 function setCorsHeaders(response, options = {}) {
   const allowedOrigin = options.corsOrigin || process.env.JOURNAL_FRONTEND_ORIGIN || '*';
   response.setHeader('Access-Control-Allow-Origin', allowedOrigin);
-  response.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  response.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Accept, Content-Type');
 }
 
