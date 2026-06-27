@@ -1742,10 +1742,10 @@ function tradeCard(trade) {
     tradeMetric('Net P/L', currency(pnl), { valueClass: tone }),
   ].join('');
   const riskPanel = tradePanel('Risk Management', [
-    tradeMetric('Orig. SL', stopLoss === null ? '' : currency(stopLoss)),
-    tradeMetric('Act. SL', activeStopLoss === null ? '' : currency(activeStopLoss)),
-    tradeMetric('Orig. TP', takeProfit === null ? '' : currency(takeProfit)),
-    tradeMetric('Act. TP', adjustedTakeProfit === null ? '' : currency(adjustedTakeProfit)),
+    tradeMetric('Initial SL', stopLoss === null ? '' : currency(stopLoss)),
+    tradeMetric('Final SL', activeStopLoss === null ? '' : currency(activeStopLoss)),
+    tradeMetric('Initial TP', takeProfit === null ? '' : currency(takeProfit)),
+    tradeMetric('Final TP', adjustedTakeProfit === null ? '' : currency(adjustedTakeProfit)),
     tradeMetric('Risk $', riskDollars === null ? '' : currency(riskDollars)),
     tradeMetric('Risk %', riskPercent === null ? '' : formatRiskPercent(riskPercent)),
     tradeMetric('R', rMultiple === null ? '' : formatRMultiple(rMultiple), { valueClass: rTone }),
@@ -1779,10 +1779,10 @@ function tradeCard(trade) {
    * <span>Risk $: ${riskDollars === null ?
    * <span>Risk %: ${formatRiskPercent(riskPercent)}</span>
    * <span class="${rTone}">R: ${formatRMultiple(rMultiple)}</span>
-   * Original Stop Loss: ${stopLoss === null ?
-   * Adjusted Stop Loss: ${adjustedStopLoss === null ?
-   * Original Take Profit: ${currency(takeProfit)}
-   * Adjusted Take Profit: ${currency(adjustedTakeProfit)}
+   * Initial Stop Loss: ${stopLoss === null ?
+   * Final Stop Loss: ${adjustedStopLoss === null ?
+   * Initial Take Profit: ${currency(takeProfit)}
+   * Final Take Profit: ${currency(adjustedTakeProfit)}
    * Active Take Profit: ${currency(activeTakeProfit)}
    * Risk Stop: ${currency(activeStopLoss)}
    * Risk $: ${riskDollars === null ?
@@ -1916,12 +1916,12 @@ function editTradeForm(trade) {
         <div class="edit-form-row edit-price-row" aria-label="Trade prices">
           ${field('Entry Price', `<input name="entry" type="number" value="${escapeHtml(trade.entry)}" readonly />`)}
           ${field('Exit Price', `<input name="exit" type="number" value="${escapeHtml(trade.exit)}" readonly />`)}
-          ${field('Original Stop Loss', `<input name="stopLoss" type="number" value="${escapeHtml(trade.stopLoss ?? '')}" readonly />`)}
-          ${field('Adjusted Stop Loss', `<input name="adjustedStopLoss" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedStopLoss ?? '')}" placeholder="Optional" />`)}
+          ${field('Initial Stop Loss', `<input name="stopLoss" type="number" value="${escapeHtml(trade.stopLoss ?? '')}" readonly />`)}
+          ${field('Final Stop Loss', `<input name="adjustedStopLoss" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedStopLoss ?? '')}" placeholder="Optional" />`)}
         </div>
         <div class="edit-form-row edit-take-profit-row" aria-label="Trade take profits">
-          ${field('Original Take Profit', `<input name="takeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.takeProfit ?? '')}" placeholder="Optional" />`)}
-          ${field('Adjusted Take Profit', `<input name="adjustedTakeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedTakeProfit ?? '')}" placeholder="Optional" />`)}
+          ${field('Initial Take Profit', `<input name="takeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.takeProfit ?? '')}" placeholder="Optional" />`)}
+          ${field('Final Take Profit', `<input name="adjustedTakeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedTakeProfit ?? '')}" placeholder="Optional" />`)}
         </div>
         <div class="edit-form-row edit-classification-row" aria-label="Trade classification">
           ${field('Setup', renderPlayBookSetupSelect(trade))}
@@ -2225,10 +2225,10 @@ function renderManualTradeForm(today) {
         ${field('Entry', '<input name="entry" type="number" min="0" step="0.01" required />')}
         ${field('Exit', '<input name="exit" type="number" min="0" step="0.01" required />')}
         ${field('Size', '<input name="size" type="number" min="0.01" step="0.01" required />')}
-        ${field('Original Stop Loss', '<input name="stopLoss" type="number" min="0" step="0.01" placeholder="Optional" />')}
-        ${field('Adjusted Stop Loss', '<input name="adjustedStopLoss" type="number" min="0" step="0.01" placeholder="Optional" />')}
-        ${field('Original Take Profit', '<input name="takeProfit" type="number" min="0" step="0.01" placeholder="Optional" />')}
-        ${field('Adjusted Take Profit', '<input name="adjustedTakeProfit" type="number" min="0" step="0.01" placeholder="Optional" />')}
+        ${field('Initial Stop Loss', '<input name="stopLoss" type="number" min="0" step="0.01" placeholder="Optional" />')}
+        ${field('Final Stop Loss', '<input name="adjustedStopLoss" type="number" min="0" step="0.01" placeholder="Optional" />')}
+        ${field('Initial Take Profit', '<input name="takeProfit" type="number" min="0" step="0.01" placeholder="Optional" />')}
+        ${field('Final Take Profit', '<input name="adjustedTakeProfit" type="number" min="0" step="0.01" placeholder="Optional" />')}
         ${field('Account Size', '<input name="accountSize" type="number" min="0" step="0.01" placeholder="Optional" />')}
         ${field('Risk %', '<input name="riskPercent" type="number" min="0" step="0.01" placeholder="Calculated" readonly />')}
         ${field('Fees', '<input name="fees" type="number" min="0" step="0.01" value="0" />')}
