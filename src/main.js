@@ -1,5 +1,5 @@
 import { applyCTraderImportedTradeUpdates, buildCTraderSyncPlan, getImportedTradeSourceKey } from './ctrader-sync.js';
-import { CTRADER_ENDPOINTS, buildCTraderOAuthUrl, fetchBackendJson, getBackendDiagnostics } from './backend-api.js';
+import { CTRADER_ENDPOINTS, buildCTraderOAuthUrl, fetchBackendJson, getBackendDiagnostics, getConfiguredBackendBaseUrl } from './backend-api.js';
 
 const STORAGE_KEY = 'jeremy-trading-journal:v1';
 const AUTO_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-auto-sync:v1';
@@ -1005,7 +1005,7 @@ function buildDnaScanPayload(tradeList) {
 }
 
 async function callClaudeDnaDoctor(payload) {
-  const backendUrl = getBackendUrl();
+  const backendUrl = getConfiguredBackendBaseUrl();
   if (!backendUrl) {
     throw new Error('Backend is not configured. Set the backend URL to use DNA Doctor.');
   }
