@@ -1066,9 +1066,10 @@ function renderDnaDoctor(tradeList = trades) {
 
         <!-- Left: logo + copy + pills -->
         <div class="dna-doctor-brand-left">
-          <img class="dna-doctor-logo" src="./DNA_Transparent.png" alt="DNA Doctor" />
-
-          <h2 class="dna-doctor-title">DNA DOCTOR</h2>
+          <div class="dna-doctor-heading-row">
+            <img class="dna-doctor-icon" src="./Icon_circular_logo.png" alt="DNA Doctor icon" />
+            <h2 class="dna-doctor-title">DNA DOCTOR</h2>
+          </div>
           <p class="dna-doctor-subtitle">AI-powered trading diagnosis based on your journal data.</p>
 
           <div class="dna-doctor-pills">
