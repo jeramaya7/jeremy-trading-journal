@@ -2638,3 +2638,92 @@ h2,
   color: var(--dna-navy);
   font-weight: 700;
 }
+
+/* ─── Storage Warning Banner ─────────────────────────────── */
+
+.storage-warning-banner {
+  align-items: center;
+  background: linear-gradient(135deg, #fef9ec, #fffbf0);
+  border: 1px solid rgba(201, 148, 32, 0.35);
+  border-left: 4px solid var(--dna-gold);
+  border-radius: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding: 0.85rem 1.1rem;
+}
+
+.storage-warning-content {
+  align-items: flex-start;
+  display: flex;
+  flex: 1;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.storage-warning-content svg {
+  color: var(--dna-gold);
+  flex: 0 0 auto;
+  height: 1.1rem;
+  margin-top: 0.15rem;
+  width: 1.1rem;
+}
+
+.storage-warning-content strong {
+  color: var(--dna-navy);
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.storage-warning-content span {
+  color: var(--dna-muted);
+  display: block;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  margin-top: 0.15rem;
+}
+
+.storage-warning-actions {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.5rem;
+}
+
+.storage-warning-export {
+  align-items: center;
+  background: var(--dna-navy);
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 600;
+  gap: 0.35rem;
+  padding: 0.4rem 0.8rem;
+}
+
+.storage-warning-export:hover {
+  background: #1e3460;
+}
+
+.storage-warning-dismiss {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--dna-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0.3rem 0.4rem;
+}
+
+.storage-warning-dismiss:hover {
+  background: rgba(16, 26, 46, 0.06);
+  color: var(--dna-navy);
+}
