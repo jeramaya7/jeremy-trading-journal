@@ -371,60 +371,6 @@ function roundPrice(value) {
   return Number(value.toFixed(10));
 }
 
-
-function absoluteStopLossFromRelative(relativeStopLoss, deal, openingDeal = null) {
-  const distance = getCtraderRelativeProtectionDistance(relativeStopLoss);
-  if (distance === null) {
-    return null;
-  }
-
-  const entry = getCtraderProtectionEntryPrice(deal, openingDeal);
-  if (entry === null) {
-    return null;
-  }
-
-  return roundPrice(getJournalDirection(openingDeal?.tradeSide, deal?.tradeSide) === 'Long'
-    ? entry - distance
-    : entry + distance);
-}
-
-function absoluteTakeProfitFromRelative(relativeTakeProfit, deal, openingDeal = null) {
-  const distance = getCtraderRelativeProtectionDistance(relativeTakeProfit);
-  if (distance === null) {
-    return null;
-  }
-
-  const entry = getCtraderProtectionEntryPrice(deal, openingDeal);
-  if (entry === null) {
-    return null;
-  }
-
-  return roundPrice(getJournalDirection(openingDeal?.tradeSide, deal?.tradeSide) === 'Long'
-    ? entry + distance
-    : entry - distance);
-}
-
-function getCtraderRelativeProtectionDistance(value) {
-  const parsedValue = toFiniteNumber(value);
-  return parsedValue === null ? null : parsedValue / 100000;
-}
-
-function getCtraderProtectionEntryPrice(deal, openingDeal = null) {
-  return toFiniteNumber(
-    deal?.closePositionDetail?.entryPrice
-      ?? deal?.entryPrice
-      ?? deal?.position?.entryPrice
-      ?? openingDeal?.executionPrice
-      ?? openingDeal?.entryPrice
-      ?? openingDeal?.position?.entryPrice
-      ?? deal?.executionPrice,
-  );
-}
-
-function roundPrice(value) {
-  return Number(value.toFixed(10));
-}
-
 function firstDefined(...values) {
   return values.find((value) => value !== undefined && value !== null && value !== '') ?? null;
 }
