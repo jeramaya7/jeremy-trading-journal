@@ -2223,7 +2223,7 @@ h2,
   object-fit: contain;
   padding: 0;
   /* 2-3x bigger — the visual anchor */
-  width: clamp(420px, 44vw, 560px);
+  width: clamp(280px, 30vw, 420px);
 }
 
 /* Headline — large, confident, no decorations */
