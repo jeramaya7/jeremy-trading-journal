@@ -2100,7 +2100,12 @@ function render(options = {}) {
       <section class="hero-card">
         <div class="hero-branding">
           <div class="dna-brand-lockup" aria-label="DNA Decisions Numbers Analysis">
-            <img class="dna-logo" src="./DNA_Transparent.png" alt="DNA – Decisions Numbers Analysis – MineTheMarket.com" />
+            <img class="dna-logo" src="./DNA_Transparent.png" alt="DNA logo" />
+            <div class="dna-wordmark" aria-hidden="true">
+              <span class="dna-wordmark-main">DNA</span>
+              <span class="dna-wordmark-sub">Decisions <b>•</b> Numbers <b>•</b> Analysis</span>
+              <span class="dna-wordmark-url">MineTheMarket.com</span>
+            </div>
           </div>
           <h1>Discover your edge.</h1>
           <p class="hero-tagline">Every trade leaves clues. DNA helps you find them.</p>
