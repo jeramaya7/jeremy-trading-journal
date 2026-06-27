@@ -2769,3 +2769,21 @@ h2,
   justify-content: flex-end;
 }
 
+/* ─── Journal Header Actions ─────────────────────────────── */
+
+.journal-header-actions {
+  align-items: center;
+  display: flex;
+  gap: 0.65rem;
+}
+
+.journal-header-actions .search-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.session-notes-button {
+  flex-shrink: 0;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
