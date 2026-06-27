@@ -2195,13 +2195,14 @@ h2,
 }
 
 .dna-logo {
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(16, 26, 46, 0.06);
-  border-radius: 28px;
-  box-shadow: 0 22px 55px rgba(16, 26, 46, 0.11);
-  height: clamp(160px, 14vw, 220px);
-  margin-bottom: clamp(1.75rem, 3vw, 2.6rem);
-  padding: clamp(0.25rem, 0.7vw, 0.65rem);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  height: auto;
+  margin-bottom: 0;
+  padding: 0;
+  width: clamp(300px, 32vw, 480px);
 }
 
 h1 {
@@ -2387,11 +2388,12 @@ h1 {
 }
 
 .dna-logo {
-  border-radius: 999px;
+  border-radius: 0;
   flex: 0 0 auto;
-  height: clamp(108px, 10vw, 150px);
+  height: auto;
   margin-bottom: 0;
-  padding: clamp(0.16rem, 0.45vw, 0.42rem);
+  padding: 0;
+  width: clamp(300px, 32vw, 480px);
 }
 
 .dna-wordmark {
