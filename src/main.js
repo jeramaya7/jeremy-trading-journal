@@ -1037,9 +1037,7 @@ const DNA_DOCTOR_LOADING_STEPS = [
 function renderDnaDoctor(tradeList = trades) {
   const { status, report, error, dismissError } = dnaDoctorState;
   const isLoading = status === 'loading';
-  const buttonLabel = isLoading ? '🧬 Scanning...' : '🧬 Run DNA Scan';
 
-  // Error banner — shown above existing report, dismissible, never replaces a good report
   const errorBanner = (status === 'error' && error && !dismissError) ? `
     <div class="dna-doctor-error-banner" id="dnaDoctorErrorBanner">
       <div class="dna-doctor-error-content">
@@ -1049,27 +1047,87 @@ function renderDnaDoctor(tradeList = trades) {
       <button class="dna-doctor-error-dismiss" type="button" id="dnaDoctorDismissError" aria-label="Dismiss">✕</button>
     </div>` : '';
 
-  // Loading animation — shown inline, never replaces an existing report
   const loadingHtml = isLoading ? `
     <div class="dna-doctor-loading" aria-live="polite">
       <div class="dna-doctor-spinner"></div>
       <p id="dnaDoctorLoadingStep">${DNA_DOCTOR_LOADING_STEPS[0]}</p>
     </div>` : '';
 
-  // Report — stays visible during re-scan and on error
-  const reportHtml = report ? `<div class="dna-doctor-report-wrap ${status === 'done' ? 'dna-doctor-fadein' : ''}">${renderDnaDoctorReport(report)}</div>` : '';
+  const reportHtml = report ? `
+    <div class="dna-doctor-report-wrap ${status === 'done' ? 'dna-doctor-fadein' : ''}">
+      ${renderDnaDoctorReport(report)}
+    </div>` : '';
 
   return `
     <section class="panel dna-doctor-panel" aria-label="DNA Doctor">
-      <div class="dna-doctor-header">
-        <div>
-          <div class="section-title">🧬<h2>DNA Doctor</h2></div>
-          <p class="section-helper">AI-powered trading diagnosis based on your journal data.</p>
+
+      <!-- Branded idle state — mirrors hero quality -->
+      <div class="dna-doctor-branded">
+
+        <!-- Left: logo + copy + pills -->
+        <div class="dna-doctor-brand-left">
+          <img class="dna-doctor-logo" src="./DNA_Transparent.png" alt="DNA Doctor" />
+
+          <h2 class="dna-doctor-title">DNA DOCTOR</h2>
+          <p class="dna-doctor-subtitle">AI-powered trading diagnosis based on your journal data.</p>
+
+          <div class="dna-doctor-pills">
+            <div class="dna-doctor-pill">
+              ${icon('target')}
+              <div>
+                <strong>Analyze Patterns</strong>
+                <span>Discover what's really happening in your trades</span>
+              </div>
+            </div>
+            <div class="dna-doctor-pill">
+              ${icon('chart')}
+              <div>
+                <strong>Find Strengths</strong>
+                <span>Identify your profit drivers</span>
+              </div>
+            </div>
+            <div class="dna-doctor-pill">
+              ${icon('trend')}
+              <div>
+                <strong>Spot Weaknesses</strong>
+                <span>Uncover leaks in your strategy</span>
+              </div>
+            </div>
+            <div class="dna-doctor-pill">
+              ${icon('book')}
+              <div>
+                <strong>Get Prescription</strong>
+                <span>Actionable steps to improve</span>
+              </div>
+            </div>
+            <div class="dna-doctor-pill">
+              ${icon('refresh')}
+              <div>
+                <strong>Track Progress</strong>
+                <span>Scan regularly and see improvement</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="dna-doctor-privacy">
+            ${icon('book')}
+            <div>
+              <strong>Your data is private and secure.</strong>
+              <span>We only use your journal data to generate your DNA Doctor report. Nothing is stored or shared.</span>
+            </div>
+          </div>
         </div>
-        <button class="dna-doctor-scan-btn" type="button" id="runDnaDoctor" ${isLoading ? 'disabled' : ''}>
-          ${isLoading ? '<span class="dna-doctor-btn-spinner"></span>' : ''} ${buttonLabel}
-        </button>
+
+        <!-- Right: scan button -->
+        <div class="dna-doctor-brand-right">
+          <button class="dna-doctor-scan-btn" type="button" id="runDnaDoctor" ${isLoading ? 'disabled' : ''}>
+            ${isLoading ? '<span class="dna-doctor-btn-spinner"></span>' : icon('trend')}
+            ${isLoading ? '🧬 Scanning...' : 'Run DNA Scan'}
+          </button>
+        </div>
+
       </div>
+
       ${errorBanner}
       ${loadingHtml}
       ${reportHtml}
