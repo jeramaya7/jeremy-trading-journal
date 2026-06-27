@@ -15,6 +15,7 @@ const ROOT_DIR = join(fileURLToPath(new URL('..', import.meta.url)));
 const DEFAULT_RECENT_DEALS_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
 const DEFAULT_DEALS_MAX_ROWS = 100;
 const RAW_DEALS_FILE_NAME = 'ctrader-raw-deals.json';
+const CTRADER_DEBUG_POSITION_ID = '543914821';
 const CTRADER_AUTHORIZE_URL = 'https://id.ctrader.com/my/settings/openapi/grantingaccess/';
 const CTRADER_TOKEN_URL = 'https://openapi.ctrader.com/apps/token';
 const STATE_COOKIE_NAME = 'ctrader_oauth_state';
@@ -417,6 +418,7 @@ async function fetchCtraderOrdersByPositionIdForDeals(client, accountId, deals, 
         fromTimestamp: requestOptions.fromTimestamp,
         toTimestamp: requestOptions.toTimestamp,
       });
+      logCtraderPositionDebug(positionId, 'raw-getOrderListByPositionId-response', rawOrders);
       const orders = Array.isArray(rawOrders?.order) ? rawOrders.order : [];
       ordersByPositionId[positionId] = orders;
       console.info('[cTrader orders] Orders resolved for position', {
@@ -435,7 +437,18 @@ async function fetchCtraderOrdersByPositionIdForDeals(client, accountId, deals, 
     }
   }
 
+  if (Object.prototype.hasOwnProperty.call(ordersByPositionId, CTRADER_DEBUG_POSITION_ID)) {
+    logCtraderPositionDebug(CTRADER_DEBUG_POSITION_ID, 'ordersByPositionId-after-build', ordersByPositionId);
+  }
   return ordersByPositionId;
+}
+
+function logCtraderPositionDebug(positionId, stage, payload) {
+  if (String(positionId) !== CTRADER_DEBUG_POSITION_ID) {
+    return;
+  }
+
+  console.info(`[cTrader position ${CTRADER_DEBUG_POSITION_ID}] ${stage}`, JSON.stringify(payload, null, 2));
 }
 
 async function fetchCtraderSymbolMetadataForDeals(client, accountId, deals) {
