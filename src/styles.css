@@ -3320,6 +3320,31 @@ h2,
   min-width: 0;
 }
 
+.dna-doctor-score-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.dna-doctor-scan-time {
+  color: var(--dna-muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.dna-doctor-biggest-issue {
+  color: var(--dna-navy);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.dna-doctor-biggest-issue strong {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
 @media (max-width: 700px) {
   .dna-doctor-hero { flex-direction: column; gap: 1rem; }
   .dna-doctor-score-block { flex-direction: row; align-items: center; }
@@ -3458,14 +3483,20 @@ h2,
 
 /* Diagnosis — slightly accented */
 .dna-doctor-diagnosis {
-  background: rgba(16, 26, 46, 0.02);
-  border: 1px solid rgba(16, 26, 46, 0.07);
+  background: rgba(16, 26, 46, 0.03);
+  border: 1px solid rgba(16, 26, 46, 0.09);
   border-left: 3px solid var(--dna-gold);
   border-radius: 10px;
-  border-top: 1px solid rgba(16, 26, 46, 0.07);
   margin-bottom: 1.25rem;
-  padding: 1rem 1.1rem;
-  padding-top: 1rem;
+  padding: 1.1rem 1.25rem;
+}
+
+.dna-doctor-diagnosis p {
+  color: var(--dna-navy);
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.65;
+  margin: 0;
 }
 
 /* Prescription — subtle teal tint */
@@ -3534,12 +3565,4 @@ h2,
   transition: opacity 0.3s ease;
 }
 
-/* Footer */
-.dna-doctor-footer {
-  border-top: 1px solid rgba(16, 26, 46, 0.07);
-  color: var(--dna-muted);
-  font-size: 0.73rem;
-  margin-top: 0.5rem;
-  padding-top: 0.75rem;
-  text-align: center;
-}
+/* dna-doctor-footer removed */
