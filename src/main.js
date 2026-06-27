@@ -1180,17 +1180,19 @@ function renderMonthlyTradingCalendar(referenceDate = new Date(), tradeList = tr
       </section>`;
 }
 
-function monthlyCalendarDayCell(calendarDay) {
+function monthlyCalendarDayCell(calendarDay, todayKey = formatDateKey(new Date())) {
   if (!calendarDay) {
     return '<div class="monthly-calendar-day monthly-calendar-day-empty" aria-hidden="true"></div>';
   }
 
   const report = calendarDay.report;
+  const isToday = calendarDay.dateKey === todayKey;
   const pnlTone = report ? getMoneyTone(report.pnl) || 'positive' : '';
   const dayClasses = [
     'monthly-calendar-day',
     pnlTone ? `monthly-calendar-day-${pnlTone}` : '',
     report ? 'monthly-calendar-day-traded' : '',
+    isToday ? 'monthly-calendar-day-today' : '',
     calendarReviewDateKey === calendarDay.dateKey ? 'monthly-calendar-day-selected' : '',
   ].filter(Boolean).join(' ');
   const pnlMarkup = report
@@ -1198,7 +1200,7 @@ function monthlyCalendarDayCell(calendarDay) {
     : '';
 
   return `
-          <button class="${dayClasses}" type="button" role="gridcell" data-calendar-date="${escapeHtml(calendarDay.dateKey)}" aria-pressed="${calendarReviewDateKey === calendarDay.dateKey ? 'true' : 'false'}" aria-label="Day ${calendarDay.day}${report ? `, Net P/L ${formatCalendarPnl(report.pnl, report.startingBalance)}, ${report.tradeCount} ${report.tradeCount === 1 ? 'trade' : 'trades'}` : ', no trades'}">
+          <button class="${dayClasses}" type="button" role="gridcell" data-calendar-date="${escapeHtml(calendarDay.dateKey)}" aria-pressed="${calendarReviewDateKey === calendarDay.dateKey ? 'true' : 'false'}" aria-label="Day ${calendarDay.day}${isToday ? ', today' : ''}${report ? `, Net P/L ${formatCalendarPnl(report.pnl, report.startingBalance)}, ${report.tradeCount} ${report.tradeCount === 1 ? 'trade' : 'trades'}` : ', no trades'}">
             <span class="monthly-calendar-date">${calendarDay.day}</span>
             ${pnlMarkup}
           </button>`;
