@@ -963,6 +963,8 @@ function getAssetAnalytics(tradeList = trades) {
     .sort(compareAssetAnalyticsRows);
 }
 
+// ─── Trading Session Analysis ──────────────────────────────────────────
+
 function getTimeOfDayBucket(openTime) {
   if (!openTime) return 'Unknown';
   const date = new Date(openTime);
@@ -976,10 +978,10 @@ function getTimeOfDayBucket(openTime) {
 
 const TIME_OF_DAY_ORDER = ['Morning', 'Afternoon', 'Evening', 'Night', 'Unknown'];
 
-function getTimeOfDayAnalytics(tradeList = trades) {
+// Generic session stats builder — reusable for hourly/day-of-week/market session analysis
+function buildSessionStats(tradeList, labelFn, labelOrder) {
   const buckets = new Map();
-
-  TIME_OF_DAY_ORDER.forEach((label) => {
+  labelOrder.forEach((label) => {
     buckets.set(label, {
       label,
       tradeCount: 0,
@@ -993,13 +995,11 @@ function getTimeOfDayAnalytics(tradeList = trades) {
   });
 
   tradeList.forEach((trade) => {
-    const bucket = getTimeOfDayBucket(trade.openTime);
-    const report = buckets.get(bucket);
+    const label = labelFn(trade);
+    const report = buckets.get(label);
     if (!report) return;
-
     const pnl = calculatePnl(trade);
     const rMultiple = calculateRMultiple(trade);
-
     report.tradeCount += 1;
     report.netPnl += pnl;
     if (pnl > 0) { report.winCount += 1; report.winningPnl.push(pnl); }
@@ -1017,45 +1017,78 @@ function getTimeOfDayAnalytics(tradeList = trades) {
       totalR: r.rCount ? r.totalR : null,
       averageR: r.rCount ? r.totalR / r.rCount : null,
       profitFactor: getProfitFactor(r.winningPnl, r.losingPnl),
-    }))
-    .sort((a, b) => b.netPnl - a.netPnl);
+    }));
 }
 
-function renderTimeOfDayAnalytics(tradeList = trades) {
-  const rows = getTimeOfDayAnalytics(tradeList);
-  if (!rows.length) return '';
+function getTimeOfDayAnalytics(tradeList = trades) {
+  return buildSessionStats(
+    tradeList,
+    (trade) => getTimeOfDayBucket(trade.openTime),
+    TIME_OF_DAY_ORDER,
+  ).sort((a, b) => b.netPnl - a.netPnl);
+}
+
+function getSessionVerdict(rows) {
+  if (rows.length < 2) return new Map();
+  const byPnl = [...rows].sort((a, b) => b.netPnl - a.netPnl);
+  const byPf = [...rows].filter((r) => r.profitFactor !== null).sort((a, b) => b.profitFactor - a.profitFactor);
+  const verdicts = new Map();
+  rows.forEach((r) => verdicts.set(r.label, 'average'));
+  if (byPnl[0]) verdicts.set(byPnl[0].label, 'best');
+  if (byPnl[byPnl.length - 1] && byPnl[byPnl.length - 1].netPnl < 0) {
+    verdicts.set(byPnl[byPnl.length - 1].label, 'weak');
+  }
+  if (byPf.length && byPf[byPf.length - 1]?.profitFactor < 1.0) {
+    const weakLabel = byPf[byPf.length - 1].label;
+    if (verdicts.get(weakLabel) !== 'best') verdicts.set(weakLabel, 'weak');
+  }
+  return verdicts;
+}
+
+function getProfitFactorTone(value) {
+  if (value === null || value === undefined) return 'neutral';
+  if (!Number.isFinite(value)) return 'positive';
+  if (value >= 1.5) return 'positive';
+  if (value >= 1.0) return 'neutral';
+  return 'negative';
+}
+
+function renderSessionInsight(rows) {
+  if (rows.length < 2) return '';
+  const sorted = [...rows].sort((a, b) => b.netPnl - a.netPnl);
+  const best = sorted[0];
+  const worst = sorted[sorted.length - 1];
+  const highestWr = [...rows].sort((a, b) => b.winRate - a.winRate)[0];
+  const lowestPf = [...rows]
+    .filter((r) => r.profitFactor !== null && Number.isFinite(r.profitFactor))
+    .sort((a, b) => a.profitFactor - b.profitFactor)[0];
+
+  const avoidLine = worst && worst.netPnl < 0
+    ? `<li>Consider avoiding new trades during <strong>${escapeHtml(worst.label)}</strong>.</li>`
+    : '';
 
   return `
-    <section class="panel setup-analytics-panel" aria-label="Time of Day Analytics">
-      <div class="analytics-panel-header">
-        <div class="section-title">${icon('calendar')}<h2>Time of Day</h2></div>
-        <p class="analytics-panel-description">Sorted by Net P&amp;L descending. Grouped by trade open time in your device timezone.</p>
-      </div>
-      <div class="analytics-table-wrapper">
-        <table class="analytics-table">
-          <thead>
-            <tr>
-              <th>Time of Day</th>
-              <th>Trades</th>
-              <th>Win Rate</th>
-              <th>Net P&amp;L</th>
-              <th>Total R</th>
-              <th>Avg R</th>
-              <th>Profit Factor</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows.map(timeOfDayRow).join('')}
-          </tbody>
-        </table>
-      </div>
-    </section>`;
+    <div class="session-insight-card">
+      <div class="session-insight-header">${icon('target')}<strong>DNA Insight</strong></div>
+      <ul class="session-insight-list">
+        <li>Best session: <strong>${escapeHtml(best.label)}</strong> (${currency(best.netPnl)})</li>
+        ${worst.label !== best.label ? `<li>Worst session: <strong>${escapeHtml(worst.label)}</strong> (${currency(worst.netPnl)})</li>` : ''}
+        <li>Highest win rate: <strong>${escapeHtml(highestWr.label)}</strong> (${formatPercent(highestWr.winRate)})</li>
+        ${lowestPf ? `<li>Lowest profit factor: <strong>${escapeHtml(lowestPf.label)}</strong> (${formatProfitFactor(lowestPf.profitFactor)})</li>` : ''}
+        ${avoidLine}
+      </ul>
+    </div>`;
 }
 
-function timeOfDayRow(r) {
+function tradingSessionRow(r, verdicts) {
+  const verdict = verdicts.get(r.label) || 'average';
+  const verdictIcon = verdict === 'best' ? '🟢' : verdict === 'weak' ? '🔴' : '🟡';
+  const verdictLabel = verdict === 'best' ? 'Best' : verdict === 'weak' ? 'Weak' : 'Average';
   const pnlTone = getPerformanceTone(r.netPnl);
   const rTone = getPerformanceTone(r.averageR);
   const totalRTone = getPerformanceTone(r.totalR);
+  const pfTone = getProfitFactorTone(r.profitFactor);
+
   return `
     <tr>
       <td><strong>${escapeHtml(r.label)}</strong></td>
@@ -1064,8 +1097,46 @@ function timeOfDayRow(r) {
       <td class="${pnlTone}">${currency(r.netPnl)}</td>
       <td class="${totalRTone}">${r.totalR !== null ? formatRMultiple(r.totalR) : '—'}</td>
       <td class="${rTone}">${formatRMultiple(r.averageR)}</td>
-      <td>${formatProfitFactor(r.profitFactor)}</td>
+      <td class="${pfTone}">${formatProfitFactor(r.profitFactor)}</td>
+      <td><span class="verdict-badge verdict-${verdict}">${verdictIcon} ${verdictLabel}</span></td>
     </tr>`;
+}
+
+function renderTimeOfDayAnalytics(tradeList = trades) {
+  const rows = getTimeOfDayAnalytics(tradeList);
+  if (!rows.length) return '';
+  const verdicts = getSessionVerdict(rows);
+
+  return `
+    <section class="panel setup-analytics-panel asset-analytics-panel" aria-label="Trading Session Analysis">
+      <div class="setup-analytics-header">
+        <div>
+          <div class="section-title">${icon('calendar')}<h2>Trading Session Analysis</h2></div>
+          <p class="section-helper">Performance grouped by trade open time in your device timezone.</p>
+        </div>
+        <p class="setup-sort-helper">Sorted by Net P&amp;L descending</p>
+      </div>
+      <div class="setup-analytics-table-wrap">
+        <table class="setup-analytics-table asset-analytics-table">
+          <thead>
+            <tr>
+              <th scope="col">Trading Session</th>
+              <th scope="col">Trades</th>
+              <th scope="col">Win Rate</th>
+              <th scope="col">Net P&amp;L</th>
+              <th scope="col">Total R</th>
+              <th scope="col">Average R</th>
+              <th scope="col">Profit Factor</th>
+              <th scope="col">Verdict</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((r) => tradingSessionRow(r, verdicts)).join('')}
+          </tbody>
+        </table>
+      </div>
+      ${renderSessionInsight(rows)}
+    </section>`;
 }
 
 function compareAssetAnalyticsRows(firstRow, secondRow) {
