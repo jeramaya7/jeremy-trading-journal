@@ -118,6 +118,7 @@ let dnaResultsTimeframe = loadDnaResultsTimeframe();
 let pageMode = loadPageMode();
 let sessionNotesByDay = loadSessionNotesByDay();
 let isSessionNotesModalOpen = false;
+let dnaDoctorState = { status: 'idle', report: null, error: null }; // idle | loading | done | error
 
 const FRIENDLY_ASSET_NAMES = {
   XAUUSD: 'Gold',
@@ -964,6 +965,197 @@ function getAssetAnalytics(tradeList = trades) {
 }
 
 // ─── Trading Session Analysis ──────────────────────────────────────────
+
+// ─── DNA Doctor ──────────────────────────────────────────────────────
+
+// Abstraction layer — swap provider without touching UI
+const DNA_DOCTOR_PROVIDERS = {
+  claude: callClaudeDnaDoctor,
+};
+
+async function runDnaDoctor(tradeList = trades) {
+  const provider = 'claude'; // future: load from settings
+  const fn = DNA_DOCTOR_PROVIDERS[provider];
+  if (!fn) throw new Error(`Unknown DNA Doctor provider: ${provider}`);
+  return fn(buildDnaScanPayload(tradeList));
+}
+
+function buildDnaScanPayload(tradeList) {
+  const stats = getStats(tradeList);
+  const assetRows = getAssetAnalytics(tradeList);
+  const setupRows = getSetupAnalytics(tradeList);
+  const sessionRows = getTimeOfDayAnalytics(tradeList);
+
+  return {
+    tradeCount: stats.tradeCount,
+    winRate: stats.winRate,
+    totalPnl: stats.totalPnl,
+    averageWin: stats.averageWin,
+    averageLoss: stats.averageLoss,
+    averageR: stats.averageR,
+    profitFactor: stats.profitFactor,
+    biggestWinner: stats.biggestWinner,
+    biggestLoser: stats.biggestLoser,
+    averageRiskDollars: stats.averageRiskDollars,
+    averageRiskPercent: stats.averageRiskPercent,
+    assets: assetRows.map((r) => ({ symbol: r.asset, trades: r.tradeCount, winRate: r.winRate, netPnl: r.netPnl, averageR: r.averageR })),
+    setups: setupRows.map((r) => ({ name: r.setupName, trades: r.tradeCount, winRate: r.winRate, averageR: r.averageR, netPnl: r.netPnl })),
+    sessions: sessionRows.map((r) => ({ session: r.label, trades: r.tradeCount, winRate: r.winRate, netPnl: r.netPnl, averageR: r.averageR, profitFactor: r.profitFactor })),
+  };
+}
+
+async function callClaudeDnaDoctor(payload) {
+  const systemPrompt = `You are DNA Doctor, a professional trading performance analyst embedded in the DNA Trading Journal.
+Your job is to produce a concise, honest, data-driven trading diagnosis.
+Base every conclusion ONLY on the statistics provided. Never invent data. Never hallucinate.
+If data is missing or insufficient (fewer than 10 trades), say so explicitly.
+Write in professional language. Be direct. Be specific. Avoid generic advice.
+Respond ONLY with valid JSON matching this exact schema:
+{
+  "diagnosis": "string — 2-4 sentence summary of this trader",
+  "strengths": ["string", ...],
+  "weaknesses": ["string", ...],
+  "prescription": ["string", ...],
+  "riskFactors": ["string", ...],
+  "score": number (0-100),
+  "grade": "string (A+/A/B+/B/C+/C/D/F)",
+  "scoreExplanation": "string — 1-2 sentences explaining the score"
+}
+Do not include any text outside the JSON object.`;
+
+  const userPrompt = `Here are my trading statistics. Produce a DNA Doctor Report.
+
+Total Trades: ${payload.tradeCount}
+Win Rate: ${payload.winRate !== null ? payload.winRate.toFixed(1) + '%' : 'N/A'}
+Total P&L: $${payload.totalPnl !== null ? payload.totalPnl.toFixed(2) : 'N/A'}
+Average Winner: $${payload.averageWin !== null ? payload.averageWin.toFixed(2) : 'N/A'}
+Average Loser: $${payload.averageLoss !== null ? payload.averageLoss.toFixed(2) : 'N/A'}
+Average R: ${payload.averageR !== null ? payload.averageR.toFixed(2) + 'R' : 'N/A'}
+Profit Factor: ${payload.profitFactor !== null ? payload.profitFactor.toFixed(2) : 'N/A'}
+Biggest Winner: $${payload.biggestWinner !== null ? payload.biggestWinner.toFixed(2) : 'N/A'}
+Biggest Loser: $${payload.biggestLoser !== null ? payload.biggestLoser.toFixed(2) : 'N/A'}
+Average Risk $: ${payload.averageRiskDollars !== null ? '$' + payload.averageRiskDollars.toFixed(2) : 'N/A'}
+Average Risk %: ${payload.averageRiskPercent !== null ? payload.averageRiskPercent.toFixed(2) + '%' : 'N/A'}
+
+By Asset:
+${payload.assets.map((a) => `${a.symbol}: ${a.trades} trades, ${a.winRate.toFixed(1)}% WR, $${a.netPnl.toFixed(2)} P&L, ${a.averageR !== null ? a.averageR.toFixed(2) + 'R' : 'N/A'} avg R`).join('\n') || 'No asset data'}
+
+By Setup:
+${payload.setups.map((s) => `${s.name}: ${s.trades} trades, ${s.winRate.toFixed(1)}% WR, $${s.netPnl.toFixed(2)} P&L, ${s.averageR !== null ? s.averageR.toFixed(2) + 'R' : 'N/A'} avg R`).join('\n') || 'No setup data'}
+
+By Trading Session:
+${payload.sessions.map((s) => `${s.session}: ${s.trades} trades, ${s.winRate.toFixed(1)}% WR, $${s.netPnl.toFixed(2)} P&L, PF ${s.profitFactor !== null ? s.profitFactor.toFixed(2) : 'N/A'}`).join('\n') || 'No session data'}`;
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API error ${response.status}`);
+  }
+
+  const data = await response.json();
+  const text = data.content?.find((b) => b.type === 'text')?.text || '';
+  const clean = text.replace(/```json|```/g, '').trim();
+  return JSON.parse(clean);
+}
+
+const DNA_DOCTOR_LOADING_STEPS = [
+  'Extracting trading DNA...',
+  'Analyzing patterns...',
+  'Building diagnosis...',
+];
+
+function renderDnaDoctor(tradeList = trades) {
+  const { status, report, error } = dnaDoctorState;
+
+  const buttonLabel = status === 'loading' ? '🧬 Scanning...' : '🧬 Run DNA Scan';
+  const buttonDisabled = status === 'loading' ? 'disabled' : '';
+
+  const reportHtml = (() => {
+    if (status === 'idle') return '';
+    if (status === 'loading') return `
+      <div class="dna-doctor-loading">
+        <div class="dna-doctor-spinner"></div>
+        <p id="dnaDoctorLoadingStep">${DNA_DOCTOR_LOADING_STEPS[0]}</p>
+      </div>`;
+    if (status === 'error') return `
+      <div class="dna-doctor-error">
+        <p>⚠️ ${escapeHtml(error)}</p>
+        <p class="dna-doctor-error-hint">Check your connection and try again.</p>
+      </div>`;
+    if (status === 'done' && report) return renderDnaDoctorReport(report);
+    return '';
+  })();
+
+  return `
+    <section class="panel dna-doctor-panel" aria-label="DNA Doctor">
+      <div class="dna-doctor-header">
+        <div>
+          <div class="section-title">🧬<h2>DNA Doctor</h2></div>
+          <p class="section-helper">AI-powered trading diagnosis based on your journal data.</p>
+        </div>
+        <button class="dna-doctor-scan-btn" type="button" id="runDnaDoctor" ${buttonDisabled}>
+          ${buttonLabel}
+        </button>
+      </div>
+      ${reportHtml}
+    </section>`;
+}
+
+function renderDnaDoctorReport(report) {
+  const gradeClass = report.grade?.startsWith('A') ? 'positive' : report.grade?.startsWith('B') ? 'neutral' : 'negative';
+
+  return `
+    <div class="dna-doctor-report">
+      <div class="dna-doctor-report-header">
+        <h3>🩺 DNA Doctor Report</h3>
+        <div class="dna-doctor-score">
+          <span class="dna-doctor-score-number ${gradeClass}">${report.score}</span>
+          <span class="dna-doctor-score-grade ${gradeClass}">${report.grade}</span>
+        </div>
+      </div>
+
+      <div class="dna-doctor-section">
+        <h4>Diagnosis</h4>
+        <p>${escapeHtml(report.diagnosis)}</p>
+      </div>
+
+      <div class="dna-doctor-columns">
+        <div class="dna-doctor-section">
+          <h4>✅ Strengths</h4>
+          <ul>${(report.strengths || []).map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
+        </div>
+        <div class="dna-doctor-section">
+          <h4>⚠️ Weaknesses</h4>
+          <ul>${(report.weaknesses || []).map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
+        </div>
+      </div>
+
+      <div class="dna-doctor-section">
+        <h4>💊 Prescription</h4>
+        <ul>${(report.prescription || []).map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
+      </div>
+
+      ${report.riskFactors?.length ? `
+      <div class="dna-doctor-section dna-doctor-risk">
+        <h4>🚨 Risk Factors</h4>
+        <ul>${report.riskFactors.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
+      </div>` : ''}
+
+      <div class="dna-doctor-score-explanation">
+        <strong>Score explanation:</strong> ${escapeHtml(report.scoreExplanation)}
+      </div>
+    </div>`;
+}
 
 function getTimeOfDayBucket(openTime) {
   if (!openTime) return 'Unknown';
@@ -2304,6 +2496,7 @@ function render(options = {}) {
   const setupAnalyticsSection = renderSetupAnalytics(dnaResultsTrades);
   const assetAnalyticsSection = renderAssetAnalytics(dnaResultsTrades);
   const timeOfDayAnalyticsSection = renderTimeOfDayAnalytics(dnaResultsTrades);
+  const dnaDoctorSection = renderDnaDoctor(dnaResultsTrades);
   const today = new Date().toISOString().slice(0, 10);
   const todayTrades = filterTradesForPeriod(trades, 'day', dnaReferenceDate);
   const tradingModeSections = `${renderTodayKpiStrip(todayTrades, getStats(todayTrades))}${renderJournalWorkspace(filteredTrades, today, { showManualTradePanel: false })}`;
@@ -2330,7 +2523,9 @@ function render(options = {}) {
 
       ${assetAnalyticsSection}
 
-      ${timeOfDayAnalyticsSection}`;
+      ${timeOfDayAnalyticsSection}
+
+      ${dnaDoctorSection}`;
   const pageSections = pageMode === PAGE_MODES.trading
     ? tradingModeSections
     : `${dashboardSections}${journalWorkspaceSection}`;
@@ -2544,6 +2739,31 @@ function bindEvents() {
 
   document.querySelector('#toggleManualTrade')?.addEventListener('click', toggleManualTradeForm);
   document.querySelector('#shareDashboard')?.addEventListener('click', openShareDashboardView);
+  document.querySelector('#runDnaDoctor')?.addEventListener('click', async () => {
+    dnaDoctorState = { status: 'loading', report: null, error: null };
+    render();
+
+    // Animate loading steps
+    const steps = DNA_DOCTOR_LOADING_STEPS;
+    let stepIndex = 0;
+    const stepInterval = setInterval(() => {
+      stepIndex = (stepIndex + 1) % steps.length;
+      const el = document.querySelector('#dnaDoctorLoadingStep');
+      if (el) el.textContent = steps[stepIndex];
+    }, 1200);
+
+    try {
+      const dnaResultsTrades = getDnaResultsTrades(getDnaResultsReferenceDate());
+      const report = await runDnaDoctor(dnaResultsTrades);
+      clearInterval(stepInterval);
+      dnaDoctorState = { status: 'done', report, error: null };
+    } catch (err) {
+      clearInterval(stepInterval);
+      dnaDoctorState = { status: 'error', report: null, error: err.message || 'Something went wrong.' };
+    }
+    render();
+  });
+
   document.querySelector('[data-session-notes-open]')?.addEventListener('click', () => {
     isSessionNotesModalOpen = true;
     render();
