@@ -92,6 +92,7 @@ let selectedScreenshot = null;
 let pastedScreenshotFile = null;
 let editScreenshotDrafts = {};
 let isPasteListenerBound = false;
+let bindEventsController = null; // AbortController to prevent duplicate event listeners
 let cTraderSyncStatus = null;
 let isSyncingCTrader = false;
 let isCheckingCTraderConnection = false;
@@ -2726,7 +2727,17 @@ function renderJournalWorkspace(filteredTrades, today, options = {}) {
             </div>
           </div>
           <div class="trade-list">
-            ${filteredTrades.length ? filteredTrades.map(tradeCard).join('') : '<p class="empty-state">No trades match your search yet.</p>'}
+            ${filteredTrades.length ? filteredTrades.map((trade) => {
+              try {
+                return tradeCard(trade);
+              } catch (err) {
+                console.error('[DNA] tradeCard render error for trade', trade?.id, err);
+                return `<div class="trade-card trade-card-error">
+                  <p>⚠️ Could not display trade <strong>${escapeHtml(String(trade?.id ?? 'unknown'))}</strong>. Data may be corrupted.</p>
+                  <p class="trade-card-error-hint">Export your journal and re-import to attempt recovery.</p>
+                </div>`;
+              }
+            }).join('') : '<p class="empty-state">No trades match your search yet.</p>'}
           </div>
         </section>
 
@@ -2834,12 +2845,19 @@ function field(label, control) {
 }
 
 function bindEvents() {
+  // Abort all previous listeners before rebinding — prevents accumulation on every render
+  if (bindEventsController) {
+    bindEventsController.abort();
+  }
+  bindEventsController = new AbortController();
+  const { signal } = bindEventsController;
+
   const tradeForm = document.querySelector('#tradeForm');
   const screenshotInput = tradeForm?.querySelector('input[name="screenshot"]');
 
-  document.querySelector('#toggleManualTrade')?.addEventListener('click', toggleManualTradeForm);
-  document.querySelector('#shareDashboard')?.addEventListener('click', openShareDashboardView);
-  document.querySelector('#runDnaDoctor')?.addEventListener('click', async () => {
+  document.querySelector('#toggleManualTrade')?.addEventListener('click', toggleManualTradeForm, { signal });
+  document.querySelector('#shareDashboard')?.addEventListener('click', openShareDashboardView, { signal });
+  document.querySelector('#runDnaDoctor')?.addEventListener('click', async (, { signal }) => {
     // Preserve existing report during re-scan — never flash empty content
     dnaDoctorState = { status: 'loading', report: dnaDoctorState.report, error: null, dismissError: false };
     render();
@@ -2865,58 +2883,58 @@ function bindEvents() {
     render();
   });
 
-  document.querySelector('#dnaDoctorDismissError')?.addEventListener('click', () => {
+  document.querySelector('#dnaDoctorDismissError')?.addEventListener('click', (, { signal }) => {
     dnaDoctorState = { ...dnaDoctorState, dismissError: true };
     document.querySelector('#dnaDoctorErrorBanner')?.remove();
   });
 
-  document.querySelector('[data-session-notes-open]')?.addEventListener('click', () => {
+  document.querySelector('[data-session-notes-open]')?.addEventListener('click', (, { signal }) => {
     isSessionNotesModalOpen = true;
     render();
   });
-  document.querySelector('[data-session-notes-cancel]')?.addEventListener('click', () => {
+  document.querySelector('[data-session-notes-cancel]')?.addEventListener('click', (, { signal }) => {
     isSessionNotesModalOpen = false;
     render();
   });
-  document.querySelector('#sessionNotesForm')?.addEventListener('submit', (event) => {
+  document.querySelector('#sessionNotesForm')?.addEventListener('submit', (event, { signal }) => {
     event.preventDefault();
     saveTodaySessionNote(new FormData(event.currentTarget).get('sessionNoteText'));
     isSessionNotesModalOpen = false;
     render();
   });
   document.querySelectorAll('[data-page-mode]').forEach((button) => {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (, { signal }) => {
       setPageMode(button.dataset.pageMode);
       render();
     });
   });
   if (tradeForm) {
-    tradeForm.addEventListener('submit', submitTrade);
-    tradeForm.addEventListener('input', updateRiskPercentField);
-    screenshotInput?.addEventListener('change', changeScreenshot);
+    tradeForm.addEventListener('submit', submitTrade, { signal });
+    tradeForm.addEventListener('input', updateRiskPercentField, { signal });
+    screenshotInput?.addEventListener('change', changeScreenshot, { signal });
   }
 
   if (!isPasteListenerBound) {
     document.addEventListener('paste', pasteScreenshot);
     isPasteListenerBound = true;
   }
-  document.querySelector('#searchInput').addEventListener('input', (event) => {
+  document.querySelector('#searchInput').addEventListener('input', (event, { signal }) => {
     searchQuery = event.target.value;
     render();
     document.querySelector('#searchInput').focus();
   });
-  document.querySelector('#autoSyncCTrader').addEventListener('change', changeCTraderAutoSyncSetting);
-  document.querySelector('#cTraderAccountSelect')?.addEventListener('change', changeCTraderAccountSelection);
-  document.querySelector('#refreshCTraderAccounts')?.addEventListener('click', () => loadCTraderAccounts({ force: true }));
-  document.querySelector('#connectCTrader')?.addEventListener('click', startCTraderOAuthFlow);
-  document.querySelector('#syncCTrader').addEventListener('click', () => syncCTrader({ source: 'manual' }));
-  document.querySelector('#deleteAllCTraderImports').addEventListener('click', deleteAllCTraderImports);
-  document.querySelector('#exportTrades').addEventListener('click', exportTrades);
-  document.querySelector('#storageWarnExport')?.addEventListener('click', () => { exportTrades(); dismissStorageWarning(); });
-  document.querySelector('#storageWarnDismiss')?.addEventListener('click', dismissStorageWarning);
-  document.querySelector('#importTrades').addEventListener('change', importTrades);
+  document.querySelector('#autoSyncCTrader').addEventListener('change', changeCTraderAutoSyncSetting, { signal });
+  document.querySelector('#cTraderAccountSelect')?.addEventListener('change', changeCTraderAccountSelection, { signal });
+  document.querySelector('#refreshCTraderAccounts')?.addEventListener('click', (, { signal }) => loadCTraderAccounts({ force: true }));
+  document.querySelector('#connectCTrader')?.addEventListener('click', startCTraderOAuthFlow, { signal });
+  document.querySelector('#syncCTrader').addEventListener('click', (, { signal }) => syncCTrader({ source: 'manual' }));
+  document.querySelector('#deleteAllCTraderImports').addEventListener('click', deleteAllCTraderImports, { signal });
+  document.querySelector('#exportTrades').addEventListener('click', exportTrades, { signal });
+  document.querySelector('#storageWarnExport')?.addEventListener('click', (, { signal }) => { exportTrades(); dismissStorageWarning(); });
+  document.querySelector('#storageWarnDismiss')?.addEventListener('click', dismissStorageWarning, { signal });
+  document.querySelector('#importTrades').addEventListener('change', importTrades, { signal });
   document.querySelectorAll('[data-setup-sort-key]').forEach((button) => {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (, { signal }) => {
       setupAnalyticsSort = {
         key: button.dataset.setupSortKey,
         direction: button.dataset.setupSortDirection,
@@ -2925,27 +2943,27 @@ function bindEvents() {
     });
   });
   document.querySelectorAll('[data-asset-filter]').forEach((button) => {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (, { signal }) => {
       selectedAssetFilter = selectedAssetFilter === button.dataset.assetFilter ? '' : button.dataset.assetFilter;
       render();
       document.querySelector('.journal-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   });
   document.querySelectorAll('[data-calendar-date]').forEach((button) => {
-    button.addEventListener('click', () => openCalendarDayReview(button.dataset.calendarDate));
+    button.addEventListener('click', (, { signal }) => openCalendarDayReview(button.dataset.calendarDate));
   });
-  document.querySelector('[data-calendar-review-close]')?.addEventListener('click', closeCalendarDayReview);
-  document.querySelector('[data-calendar-review-open-journal]')?.addEventListener('click', (event) => {
+  document.querySelector('[data-calendar-review-close]')?.addEventListener('click', closeCalendarDayReview, { signal });
+  document.querySelector('[data-calendar-review-open-journal]')?.addEventListener('click', (event, { signal }) => {
     openJournalForCalendarDate(event.currentTarget.dataset.calendarReviewOpenJournal);
   });
   document.querySelectorAll('[data-calendar-display-mode]').forEach((button) => {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (, { signal }) => {
       setMonthlyCalendarDisplayMode(button.dataset.calendarDisplayMode);
       render();
     });
   });
   document.querySelectorAll('[data-calendar-month]').forEach((button) => {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (, { signal }) => {
       if (button.disabled) {
         return;
       }
@@ -2958,7 +2976,7 @@ function bindEvents() {
     });
   });
   document.querySelectorAll('[data-dna-timeframe]').forEach((button) => {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (, { signal }) => {
       setDnaResultsTimeframe(button.dataset.dnaTimeframe);
       render();
     });
@@ -2969,7 +2987,7 @@ function bindEvents() {
   }
 
   document.querySelectorAll('.calendar-review-panel .screenshot-link').forEach((link) => {
-    link.addEventListener('click', openScreenshotLink);
+    link.addEventListener('click', openScreenshotLink, { signal });
   });
   document.querySelectorAll('[data-trade-card]').forEach(bindTradeCardEvents);
 }
