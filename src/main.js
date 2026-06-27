@@ -2024,11 +2024,6 @@ function isCTraderImportedTrade(trade) {
 }
 
 function render(options = {}) {
-  if (isShareDashboardView()) {
-    renderShareDashboardView();
-    return;
-  }
-
   if (isTradeEditLocked() && !options.force) {
     return;
   }
@@ -2151,62 +2146,6 @@ function renderDashboardSnapshot(dashboardCardRows) {
             </section>`).join('')}
         </section>
       </section>`;
-}
-
-function renderShareDashboardView() {
-  const dnaReferenceDate = getDnaResultsReferenceDate();
-  const dnaResultsTrades = getDnaResultsTrades(dnaReferenceDate);
-  const stats = getStats(dnaResultsTrades);
-  const [dailyPnl, weeklyPnl, monthlyPnl, yearlyPnl] = getPnlReports(dnaReferenceDate, trades);
-  const dashboardCardRows = [
-    {
-      label: 'R Metrics',
-      cards: [
-        statCard('target', 'Average R', formatRMultiple(stats.averageR)),
-        statCard('trend', 'Biggest Winner', stats.biggestWinner === null ? '—' : currency(stats.biggestWinner)),
-        statCard('trend', 'Biggest Loser', stats.biggestLoser === null ? '—' : currency(stats.biggestLoser), getMoneyTone(stats.biggestLoser)),
-        statCard('line', 'Biggest Risk', stats.biggestRisk === null ? '—' : currency(stats.biggestRisk)),
-      ],
-    },
-    {
-      label: 'Risk Metrics',
-      cards: [
-        statCard('trend', 'Average Winner', currency(stats.averageWin)),
-        statCard('trend', 'Average Loser', currency(stats.averageLoss), getMoneyTone(stats.averageLoss)),
-        statCard('target', 'Average Risk $', stats.averageRiskDollars === null ? '—' : currency(stats.averageRiskDollars)),
-        statCard('target', 'Average Risk %', formatRiskPercent(stats.averageRiskPercent)),
-      ],
-    },
-    {
-      label: 'Time Performance',
-      cards: [
-        statCard('calendar', 'Daily P/L', currency(dailyPnl.pnl), getMoneyTone(dailyPnl.pnl)),
-        statCard('calendar', 'Weekly P/L', currency(weeklyPnl.pnl), getMoneyTone(weeklyPnl.pnl)),
-        statCard('calendar', 'Monthly P/L', currency(monthlyPnl.pnl), getMoneyTone(monthlyPnl.pnl)),
-        statCard('calendar', 'Yearly P/L', currency(yearlyPnl.pnl), getMoneyTone(yearlyPnl.pnl)),
-      ],
-    },
-  ];
-
-  app.innerHTML = `
-    <main class="app-shell share-view-shell">
-      <section class="share-view-header" aria-label="Share view header">
-        <div>
-          <p class="eyebrow">${icon('share')} Share View</p>
-          <h1>Dashboard Snapshot</h1>
-          <p class="hero-tagline">A clean dashboard view built for manual screenshots.</p>
-        </div>
-        <a class="secondary-button share-view-back" href="${window.location.pathname}${window.location.search}">Back to Dashboard</a>
-      </section>
-
-      ${renderHeroStatsRow(stats)}
-
-      ${renderDashboardSnapshot(dashboardCardRows)}
-    </main>`;
-}
-
-function isShareDashboardView() {
-  return window.location.hash === '#share-dashboard';
 }
 
 function renderJournalWorkspace(filteredTrades, today, options = {}) {
@@ -3269,16 +3208,29 @@ function importTrades(event) {
 
   const reader = new FileReader();
   reader.onload = () => {
-    const importedTrades = JSON.parse(String(reader.result));
-    if (Array.isArray(importedTrades)) {
+    try {
+      const importedTrades = JSON.parse(String(reader.result));
+      if (!Array.isArray(importedTrades)) {
+        window.alert('Import failed: the file does not contain a valid trades array. Please choose a JSON file exported from DNA.');
+        return;
+      }
+      if (importedTrades.length > 0 && !importedTrades[0]?.id) {
+        window.alert('Import failed: this does not look like a DNA journal export. Please choose a JSON file exported from DNA.');
+        return;
+      }
       persistTrades(importedTrades);
+    } catch (error) {
+      window.alert(`Import failed: the file could not be read as JSON. ${error.message}`);
     }
+  };
+  reader.onerror = () => {
+    window.alert('Import failed: the file could not be read.');
   };
   reader.readAsText(file);
   event.target.value = '';
 }
 
-window.addEventListener('hashchange', render);
+// hashchange listener removed: share view replaced by PNG download
 render();
 scheduleCTraderAutoSync();
 handleCTraderOAuthReturn().then((handledOAuthReturn) => {
