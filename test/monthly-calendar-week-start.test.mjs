@@ -37,3 +37,31 @@ test('monthly trading calendar highlights only the matching today date', () => {
     'Monthly trading calendar should add a focused today class without changing P/L tone classes.',
   );
 });
+
+
+test('monthly trading calendar disables month navigation at available trade data bounds', () => {
+  assert.ok(
+    source.includes('function getMonthlyTradingCalendarNavigationState(referenceDate = new Date(), tradeList = trades)'),
+    'Monthly trading calendar should derive navigation state from available trade months.',
+  );
+  assert.ok(
+    source.includes('canGoPrevious: currentMonthKey > Math.min(...tradeMonthKeys),'),
+    'Previous Month should only be enabled after the earliest trade month.',
+  );
+  assert.ok(
+    source.includes('canGoNext: currentMonthKey < Math.max(...tradeMonthKeys),'),
+    'Next Month should only be enabled before the latest trade month.',
+  );
+  assert.ok(
+    source.includes("data-calendar-month=\"previous\" ${canGoPrevious ? '' : 'disabled aria-disabled=\"true\"'}"),
+    'Previous Month should render as disabled at the earliest trade month while remaining visible.',
+  );
+  assert.ok(
+    source.includes("data-calendar-month=\"next\" ${canGoNext ? '' : 'disabled aria-disabled=\"true\"'}"),
+    'Next Month should render as disabled at the latest trade month while remaining visible.',
+  );
+  assert.ok(
+    source.includes('if (button.disabled) {'),
+    'Disabled calendar navigation buttons should not handle clicks.',
+  );
+});

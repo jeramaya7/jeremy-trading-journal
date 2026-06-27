@@ -1119,6 +1119,27 @@ function formatDateKey(date) {
   return `${year}-${month}-${day}`;
 }
 
+function getMonthlyCalendarMonthKey(date) {
+  return date.getFullYear() * 12 + date.getMonth();
+}
+
+function getMonthlyTradingCalendarNavigationState(referenceDate = new Date(), tradeList = trades) {
+  const tradeMonthKeys = tradeList
+    .map((trade) => getTradeReportDate(trade))
+    .filter(Boolean)
+    .map(getMonthlyCalendarMonthKey);
+
+  if (!tradeMonthKeys.length) {
+    return { canGoPrevious: false, canGoNext: false };
+  }
+
+  const currentMonthKey = getMonthlyCalendarMonthKey(referenceDate);
+  return {
+    canGoPrevious: currentMonthKey > Math.min(...tradeMonthKeys),
+    canGoNext: currentMonthKey < Math.max(...tradeMonthKeys),
+  };
+}
+
 function getMonthlyTradingCalendarDays(referenceDate = new Date(), tradeList = trades) {
   const monthStart = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
   const monthEnd = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0);
@@ -1154,6 +1175,7 @@ function renderMonthlyTradingCalendar(referenceDate = new Date(), tradeList = tr
   const monthLabel = referenceDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
   const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const calendarDays = getMonthlyTradingCalendarDays(referenceDate, tradeList);
+  const { canGoPrevious, canGoNext } = getMonthlyTradingCalendarNavigationState(referenceDate, tradeList);
   const monthlyPnl = calendarDays.reduce((total, calendarDay) => total + (calendarDay?.report?.pnl || 0), 0);
   const monthlyStartingBalance = calendarDays.find((calendarDay) => calendarDay?.report?.startingBalance)?.report.startingBalance ?? null;
 
@@ -1169,8 +1191,8 @@ function renderMonthlyTradingCalendar(referenceDate = new Date(), tradeList = tr
               <button class="secondary-button monthly-calendar-display-option ${monthlyCalendarDisplayMode === 'dollars' ? 'monthly-calendar-display-option-active' : ''}" type="button" data-calendar-display-mode="dollars" aria-pressed="${monthlyCalendarDisplayMode === 'dollars' ? 'true' : 'false'}">$</button>
               <button class="secondary-button monthly-calendar-display-option ${monthlyCalendarDisplayMode === 'percent' ? 'monthly-calendar-display-option-active' : ''}" type="button" data-calendar-display-mode="percent" aria-pressed="${monthlyCalendarDisplayMode === 'percent' ? 'true' : 'false'}">%</button>
             </div>
-            <button class="secondary-button monthly-calendar-nav" type="button" data-calendar-month="previous">Previous Month</button>
-            <button class="secondary-button monthly-calendar-nav" type="button" data-calendar-month="next">Next Month</button>
+            <button class="secondary-button monthly-calendar-nav" type="button" data-calendar-month="previous" ${canGoPrevious ? '' : 'disabled aria-disabled="true"'}>Previous Month</button>
+            <button class="secondary-button monthly-calendar-nav" type="button" data-calendar-month="next" ${canGoNext ? '' : 'disabled aria-disabled="true"'}>Next Month</button>
           </div>
         </div>
         <div class="monthly-calendar-grid" role="grid" aria-label="${escapeHtml(monthLabel)} trading calendar">
@@ -2388,6 +2410,10 @@ function bindEvents() {
   });
   document.querySelectorAll('[data-calendar-month]').forEach((button) => {
     button.addEventListener('click', () => {
+      if (button.disabled) {
+        return;
+      }
+
       const direction = button.dataset.calendarMonth === 'previous' ? -1 : 1;
       monthlyCalendarDate = new Date(monthlyCalendarDate.getFullYear(), monthlyCalendarDate.getMonth() + direction, 1);
       selectedCalendarDateKey = '';
