@@ -1291,7 +1291,7 @@ ${(payload.sessions || []).map((s) => `${s.session}: ${s.trades} trades, ${Numbe
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1024,
+        max_tokens: 2048,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
       }),
@@ -1307,8 +1307,23 @@ ${(payload.sessions || []).map((s) => `${s.session}: ${s.trades} trades, ${Numbe
 
     const data = await claudeResponse.json();
     const text = data.content?.find((b) => b.type === 'text')?.text || '';
-    const clean = text.replace(/```json|```/g, '').trim();
-    const report = JSON.parse(clean);
+    console.log('[DNA Doctor] Raw Claude response length:', text.length, '| stop_reason:', data.stop_reason);
+
+    // Strip markdown fences if present
+    const clean = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+
+    let report;
+    try {
+      report = JSON.parse(clean);
+    } catch (parseError) {
+      console.error('[DNA Doctor] JSON parse failed:', parseError.message);
+      console.error('[DNA Doctor] Raw text (first 500 chars):', text.slice(0, 500));
+      sendJson(response, 502, {
+        error: `Claude returned invalid JSON: ${parseError.message}`,
+        rawResponse: text.slice(0, 1000),
+      });
+      return;
+    }
     sendJson(response, 200, report);
   } catch (error) {
     clearTimeout(timeout);
