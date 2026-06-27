@@ -2874,8 +2874,8 @@ h2,
 .dna-doctor-heading-row {
   align-items: center;
   display: flex;
-  gap: 0.75rem;
-  margin-bottom: 0.35rem;
+  gap: 0.25rem;
+  margin-bottom: 0.4rem;
 }
 
 .dna-doctor-icon {
@@ -2896,7 +2896,7 @@ h2,
 }
 
 .dna-doctor-subtitle {
-  color: var(--dna-muted);
+  color: rgba(16, 26, 46, 0.65);
   font-size: 0.85rem;
   line-height: 1.5;
   margin: 0 0 1.4rem;
@@ -2952,7 +2952,7 @@ h2,
   border-radius: 10px;
   display: flex;
   gap: 0.6rem;
-  max-width: 560px;
+  max-width: 100%;
   padding: 0.7rem 0.9rem;
 }
 
@@ -2982,11 +2982,12 @@ h2,
 
 /* Right side — scan button centered vertically */
 .dna-doctor-brand-right {
-  align-items: center;
+  align-items: flex-start;
   display: flex;
   flex-shrink: 0;
-  justify-content: center;
+  justify-content: flex-end;
   padding-left: clamp(1.5rem, 3vw, 3rem);
+  padding-top: 0.1rem;
 }
 
 /* Keep old header rule name for error/loading states */
@@ -3000,9 +3001,14 @@ h2,
 
 /* Error/loading padding when inside panel */
 .dna-doctor-error-banner,
-.dna-doctor-loading,
+.dna-doctor-loading {
+  margin: 0 clamp(1.75rem, 3vw, 2.75rem) clamp(1.25rem, 2vw, 1.75rem);
+}
+
 .dna-doctor-report-wrap {
-  margin: 0 clamp(1.75rem, 3vw, 2.75rem) clamp(1.75rem, 3vw, 2.75rem);
+  border-top: 1px solid rgba(16, 26, 46, 0.08);
+  margin: 0;
+  padding: clamp(1.75rem, 3vw, 2.75rem);
 }
 
 @media (max-width: 700px) {
@@ -3075,9 +3081,12 @@ h2,
 }
 
 .dna-doctor-loading p {
-  color: var(--dna-muted);
+  color: var(--dna-navy);
   font-size: 0.88rem;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  min-height: 1.4em;
+  text-align: center;
 }
 
 /* Error banner — dismissible, sits above existing report */
@@ -3125,6 +3134,7 @@ h2,
   display: flex;
   flex-direction: column;
   gap: 0;
+  padding-top: 0;
 }
 
 /* Divider with label */
@@ -3133,7 +3143,6 @@ h2,
   display: flex;
   gap: 0.75rem;
   margin: 0 0 1.5rem;
-  padding-top: 1.5rem;
   position: relative;
 }
 
@@ -3347,11 +3356,11 @@ h2,
 
 /* Fade-in on new report */
 .dna-doctor-fadein {
-  animation: dna-fadein 0.4s ease both;
+  animation: dna-fadein 0.25s ease both;
 }
 
 @keyframes dna-fadein {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(3px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
