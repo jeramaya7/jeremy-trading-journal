@@ -45,12 +45,12 @@ test('helper copy and JSON import/export preserve screenshot data', () => {
 });
 
 test('risk fields and calculations are available for trade logging', () => {
-  assertIncludes(source, 'input name="stopLoss" type="number"', 'The trade form includes an Original Stop Loss field.');
-  assertIncludes(source, 'input name="adjustedStopLoss" type="number"', 'The trade form includes an optional Adjusted Stop Loss field.');
+  assertIncludes(source, 'input name="stopLoss" type="number"', 'The trade form includes an Initial Stop Loss field.');
+  assertIncludes(source, 'input name="adjustedStopLoss" type="number"', 'The trade form includes an optional Final Stop Loss field.');
   assertIncludes(source, 'input name="accountSize" type="number"', 'The trade form includes an Account Size field.');
   assertIncludes(source, 'input name="riskPercent" type="number"', 'The trade form includes a calculated Risk % field.');
   assertIncludes(source, 'function getActiveStopLoss(trade)', 'Risk calculations resolve the active stop loss through a helper.');
-  assertIncludes(source, 'return getStopLossHitPrice(trade) ?? toOptionalNumber(trade.adjustedStopLoss) ?? toOptionalNumber(trade.stopLoss);', 'Adjusted Stop Loss overrides Original Stop Loss when present.');
+  assertIncludes(source, 'return getStopLossHitPrice(trade) ?? toOptionalNumber(trade.adjustedStopLoss) ?? toOptionalNumber(trade.stopLoss);', 'Final Stop Loss overrides Initial Stop Loss when present.');
   assertIncludes(source, "const riskPerUnit = trade.direction === 'Short'", 'Risk dollars are calculated from direction-aware entry and active stop distance.');
   assertIncludes(source, "if (symbol === 'XAUUSD' || symbol.includes('GOLD')) {", 'XAUUSD risk calculations infer the 100-ounce gold contract for lot-sized manual and imported trades.');
   assertIncludes(source, 'const explicitContractSize = toOptionalNumber(trade.contractSize ?? trade.lotSizeInUnits);', 'Imported cTrader trades can use broker metadata for contract-size risk calculations.');
@@ -62,10 +62,10 @@ test('risk fields and calculations are available for trade logging', () => {
 
 test('risk metrics render on trade cards and focused dashboard summary', () => {
   assertIncludes(source, 'const activeStopLoss = getActiveStopLoss(trade);', 'Trade cards compute the active risk stop through the shared helper.');
-  assertIncludes(source, 'Original Stop Loss: ${stopLoss === null ?', 'Trade cards render the original stop loss for auditing.');
-  assertIncludes(source, 'Adjusted Stop Loss: ${adjustedStopLoss === null ?', 'Trade cards render the adjusted stop loss display value.');
-  assertIncludes(source, 'Original Take Profit: ${currency(takeProfit)}', 'Trade cards render original take profit when present.');
-  assertIncludes(source, 'Adjusted Take Profit: ${currency(adjustedTakeProfit)}', 'Trade cards render adjusted take profit when present.');
+  assertIncludes(source, 'Initial Stop Loss: ${stopLoss === null ?', 'Trade cards render the initial stop loss for auditing.');
+  assertIncludes(source, 'Final Stop Loss: ${adjustedStopLoss === null ?', 'Trade cards render the final stop loss display value.');
+  assertIncludes(source, 'Initial Take Profit: ${currency(takeProfit)}', 'Trade cards render initial take profit when present.');
+  assertIncludes(source, 'Final Take Profit: ${currency(adjustedTakeProfit)}', 'Trade cards render final take profit when present.');
   assertIncludes(source, 'Active Take Profit: ${currency(activeTakeProfit)}', 'Trade cards render active take profit when present.');
   assertIncludes(source, 'Risk Stop: ${currency(activeStopLoss)}', 'Trade cards render the active risk stop used by risk and R calculations.');
   assertIncludes(source, 'Risk $: ${riskDollars === null ?', 'Trade cards render risk dollars with blank-field fallback.');
