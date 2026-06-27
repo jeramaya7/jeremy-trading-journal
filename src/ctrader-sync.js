@@ -135,7 +135,7 @@ export function convertCTraderPreviewTradeToJournalEntry(previewTrade, options =
 }
 
 function isBlankTradeValue(value) {
-  return value === undefined || value === null || value === '';
+  return value === undefined || value === null || value === '' || value === 0;
 }
 
 function getImportedAccountBalanceFields(accountBalance) {
