@@ -2107,12 +2107,41 @@ function render(options = {}) {
           <p class="hero-copy">
             DNA is a trader performance analysis system designed to uncover patterns, strengths, weaknesses, habits, and edge through the study of Decisions, Numbers, and Analysis.
           </p>
+          <div class="hero-pills">
+            <div class="hero-pill">
+              ${icon('target')}
+              <div>
+                <strong>Uncover Patterns</strong>
+                <span>Find what's working (and what's not)</span>
+              </div>
+            </div>
+            <div class="hero-pill">
+              ${icon('chart')}
+              <div>
+                <strong>Track Performance</strong>
+                <span>Powerful analytics that reveal the truth</span>
+              </div>
+            </div>
+            <div class="hero-pill">
+              ${icon('trend')}
+              <div>
+                <strong>Improve Consistently</strong>
+                <span>Make better decisions trade after trade</span>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="hero-actions">
           ${pageMode === PAGE_MODES.dashboard ? `<button class="share-dashboard-button" type="button" id="shareDashboard">${icon('download')} Download PNG</button>` : ''}
           ${renderCTraderConnectionCard()}
         </div>
       </section>
+      <div class="hero-trust-bar">
+        <div class="hero-trust-item">${icon('target')}<div><strong>Make Better Decisions</strong><span>Data you can trust</span></div></div>
+        <div class="hero-trust-item">${icon('refresh')}<div><strong>Save Time</strong><span>Auto sync. Always up to date.</span></div></div>
+        <div class="hero-trust-item">${icon('book')}<div><strong>Your Data, Yours</strong><span>Secure. Private. Yours.</span></div></div>
+        <div class="hero-trust-item">${icon('trend')}<div><strong>Built for Traders</strong><span>By a trader. For traders.</span></div></div>
+      </div>
 
       ${renderPageModeToggle()}
 
