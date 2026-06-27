@@ -2574,3 +2574,67 @@ h2,
   .hero-pills { flex-direction: column; }
   .hero-pill { max-width: 100%; }
 }
+
+/* ─── Trading Session Analysis ──────────────────────────── */
+
+.verdict-badge {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 0.74rem;
+  font-weight: 600;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  white-space: nowrap;
+}
+
+.verdict-best  { background: rgba(34, 197, 94, 0.12); color: #15803d; }
+.verdict-weak  { background: rgba(239, 68, 68, 0.10); color: #b91c1c; }
+.verdict-average { background: rgba(201, 148, 32, 0.12); color: #92400e; }
+
+.session-insight-card {
+  background: linear-gradient(135deg, rgba(16, 26, 46, 0.03), rgba(201, 148, 32, 0.04));
+  border: 1px solid rgba(16, 26, 46, 0.09);
+  border-left: 3px solid var(--dna-gold);
+  border-radius: 12px;
+  margin-top: 1.25rem;
+  padding: 1rem 1.25rem;
+}
+
+.session-insight-header {
+  align-items: center;
+  color: var(--dna-navy);
+  display: flex;
+  font-size: 0.82rem;
+  gap: 0.4rem;
+  margin-bottom: 0.65rem;
+}
+
+.session-insight-header svg {
+  color: var(--dna-gold);
+  height: 1rem;
+  width: 1rem;
+}
+
+.session-insight-list {
+  color: var(--dna-muted);
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  gap: 0.3rem;
+  line-height: 1.5;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.session-insight-list li::before {
+  color: var(--dna-gold);
+  content: "•";
+  margin-right: 0.4rem;
+}
+
+.session-insight-list strong {
+  color: var(--dna-navy);
+  font-weight: 700;
+}
