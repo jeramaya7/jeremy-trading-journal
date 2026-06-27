@@ -1147,6 +1147,59 @@ test('uses cTrader order history stop loss and take profit when deal fields are 
   assert.equal(trade.adjustedTakeProfit, undefined);
 });
 
+
+test('cTrader mapper converts relative protection fields into initial stop loss and take profit prices', () => {
+  const longTrade = mapCtraderClosingDealToJournalTrade({
+    dealId: 413,
+    positionId: 512,
+    symbolName: 'EURUSD',
+    tradeSide: 'SELL',
+    executionPrice: 1.2,
+    executionTimestamp: 1_700_000_000_000,
+    relativeStopLoss: 500,
+    relativeTakeProfit: 1500,
+    closePositionDetail: {
+      entryPrice: 1.1,
+      closedVolume: 10000000,
+    },
+  }, {
+    positionId: 512,
+    tradeSide: 'BUY',
+    executionTimestamp: 1_699_000_000_000,
+    filledVolume: 10000000,
+  }, {
+    symbolMetadata: { lotSize: 10000000 },
+  });
+
+  assert.equal(longTrade.stopLoss, 1.095);
+  assert.equal(longTrade.takeProfit, 1.115);
+
+  const shortTrade = mapCtraderClosingDealToJournalTrade({
+    dealId: 414,
+    positionId: 513,
+    symbolName: 'EURUSD',
+    tradeSide: 'BUY',
+    executionPrice: 1.1,
+    executionTimestamp: 1_700_000_000_000,
+    relativeStopLoss: 500,
+    relativeTakeProfit: 1500,
+    closePositionDetail: {
+      entryPrice: 1.2,
+      closedVolume: 10000000,
+    },
+  }, {
+    positionId: 513,
+    tradeSide: 'SELL',
+    executionTimestamp: 1_699_000_000_000,
+    filledVolume: 10000000,
+  }, {
+    symbolMetadata: { lotSize: 10000000 },
+  });
+
+  assert.equal(shortTrade.stopLoss, 1.205);
+  assert.equal(shortTrade.takeProfit, 1.185);
+});
+
 test('cTrader mapper stores take profit from source payload as original take profit', () => {
   const trade = mapCtraderClosingDealToJournalTrade({
     dealId: 412,

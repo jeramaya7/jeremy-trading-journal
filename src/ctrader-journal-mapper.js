@@ -176,6 +176,7 @@ function getCtraderTakeProfit(deal, openingDeal = null, options = {}, positionId
   const dealTakeProfit = toFiniteNumber(firstDefined(
     deal?.takeProfit,
     deal?.takeProfitPrice,
+    absoluteTakeProfitFromRelative(deal?.relativeTakeProfit, deal, openingDeal),
     deal?.tpPrice,
     deal?.tp,
     deal?.order?.takeProfit,
@@ -184,6 +185,7 @@ function getCtraderTakeProfit(deal, openingDeal = null, options = {}, positionId
     deal?.position?.takeProfitPrice,
     deal?.closePositionDetail?.takeProfit,
     deal?.closePositionDetail?.takeProfitPrice,
+    absoluteTakeProfitFromRelative(deal?.closePositionDetail?.relativeTakeProfit, deal, openingDeal),
     deal?.closePositionDetail?.tpPrice,
     deal?.closePositionDetail?.tp,
     deal?.closePositionDetail?.order?.takeProfit,
@@ -192,6 +194,7 @@ function getCtraderTakeProfit(deal, openingDeal = null, options = {}, positionId
     deal?.closePositionDetail?.position?.takeProfitPrice,
     openingDeal?.takeProfit,
     openingDeal?.takeProfitPrice,
+    absoluteTakeProfitFromRelative(openingDeal?.relativeTakeProfit, deal, openingDeal),
     openingDeal?.tpPrice,
     openingDeal?.tp,
     openingDeal?.order?.takeProfit,
@@ -212,6 +215,7 @@ function getCtraderStopLoss(deal, openingDeal = null, options = {}, positionId =
   const dealStopLoss = toFiniteNumber(firstDefined(
     deal?.stopLoss,
     deal?.stopLossPrice,
+    absoluteStopLossFromRelative(deal?.relativeStopLoss, deal, openingDeal),
     deal?.slPrice,
     deal?.sl,
     deal?.order?.stopLoss,
@@ -220,6 +224,7 @@ function getCtraderStopLoss(deal, openingDeal = null, options = {}, positionId =
     deal?.position?.stopLossPrice,
     deal?.closePositionDetail?.stopLoss,
     deal?.closePositionDetail?.stopLossPrice,
+    absoluteStopLossFromRelative(deal?.closePositionDetail?.relativeStopLoss, deal, openingDeal),
     deal?.closePositionDetail?.slPrice,
     deal?.closePositionDetail?.sl,
     deal?.closePositionDetail?.order?.stopLoss,
@@ -228,6 +233,7 @@ function getCtraderStopLoss(deal, openingDeal = null, options = {}, positionId =
     deal?.closePositionDetail?.position?.stopLossPrice,
     openingDeal?.stopLoss,
     openingDeal?.stopLossPrice,
+    absoluteStopLossFromRelative(openingDeal?.relativeStopLoss, deal, openingDeal),
     openingDeal?.slPrice,
     openingDeal?.sl,
     openingDeal?.order?.stopLoss,
@@ -256,6 +262,7 @@ function getCtraderOrderStopLoss(order) {
   return toFiniteNumber(firstDefined(
     order?.stopLoss,
     order?.stopLossPrice,
+    absoluteStopLossFromRelative(order?.relativeStopLoss, order),
     order?.slPrice,
     order?.sl,
     order?.position?.stopLoss,
@@ -267,11 +274,66 @@ function getCtraderOrderTakeProfit(order) {
   return toFiniteNumber(firstDefined(
     order?.takeProfit,
     order?.takeProfitPrice,
+    absoluteTakeProfitFromRelative(order?.relativeTakeProfit, order),
     order?.tpPrice,
     order?.tp,
     order?.position?.takeProfit,
     order?.position?.takeProfitPrice,
   ));
+}
+
+
+function absoluteStopLossFromRelative(relativeStopLoss, deal, openingDeal = null) {
+  const distance = getCtraderRelativeProtectionDistance(relativeStopLoss);
+  if (distance === null) {
+    return null;
+  }
+
+  const entry = getCtraderProtectionEntryPrice(deal, openingDeal);
+  if (entry === null) {
+    return null;
+  }
+
+  return roundPrice(getJournalDirection(openingDeal?.tradeSide, deal?.tradeSide) === 'Long'
+    ? entry - distance
+    : entry + distance);
+}
+
+function absoluteTakeProfitFromRelative(relativeTakeProfit, deal, openingDeal = null) {
+  const distance = getCtraderRelativeProtectionDistance(relativeTakeProfit);
+  if (distance === null) {
+    return null;
+  }
+
+  const entry = getCtraderProtectionEntryPrice(deal, openingDeal);
+  if (entry === null) {
+    return null;
+  }
+
+  return roundPrice(getJournalDirection(openingDeal?.tradeSide, deal?.tradeSide) === 'Long'
+    ? entry + distance
+    : entry - distance);
+}
+
+function getCtraderRelativeProtectionDistance(value) {
+  const parsedValue = toFiniteNumber(value);
+  return parsedValue === null ? null : parsedValue / 100000;
+}
+
+function getCtraderProtectionEntryPrice(deal, openingDeal = null) {
+  return toFiniteNumber(
+    deal?.closePositionDetail?.entryPrice
+      ?? deal?.entryPrice
+      ?? deal?.position?.entryPrice
+      ?? openingDeal?.executionPrice
+      ?? openingDeal?.entryPrice
+      ?? openingDeal?.position?.entryPrice
+      ?? deal?.executionPrice,
+  );
+}
+
+function roundPrice(value) {
+  return Number(value.toFixed(10));
 }
 
 function firstDefined(...values) {
