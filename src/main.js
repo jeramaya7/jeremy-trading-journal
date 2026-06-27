@@ -2103,8 +2103,8 @@ function render(options = {}) {
             <img class="dna-logo" src="./DNA_Transparent.png" alt="DNA logo" />
             <div class="dna-wordmark" aria-hidden="true">
               <span class="dna-wordmark-main">DNA</span>
-              <span class="dna-wordmark-sub">Decisions <b>•</b> Numbers <b>•</b> Analysis</span>
               <span class="dna-wordmark-url">MineTheMarket.com</span>
+              <span class="dna-wordmark-sub">Decisions <b>•</b> Numbers <b>•</b> Analysis</span>
             </div>
           </div>
           <h1>Discover your edge.</h1>
