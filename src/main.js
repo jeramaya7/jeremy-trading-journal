@@ -963,6 +963,111 @@ function getAssetAnalytics(tradeList = trades) {
     .sort(compareAssetAnalyticsRows);
 }
 
+function getTimeOfDayBucket(openTime) {
+  if (!openTime) return 'Unknown';
+  const date = new Date(openTime);
+  if (isNaN(date.getTime())) return 'Unknown';
+  const hour = date.getUTCHours();
+  if (hour >= 6 && hour < 12) return 'Morning';
+  if (hour >= 12 && hour < 18) return 'Afternoon';
+  if (hour >= 18 && hour < 23) return 'Evening';
+  return 'Night';
+}
+
+const TIME_OF_DAY_ORDER = ['Morning', 'Afternoon', 'Evening', 'Night', 'Unknown'];
+
+function getTimeOfDayAnalytics(tradeList = trades) {
+  const buckets = new Map();
+
+  TIME_OF_DAY_ORDER.forEach((label) => {
+    buckets.set(label, {
+      label,
+      tradeCount: 0,
+      winCount: 0,
+      rCount: 0,
+      totalR: 0,
+      winningPnl: [],
+      losingPnl: [],
+      netPnl: 0,
+    });
+  });
+
+  tradeList.forEach((trade) => {
+    const bucket = getTimeOfDayBucket(trade.openTime);
+    const report = buckets.get(bucket);
+    if (!report) return;
+
+    const pnl = calculatePnl(trade);
+    const rMultiple = calculateRMultiple(trade);
+
+    report.tradeCount += 1;
+    report.netPnl += pnl;
+    if (pnl > 0) { report.winCount += 1; report.winningPnl.push(pnl); }
+    if (pnl < 0) { report.losingPnl.push(pnl); }
+    if (rMultiple !== null) { report.rCount += 1; report.totalR += rMultiple; }
+  });
+
+  return [...buckets.values()]
+    .filter((r) => r.tradeCount > 0)
+    .map((r) => ({
+      label: r.label,
+      tradeCount: r.tradeCount,
+      winRate: r.tradeCount ? (r.winCount / r.tradeCount) * 100 : 0,
+      netPnl: r.netPnl,
+      totalR: r.rCount ? r.totalR : null,
+      averageR: r.rCount ? r.totalR / r.rCount : null,
+      profitFactor: getProfitFactor(r.winningPnl, r.losingPnl),
+    }))
+    .sort((a, b) => b.netPnl - a.netPnl);
+}
+
+function renderTimeOfDayAnalytics(tradeList = trades) {
+  const rows = getTimeOfDayAnalytics(tradeList);
+  if (!rows.length) return '';
+
+  return `
+    <section class="panel setup-analytics-panel" aria-label="Time of Day Analytics">
+      <div class="analytics-panel-header">
+        <div class="section-title">${icon('calendar')}<h2>Time of Day</h2></div>
+        <p class="analytics-panel-description">Sorted by Net P&amp;L descending. Times are UTC.</p>
+      </div>
+      <div class="analytics-table-wrapper">
+        <table class="analytics-table">
+          <thead>
+            <tr>
+              <th>Time of Day</th>
+              <th>Trades</th>
+              <th>Win Rate</th>
+              <th>Net P&amp;L</th>
+              <th>Total R</th>
+              <th>Avg R</th>
+              <th>Profit Factor</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(timeOfDayRow).join('')}
+          </tbody>
+        </table>
+      </div>
+    </section>`;
+}
+
+function timeOfDayRow(r) {
+  const pnlTone = getPerformanceTone(r.netPnl);
+  const rTone = getPerformanceTone(r.averageR);
+  const totalRTone = getPerformanceTone(r.totalR);
+  return `
+    <tr>
+      <td><strong>${escapeHtml(r.label)}</strong></td>
+      <td>${r.tradeCount}</td>
+      <td>${formatPercent(r.winRate)}</td>
+      <td class="${pnlTone}">${currency(r.netPnl)}</td>
+      <td class="${totalRTone}">${r.totalR !== null ? formatRMultiple(r.totalR) : '—'}</td>
+      <td class="${rTone}">${formatRMultiple(r.averageR)}</td>
+      <td>${formatProfitFactor(r.profitFactor)}</td>
+    </tr>`;
+}
+
 function compareAssetAnalyticsRows(firstRow, secondRow) {
   const netPnlResult = secondRow.netPnl - firstRow.netPnl;
   if (netPnlResult !== 0) {
@@ -2066,6 +2171,7 @@ function render(options = {}) {
   const monthlyTradingCalendarSection = renderMonthlyTradingCalendar(monthlyCalendarDate, dnaResultsTrades);
   const setupAnalyticsSection = renderSetupAnalytics(dnaResultsTrades);
   const assetAnalyticsSection = renderAssetAnalytics(dnaResultsTrades);
+  const timeOfDayAnalyticsSection = renderTimeOfDayAnalytics(dnaResultsTrades);
   const today = new Date().toISOString().slice(0, 10);
   const todayTrades = filterTradesForPeriod(trades, 'day', dnaReferenceDate);
   const tradingModeSections = `${renderTodayKpiStrip(todayTrades, getStats(todayTrades))}${renderJournalWorkspace(filteredTrades, today, { showManualTradePanel: false })}`;
@@ -2090,7 +2196,9 @@ function render(options = {}) {
 
       ${setupAnalyticsSection}
 
-      ${assetAnalyticsSection}`;
+      ${assetAnalyticsSection}
+
+      ${timeOfDayAnalyticsSection}`;
   const pageSections = pageMode === PAGE_MODES.trading
     ? tradingModeSections
     : `${dashboardSections}${journalWorkspaceSection}`;
