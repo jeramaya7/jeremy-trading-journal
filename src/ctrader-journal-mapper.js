@@ -275,9 +275,16 @@ function getCtraderOrderStopLoss(order) {
     order?.sl,
     order?.position?.stopLoss,
     order?.position?.stopLossPrice,
+    // cTrader returns SL as a sibling order with orderType STOP_LOSS and price in stopPrice
+    isCtraderStopLossOrder(order) ? order?.stopPrice : null,
   ));
   logCtraderPositionDebug(order?.positionId ?? order?.position?.positionId, 'getCtraderOrderStopLoss-result', { order, stopLoss });
   return stopLoss;
+}
+
+function isCtraderStopLossOrder(order) {
+  const type = order?.orderType ?? order?.type ?? '';
+  return /stop.?loss/i.test(String(type));
 }
 
 function getCtraderOrderTakeProfit(order) {
@@ -289,9 +296,16 @@ function getCtraderOrderTakeProfit(order) {
     order?.tp,
     order?.position?.takeProfit,
     order?.position?.takeProfitPrice,
+    // cTrader returns TP as a sibling order with orderType TAKE_PROFIT and price in limitPrice
+    isCtraderTakeProfitOrder(order) ? order?.limitPrice : null,
   ));
   logCtraderPositionDebug(order?.positionId ?? order?.position?.positionId, 'getCtraderOrderTakeProfit-result', { order, takeProfit });
   return takeProfit;
+}
+
+function isCtraderTakeProfitOrder(order) {
+  const type = order?.orderType ?? order?.type ?? '';
+  return /take.?profit/i.test(String(type));
 }
 
 
