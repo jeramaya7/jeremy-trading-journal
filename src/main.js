@@ -1613,7 +1613,6 @@ function renderPageModeToggle() {
             <button class="page-mode-button ${pageMode === PAGE_MODES.dashboard ? 'active' : ''}" type="button" data-page-mode="${PAGE_MODES.dashboard}" aria-pressed="${pageMode === PAGE_MODES.dashboard ? 'true' : 'false'}">Dashboard Mode</button>
             <button class="page-mode-button ${pageMode === PAGE_MODES.trading ? 'active' : ''}" type="button" data-page-mode="${PAGE_MODES.trading}" aria-pressed="${pageMode === PAGE_MODES.trading ? 'true' : 'false'}">Trading Mode</button>
           </div>
-          <button class="secondary-button session-notes-button" type="button" data-session-notes-open title="Session Notes" aria-label="Session Notes">📝</button>
         </div>`;
 }
 
@@ -2426,7 +2425,10 @@ function renderJournalWorkspace(filteredTrades, today, options = {}) {
               <div class="section-title">${icon('calendar')}<h2>Journal entries</h2></div>
               <p class="section-helper">Review, search, and edit imported cTrader trades first. Manual entries are available below when needed.</p>
             </div>
-            <input class="search-input" id="searchInput" placeholder="Search trades..." value="${escapeHtml(searchQuery)}" />
+            <div class="journal-header-actions">
+              <input class="search-input" id="searchInput" placeholder="Search trades..." value="${escapeHtml(searchQuery)}" />
+              <button class="secondary-button session-notes-button" type="button" data-session-notes-open title="Session Notes" aria-label="Session Notes">📝 Session Notes</button>
+            </div>
           </div>
           <div class="trade-list">
             ${filteredTrades.length ? filteredTrades.map(tradeCard).join('') : '<p class="empty-state">No trades match your search yet.</p>'}
