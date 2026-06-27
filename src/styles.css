@@ -152,12 +152,11 @@ h2 {
 }
 
 .dna-logo {
-  border-radius: 24px;
-  box-shadow: 0 18px 42px rgba(23, 32, 51, 0.16);
   display: block;
-  height: clamp(135px, 15vw, 185px);
+  height: auto;
+  max-height: 120px;
   object-fit: contain;
-  width: auto;
+  width: clamp(280px, 30vw, 420px);
 }
 
 .hero-subtitle {
