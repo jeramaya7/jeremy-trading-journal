@@ -1122,7 +1122,7 @@ function formatDateKey(date) {
 function getMonthlyTradingCalendarDays(referenceDate = new Date(), tradeList = trades) {
   const monthStart = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
   const monthEnd = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0);
-  const leadingEmptyDays = monthStart.getDay();
+  const leadingEmptyDays = (monthStart.getDay() + 6) % 7;
   const dailyReports = new Map();
 
   tradeList.forEach((trade) => {
@@ -1152,7 +1152,7 @@ function getMonthlyTradingCalendarDays(referenceDate = new Date(), tradeList = t
 
 function renderMonthlyTradingCalendar(referenceDate = new Date(), tradeList = trades) {
   const monthLabel = referenceDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const calendarDays = getMonthlyTradingCalendarDays(referenceDate, tradeList);
   const monthlyPnl = calendarDays.reduce((total, calendarDay) => total + (calendarDay?.report?.pnl || 0), 0);
   const monthlyStartingBalance = calendarDays.find((calendarDay) => calendarDay?.report?.startingBalance)?.report.startingBalance ?? null;
