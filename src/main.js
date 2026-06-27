@@ -1005,67 +1005,24 @@ function buildDnaScanPayload(tradeList) {
 }
 
 async function callClaudeDnaDoctor(payload) {
-  const systemPrompt = `You are DNA Doctor, a professional trading performance analyst embedded in the DNA Trading Journal.
-Your job is to produce a concise, honest, data-driven trading diagnosis.
-Base every conclusion ONLY on the statistics provided. Never invent data. Never hallucinate.
-If data is missing or insufficient (fewer than 10 trades), say so explicitly.
-Write in professional language. Be direct. Be specific. Avoid generic advice.
-Respond ONLY with valid JSON matching this exact schema:
-{
-  "diagnosis": "string — 2-4 sentence summary of this trader",
-  "strengths": ["string", ...],
-  "weaknesses": ["string", ...],
-  "prescription": ["string", ...],
-  "riskFactors": ["string", ...],
-  "score": number (0-100),
-  "grade": "string (A+/A/B+/B/C+/C/D/F)",
-  "scoreExplanation": "string — 1-2 sentences explaining the score"
-}
-Do not include any text outside the JSON object.`;
-
-  const userPrompt = `Here are my trading statistics. Produce a DNA Doctor Report.
-
-Total Trades: ${payload.tradeCount}
-Win Rate: ${payload.winRate !== null ? payload.winRate.toFixed(1) + '%' : 'N/A'}
-Total P&L: $${payload.totalPnl !== null ? payload.totalPnl.toFixed(2) : 'N/A'}
-Average Winner: $${payload.averageWin !== null ? payload.averageWin.toFixed(2) : 'N/A'}
-Average Loser: $${payload.averageLoss !== null ? payload.averageLoss.toFixed(2) : 'N/A'}
-Average R: ${payload.averageR !== null ? payload.averageR.toFixed(2) + 'R' : 'N/A'}
-Profit Factor: ${payload.profitFactor !== null ? payload.profitFactor.toFixed(2) : 'N/A'}
-Biggest Winner: $${payload.biggestWinner !== null ? payload.biggestWinner.toFixed(2) : 'N/A'}
-Biggest Loser: $${payload.biggestLoser !== null ? payload.biggestLoser.toFixed(2) : 'N/A'}
-Average Risk $: ${payload.averageRiskDollars !== null ? '$' + payload.averageRiskDollars.toFixed(2) : 'N/A'}
-Average Risk %: ${payload.averageRiskPercent !== null ? payload.averageRiskPercent.toFixed(2) + '%' : 'N/A'}
-
-By Asset:
-${payload.assets.map((a) => `${a.symbol}: ${a.trades} trades, ${a.winRate.toFixed(1)}% WR, $${a.netPnl.toFixed(2)} P&L, ${a.averageR !== null ? a.averageR.toFixed(2) + 'R' : 'N/A'} avg R`).join('\n') || 'No asset data'}
-
-By Setup:
-${payload.setups.map((s) => `${s.name}: ${s.trades} trades, ${s.winRate.toFixed(1)}% WR, $${s.netPnl.toFixed(2)} P&L, ${s.averageR !== null ? s.averageR.toFixed(2) + 'R' : 'N/A'} avg R`).join('\n') || 'No setup data'}
-
-By Trading Session:
-${payload.sessions.map((s) => `${s.session}: ${s.trades} trades, ${s.winRate.toFixed(1)}% WR, $${s.netPnl.toFixed(2)} P&L, PF ${s.profitFactor !== null ? s.profitFactor.toFixed(2) : 'N/A'}`).join('\n') || 'No session data'}`;
-
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1000,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-    }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error?.message || `API error ${response.status}`);
+  const backendUrl = getBackendUrl();
+  if (!backendUrl) {
+    throw new Error('Backend is not configured. Set the backend URL to use DNA Doctor.');
   }
 
-  const data = await response.json();
-  const text = data.content?.find((b) => b.type === 'text')?.text || '';
-  const clean = text.replace(/```json|```/g, '').trim();
-  return JSON.parse(clean);
+  const response = await fetch(`${backendUrl}/api/dna-doctor`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || `Server error ${response.status}`);
+  }
+
+  return data;
 }
 
 const DNA_DOCTOR_LOADING_STEPS = [
