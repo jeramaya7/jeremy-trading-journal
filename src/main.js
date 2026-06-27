@@ -1136,15 +1136,17 @@ function renderDnaDoctor(tradeList = trades) {
 }
 
 function renderDnaDoctorReport(report) {
+  const score = report.score || 0;
   const gradeClass = report.grade?.startsWith('A') ? 'positive' : report.grade?.startsWith('B') ? 'neutral' : 'negative';
-  const scoreBar = Math.min(100, Math.max(0, report.score || 0));
-
+  // Score bar color based on value — not grade
+  const barClass = score >= 70 ? 'positive' : score >= 40 ? 'neutral' : 'negative';
+  const scoreBar = Math.min(100, Math.max(0, score));
   const top3 = (arr) => (arr || []).slice(0, 3);
   const biggestRisk = (report.riskFactors || [])[0] || null;
-
-  // Status label
-  const statusLabel = report.score >= 75 ? 'Healthy' : report.score >= 50 ? 'Needs Attention' : 'Critical';
-  const statusClass = report.score >= 75 ? 'positive' : report.score >= 50 ? 'neutral' : 'negative';
+  const biggestIssue = (report.weaknesses || [])[0] || null;
+  const statusLabel = score >= 70 ? 'Healthy' : score >= 40 ? 'Needs Attention' : 'Critical';
+  const statusClass = score >= 70 ? 'positive' : score >= 40 ? 'neutral' : 'negative';
+  const scannedAt = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
 
   return `
     <div class="dna-doctor-report">
@@ -1154,11 +1156,11 @@ function renderDnaDoctorReport(report) {
         <span class="dna-doctor-divider-label">🩺 DNA Doctor Report</span>
       </div>
 
-      <!-- ── HERO: Score + Executive Summary ── -->
+      <!-- ── EXECUTIVE SUMMARY ── -->
       <div class="dna-doctor-hero">
         <div class="dna-doctor-score-block">
           <div class="dna-doctor-score-ring ${gradeClass}">
-            <span class="dna-doctor-score-number">${report.score}</span>
+            <span class="dna-doctor-score-number">${score}</span>
             <span class="dna-doctor-score-denom">/100</span>
           </div>
           <div class="dna-doctor-score-meta">
@@ -1167,59 +1169,54 @@ function renderDnaDoctorReport(report) {
           </div>
         </div>
         <div class="dna-doctor-executive-summary">
-          <div class="dna-doctor-score-bar">
-            <div class="dna-doctor-score-bar-fill ${gradeClass}" style="width:${scoreBar}%"></div>
+          <div class="dna-doctor-score-bar-row">
+            <div class="dna-doctor-score-bar">
+              <div class="dna-doctor-score-bar-fill ${barClass}" style="width:${scoreBar}%"></div>
+            </div>
+            <span class="dna-doctor-scan-time">Last scan: ${scannedAt}</span>
           </div>
           <p class="dna-doctor-summary-text">${escapeHtml(report.diagnosis)}</p>
-          <p class="dna-doctor-score-explanation">${escapeHtml(report.scoreExplanation)}</p>
+          ${biggestIssue ? `<p class="dna-doctor-biggest-issue"><strong>Biggest issue:</strong> ${escapeHtml(biggestIssue)}</p>` : ''}
         </div>
       </div>
 
       <!-- ── BIGGEST RISK ── -->
       ${biggestRisk ? `
       <div class="dna-doctor-biggest-risk">
-        <div class="dna-doctor-risk-label">
-          <span>🚨</span><strong>Biggest Risk</strong>
-        </div>
+        <div class="dna-doctor-risk-label"><span>🚨</span><strong>Biggest Risk</strong></div>
         <p>${escapeHtml(biggestRisk)}</p>
       </div>` : ''}
 
-      <!-- ── SUMMARY GRID: Top 3 each ── -->
+      <!-- ── TOP 3 SUMMARY ── -->
       <div class="dna-doctor-summary-grid">
         <div class="dna-doctor-summary-col dna-doctor-strengths">
           <div class="dna-doctor-section-label">
-            <span class="dna-doctor-section-icon">✅</span>
-            <h4>Top Strengths</h4>
+            <span class="dna-doctor-section-icon">✅</span><h4>Top Strengths</h4>
           </div>
           <ul>${top3(report.strengths).map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
         </div>
         <div class="dna-doctor-summary-col dna-doctor-weaknesses">
           <div class="dna-doctor-section-label">
-            <span class="dna-doctor-section-icon">⚠️</span>
-            <h4>Top Weaknesses</h4>
+            <span class="dna-doctor-section-icon">⚠️</span><h4>Top Weaknesses</h4>
           </div>
           <ul>${top3(report.weaknesses).map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
         </div>
         <div class="dna-doctor-summary-col dna-doctor-prescription">
           <div class="dna-doctor-section-label">
-            <span class="dna-doctor-section-icon">💊</span>
-            <h4>Top Actions</h4>
+            <span class="dna-doctor-section-icon">💊</span><h4>Top Actions</h4>
           </div>
           <ul>${top3(report.prescription).map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
         </div>
       </div>
 
       <!-- ── COLLAPSIBLE FULL REPORT ── -->
-      <details class="dna-doctor-full-report" id="dnaDoctorFullReport">
-        <summary class="dna-doctor-full-report-toggle">
-          📖 Show Full Medical Report
-        </summary>
+      <details class="dna-doctor-full-report">
+        <summary class="dna-doctor-full-report-toggle">📖 Show Full Medical Report</summary>
         <div class="dna-doctor-full-report-body">
 
           <div class="dna-doctor-section dna-doctor-diagnosis">
             <div class="dna-doctor-section-label">
-              <span class="dna-doctor-section-icon">🔬</span>
-              <h4>Full Diagnosis</h4>
+              <span class="dna-doctor-section-icon">🔬</span><h4>Diagnosis</h4>
             </div>
             <p>${escapeHtml(report.diagnosis)}</p>
           </div>
@@ -1227,15 +1224,13 @@ function renderDnaDoctorReport(report) {
           <div class="dna-doctor-columns">
             <div class="dna-doctor-section dna-doctor-strengths">
               <div class="dna-doctor-section-label">
-                <span class="dna-doctor-section-icon">✅</span>
-                <h4>Strengths</h4>
+                <span class="dna-doctor-section-icon">✅</span><h4>Strengths</h4>
               </div>
               <ul>${(report.strengths || []).map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
             </div>
             <div class="dna-doctor-section dna-doctor-weaknesses">
               <div class="dna-doctor-section-label">
-                <span class="dna-doctor-section-icon">⚠️</span>
-                <h4>Weaknesses</h4>
+                <span class="dna-doctor-section-icon">⚠️</span><h4>Weaknesses</h4>
               </div>
               <ul>${(report.weaknesses || []).map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
             </div>
@@ -1243,8 +1238,7 @@ function renderDnaDoctorReport(report) {
 
           <div class="dna-doctor-section dna-doctor-prescription">
             <div class="dna-doctor-section-label">
-              <span class="dna-doctor-section-icon">💊</span>
-              <h4>Full Prescription</h4>
+              <span class="dna-doctor-section-icon">💊</span><h4>Full Prescription</h4>
             </div>
             <ul>${(report.prescription || []).map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
           </div>
@@ -1252,8 +1246,7 @@ function renderDnaDoctorReport(report) {
           ${report.riskFactors?.length ? `
           <div class="dna-doctor-section dna-doctor-risk">
             <div class="dna-doctor-section-label">
-              <span class="dna-doctor-section-icon">🚨</span>
-              <h4>All Risk Factors</h4>
+              <span class="dna-doctor-section-icon">🚨</span><h4>All Risk Factors</h4>
             </div>
             <ul>${report.riskFactors.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
           </div>` : ''}
@@ -1261,7 +1254,6 @@ function renderDnaDoctorReport(report) {
         </div>
       </details>
 
-      <p class="dna-doctor-footer">Generated by DNA Doctor using your trading journal statistics.</p>
     </div>`;
 }
 
