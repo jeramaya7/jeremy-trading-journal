@@ -2163,7 +2163,7 @@ h2,
 
 .app-shell {
   max-width: 1480px;
-  padding: clamp(1rem, 2vw, 1.75rem) clamp(1rem, 2vw, 1.75rem) 0;
+  padding: clamp(1rem, 2vw, 1.75rem);
 }
 
 /* ── Card shell ── */
