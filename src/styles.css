@@ -3047,4 +3047,7 @@ h1 {
   font-weight: 500;
   letter-spacing: 0.05em;
   margin-top: 2px;
+  text-align: center;
+  width: 100%;
+  display: block;
 }
