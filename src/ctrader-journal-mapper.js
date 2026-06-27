@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 
 export const CTRADER_JOURNAL_MAPPER_TRACE_VERSION = 'symbol-metadata-by-id-v8-sl-tp-clean';
+const CTRADER_DEBUG_POSITION_ID = '543914821';
 
 const BROKER_SYMBOL_FALLBACKS_BY_ID = {
   41: 'XAUUSD',
@@ -60,6 +61,7 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
   const positionId = deal.positionId ?? openingDeal?.positionId;
   const stopLoss = getCtraderStopLoss(deal, openingDeal, options, positionId);
   const takeProfit = getCtraderTakeProfit(deal, openingDeal, options, positionId);
+  logCtraderPositionDebug(positionId, 'final-journal-protection-fields', { stopLoss, takeProfit });
   const symbolMetadata = options.symbolMetadata || getCtraderSymbolMetadataForDeal(deal, openingDeal, options);
   const symbol = getCtraderDealSymbol(deal, openingDeal, symbolMetadata);
   const symbolId = getCtraderDealSymbolId(deal, openingDeal);
@@ -208,7 +210,9 @@ function getCtraderTakeProfit(deal, openingDeal = null, options = {}, positionId
 
   const selectedOrder = getCtraderOrdersForPosition(options.ordersByPositionId, positionId)
     .find((order) => getCtraderOrderTakeProfit(order) !== null);
-  return selectedOrder ? getCtraderOrderTakeProfit(selectedOrder) : null;
+  const takeProfit = selectedOrder ? getCtraderOrderTakeProfit(selectedOrder) : null;
+  logCtraderPositionDebug(positionId, 'getCtraderOrderTakeProfit-selected-result', { order: selectedOrder ?? null, takeProfit });
+  return takeProfit;
 }
 
 function getCtraderStopLoss(deal, openingDeal = null, options = {}, positionId = deal?.positionId ?? openingDeal?.positionId) {
@@ -247,7 +251,9 @@ function getCtraderStopLoss(deal, openingDeal = null, options = {}, positionId =
 
   const selectedOrder = getCtraderOrdersForPosition(options.ordersByPositionId, positionId)
     .find((order) => getCtraderOrderStopLoss(order) !== null);
-  return selectedOrder ? getCtraderOrderStopLoss(selectedOrder) : null;
+  const stopLoss = selectedOrder ? getCtraderOrderStopLoss(selectedOrder) : null;
+  logCtraderPositionDebug(positionId, 'getCtraderOrderStopLoss-selected-result', { order: selectedOrder ?? null, stopLoss });
+  return stopLoss;
 }
 
 function getCtraderOrdersForPosition(ordersByPositionId, positionId) {
@@ -255,11 +261,13 @@ function getCtraderOrdersForPosition(ordersByPositionId, positionId) {
     return [];
   }
   const orders = ordersByPositionId[String(positionId)] ?? ordersByPositionId[positionId];
-  return Array.isArray(orders) ? orders : [];
+  const normalizedOrders = Array.isArray(orders) ? orders : [];
+  logCtraderPositionDebug(positionId, 'orders-passed-to-mapper', normalizedOrders);
+  return normalizedOrders;
 }
 
 function getCtraderOrderStopLoss(order) {
-  return toFiniteNumber(firstDefined(
+  const stopLoss = toFiniteNumber(firstDefined(
     order?.stopLoss,
     order?.stopLossPrice,
     absoluteStopLossFromRelative(order?.relativeStopLoss, order),
@@ -268,10 +276,12 @@ function getCtraderOrderStopLoss(order) {
     order?.position?.stopLoss,
     order?.position?.stopLossPrice,
   ));
+  logCtraderPositionDebug(order?.positionId ?? order?.position?.positionId, 'getCtraderOrderStopLoss-result', { order, stopLoss });
+  return stopLoss;
 }
 
 function getCtraderOrderTakeProfit(order) {
-  return toFiniteNumber(firstDefined(
+  const takeProfit = toFiniteNumber(firstDefined(
     order?.takeProfit,
     order?.takeProfitPrice,
     absoluteTakeProfitFromRelative(order?.relativeTakeProfit, order),
@@ -280,6 +290,71 @@ function getCtraderOrderTakeProfit(order) {
     order?.position?.takeProfit,
     order?.position?.takeProfitPrice,
   ));
+  logCtraderPositionDebug(order?.positionId ?? order?.position?.positionId, 'getCtraderOrderTakeProfit-result', { order, takeProfit });
+  return takeProfit;
+}
+
+
+
+function logCtraderPositionDebug(positionId, stage, payload) {
+  if (String(positionId) !== CTRADER_DEBUG_POSITION_ID) {
+    return;
+  }
+
+  console.info(`[cTrader position ${CTRADER_DEBUG_POSITION_ID}] ${stage}`, JSON.stringify(payload, null, 2));
+}
+
+function absoluteStopLossFromRelative(relativeStopLoss, deal, openingDeal = null) {
+  const distance = getCtraderRelativeProtectionDistance(relativeStopLoss);
+  if (distance === null) {
+    return null;
+  }
+
+  const entry = getCtraderProtectionEntryPrice(deal, openingDeal);
+  if (entry === null) {
+    return null;
+  }
+
+  return roundPrice(getJournalDirection(openingDeal?.tradeSide, deal?.tradeSide) === 'Long'
+    ? entry - distance
+    : entry + distance);
+}
+
+function absoluteTakeProfitFromRelative(relativeTakeProfit, deal, openingDeal = null) {
+  const distance = getCtraderRelativeProtectionDistance(relativeTakeProfit);
+  if (distance === null) {
+    return null;
+  }
+
+  const entry = getCtraderProtectionEntryPrice(deal, openingDeal);
+  if (entry === null) {
+    return null;
+  }
+
+  return roundPrice(getJournalDirection(openingDeal?.tradeSide, deal?.tradeSide) === 'Long'
+    ? entry + distance
+    : entry - distance);
+}
+
+function getCtraderRelativeProtectionDistance(value) {
+  const parsedValue = toFiniteNumber(value);
+  return parsedValue === null ? null : parsedValue / 100000;
+}
+
+function getCtraderProtectionEntryPrice(deal, openingDeal = null) {
+  return toFiniteNumber(
+    deal?.closePositionDetail?.entryPrice
+      ?? deal?.entryPrice
+      ?? deal?.position?.entryPrice
+      ?? openingDeal?.executionPrice
+      ?? openingDeal?.entryPrice
+      ?? openingDeal?.position?.entryPrice
+      ?? deal?.executionPrice,
+  );
+}
+
+function roundPrice(value) {
+  return Number(value.toFixed(10));
 }
 
 
