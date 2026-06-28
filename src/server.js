@@ -25,6 +25,10 @@ const STATE_TTL_MS = 10 * 60 * 1000;
 // Entries expire after STATE_TTL_MS so memory stays bounded.
 const redeemedStates = new Map(); // state -> expiresAt timestamp
 
+// In-memory token cache: survives within the current process lifetime.
+// Populated on every store or load so subsequent requests skip disk/env reads.
+let _cachedTokenRecord = null;
+
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -253,11 +257,29 @@ export async function storeEncryptedTokens(config, tokens, options = {}) {
     encryptedTokens,
   };
 
-  const tokenStorePath = getTokenStorePath(options);
-  await mkdir(getDataDir(options), { recursive: true, mode: 0o700 });
-  const tempPath = `${tokenStorePath}.${process.pid}.${Date.now()}.tmp`;
-  await writeFile(tempPath, `${JSON.stringify(tokenRecord, null, 2)}\n`, { mode: 0o600 });
-  await rename(tempPath, tokenStorePath);
+  // 1. Warm in-memory cache (skip when options override the store path — tests only).
+  const _useCache = !options.dataDir && !options.tokenStorePath;
+  if (_useCache) {
+    _cachedTokenRecord = tokenRecord;
+  }
+
+  // 2. Write to local file (local dev fallback; non-fatal on Render's ephemeral fs).
+  try {
+    const tokenStorePath = getTokenStorePath(options);
+    await mkdir(getDataDir(options), { recursive: true, mode: 0o700 });
+    const tempPath = `${tokenStorePath}.${process.pid}.${Date.now()}.tmp`;
+    await writeFile(tempPath, `${JSON.stringify(tokenRecord, null, 2)}\n`, { mode: 0o600 });
+    await rename(tempPath, tokenStorePath);
+  } catch (fileError) {
+    console.warn('[cTrader token] Local file write failed (non-fatal):', fileError.message);
+  }
+
+  // 3. Persist to Render env var so the token survives restarts and redeploys.
+  //    Fire-and-forget: a failure here is logged but never blocks the OAuth flow.
+  saveTokenToRenderEnvVar(tokenRecord, options.env || process.env).catch((error) => {
+    console.warn('[cTrader token] Render env var save failed (non-fatal):', error.message);
+  });
+
   return tokenRecord;
 }
 
@@ -299,14 +321,30 @@ async function refreshCtraderTokens(config, refreshToken, options = {}, fetchImp
 }
 
 export async function loadStoredCtraderTokens(config, options = {}) {
-  let tokenRecord;
-  try {
-    tokenRecord = JSON.parse(await readFile(getTokenStorePath(options), 'utf8'));
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      throw new Error('cTrader OAuth tokens have not been stored yet; connect cTrader first');
+  // Skip the module-level cache when options override the store path (test isolation).
+  const _useCache = !options.dataDir && !options.tokenStorePath;
+
+  // Load priority: in-memory cache → Render env var → local file (dev fallback).
+  let tokenRecord = (_useCache && _cachedTokenRecord) || loadTokenFromEnvVar(options.env) || null;
+
+  if (!tokenRecord) {
+    try {
+      tokenRecord = JSON.parse(await readFile(getTokenStorePath(options), 'utf8'));
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        throw new Error('cTrader OAuth tokens have not been stored yet; connect cTrader first');
+      }
+      throw error;
     }
-    throw error;
+  }
+
+  if (!tokenRecord) {
+    throw new Error('cTrader OAuth tokens have not been stored yet; connect cTrader first');
+  }
+
+  // Warm the cache (production only — test runs use isolated dataDirs).
+  if (_useCache) {
+    _cachedTokenRecord = tokenRecord;
   }
 
   if (tokenRecord.provider !== 'ctrader') {
@@ -1169,6 +1207,76 @@ function getTokenStorePath(options = {}) {
 
 function getRawDealsStorePath(options = {}) {
   return options.rawDealsStorePath || join(getDataDir(options), RAW_DEALS_FILE_NAME);
+}
+
+// Returns the parsed token record stored in the CTRADER_TOKEN_RECORD env var, or null.
+function loadTokenFromEnvVar(env = process.env) {
+  const raw = (env || process.env).CTRADER_TOKEN_RECORD;
+  if (!raw) {
+    return null;
+  }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    console.warn('[cTrader token] CTRADER_TOKEN_RECORD env var contains invalid JSON — ignoring');
+    return null;
+  }
+}
+
+// Upserts CTRADER_TOKEN_RECORD in the Render service env vars via the Render API.
+// Requires RENDER_API_KEY and RENDER_SERVICE_ID (Render injects SERVICE_ID automatically).
+// Silently skips if either var is absent (local dev).
+async function saveTokenToRenderEnvVar(tokenRecord, env = process.env, fetchImpl = fetch) {
+  const resolvedEnv = env || process.env;
+  const apiKey = resolvedEnv.RENDER_API_KEY;
+  const serviceId = resolvedEnv.RENDER_SERVICE_ID;
+
+  if (!apiKey || !serviceId) {
+    return;
+  }
+
+  const baseUrl = `https://api.render.com/v1/services/${serviceId}/env-vars`;
+  const headers = {
+    Authorization: `Bearer ${apiKey}`,
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+
+  // GET current env vars so we can merge without wiping others.
+  let currentVars = [];
+  try {
+    const getRes = await fetchImpl(baseUrl, { headers });
+    if (getRes.ok) {
+      const data = await getRes.json();
+      // Render wraps each entry: [{ cursor, envVar: { key, value } }, ...]
+      currentVars = (Array.isArray(data) ? data : [])
+        .map((item) => item.envVar || item)
+        .filter((v) => v?.key && v?.value != null);
+    } else {
+      console.warn('[cTrader token] Render GET env-vars returned', getRes.status);
+    }
+  } catch (error) {
+    console.warn('[cTrader token] Render GET env-vars failed:', error.message);
+  }
+
+  // Merge: replace CTRADER_TOKEN_RECORD if already present, otherwise append.
+  const merged = [
+    ...currentVars.filter((v) => v.key !== 'CTRADER_TOKEN_RECORD'),
+    { key: 'CTRADER_TOKEN_RECORD', value: JSON.stringify(tokenRecord) },
+  ];
+
+  const putRes = await fetchImpl(baseUrl, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(merged),
+  });
+
+  if (!putRes.ok) {
+    const errBody = await putRes.json().catch(() => ({}));
+    throw new Error(`Render env-vars PUT failed (${putRes.status}): ${errBody.message || JSON.stringify(errBody)}`);
+  }
+
+  console.log('[cTrader token] Token record persisted to Render env var CTRADER_TOKEN_RECORD');
 }
 
 function parseTimestampQuery(value, fallback) {
