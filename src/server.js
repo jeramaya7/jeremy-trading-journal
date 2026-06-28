@@ -20,6 +20,10 @@ const CTRADER_AUTHORIZE_URL = 'https://id.ctrader.com/my/settings/openapi/granti
 const CTRADER_TOKEN_URL = 'https://openapi.ctrader.com/apps/token';
 const STATE_COOKIE_NAME = 'ctrader_oauth_state';
 const STATE_TTL_MS = 10 * 60 * 1000;
+// In-memory guard: prevents exchanging the same auth code twice
+// (covers browser retries during Render cold-start wake-up).
+// Entries expire after STATE_TTL_MS so memory stays bounded.
+const redeemedStates = new Map(); // state -> expiresAt timestamp
 
 const contentTypes = {
   '.css': 'text/css; charset=utf-8',
@@ -176,7 +180,6 @@ export function verifySignedState(state, expectedEnvironment, secret, now = Date
 }
 
 export async function exchangeAuthorizationCode(config, code, fetchImpl = fetch) {
-  console.log('=== CTRADER TOKEN EXCHANGE START ===');
   const tokenUrl = new URL(CTRADER_TOKEN_URL);
   tokenUrl.searchParams.set('grant_type', 'authorization_code');
   tokenUrl.searchParams.set('code', code);
@@ -186,15 +189,9 @@ export async function exchangeAuthorizationCode(config, code, fetchImpl = fetch)
 
   const tokenResponse = await fetchImpl(tokenUrl, { method: 'GET' });
   const responseText = await tokenResponse.text();
-  console.log('[cTrader token exchange] status:', tokenResponse.status);
-  console.log('[cTrader token exchange] content-type:', tokenResponse.headers.get('content-type'));
-  console.log('[cTrader token exchange] retry-after:', tokenResponse.headers.get('retry-after'));
-  console.log('[cTrader token exchange] x-ratelimit-remaining:', tokenResponse.headers.get('x-ratelimit-remaining'));
-  console.log('[cTrader token exchange] redirect_uri sent:', config.redirectUri);
-  console.log('[cTrader token exchange] client_id sent:', config.clientId);
   if (!tokenResponse.headers.get('content-type')?.includes('application/json')) {
-    console.log('[cTrader token exchange] non-JSON body (first 300 chars):', responseText.slice(0, 300));
-    throw new Error(`cTrader token endpoint returned non-JSON (status ${tokenResponse.status}) — check redirect URI or rate limit`);
+    console.warn('[cTrader] Token endpoint returned non-JSON (status %d) — possible rate limit or redirect URI mismatch', tokenResponse.status);
+    throw new Error(`cTrader token endpoint returned status ${tokenResponse.status} — check app configuration`);
   }
   const responseBody = JSON.parse(responseText);
   if (!tokenResponse.ok) {
@@ -1008,6 +1005,27 @@ async function completeCtraderAuth(request, response, url, options = {}) {
     sendJson(response, 400, { error: 'Invalid or expired cTrader OAuth state' });
     return;
   }
+
+  // Guard: if this state was already redeemed (e.g. browser retry during cold start),
+  // skip the token exchange — tokens are already stored — and redirect as normal.
+  const now = Date.now();
+  // Purge expired entries to keep the Map bounded
+  for (const [s, exp] of redeemedStates) { if (exp <= now) redeemedStates.delete(s); }
+  if (redeemedStates.has(state)) {
+    console.warn('[cTrader] Duplicate OAuth callback detected — skipping token exchange');
+    const clearStateCookie = serializeCookie(STATE_COOKIE_NAME, '', {
+      httpOnly: true, maxAge: 0, sameSite: 'Lax',
+      secure: isSecureRequest(request), path: '/auth/ctrader',
+    });
+    if (statePayload.returnTo) {
+      response.writeHead(302, { Location: statePayload.returnTo, 'Set-Cookie': clearStateCookie });
+    } else {
+      response.writeHead(302, { Location: '/', 'Set-Cookie': clearStateCookie });
+    }
+    response.end();
+    return;
+  }
+  redeemedStates.set(state, now + STATE_TTL_MS);
 
   try {
     const tokens = await exchangeAuthorizationCode(config, code);
