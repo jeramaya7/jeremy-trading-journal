@@ -626,6 +626,12 @@ h2 {
   padding: 0.8rem 0.9rem;
   width: 100%;
 }
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--dna-gold);
+  outline-offset: 2px;
+}
+
 
 .field textarea {
   min-height: 132px;
@@ -791,10 +797,13 @@ h2 {
 .notes,
 .loss-reason,
 .empty-state {
-  color: #64748b;
+  color: #94a3b8;
+  font-size: 0.9rem;
   line-height: 1.6;
   margin: 0.25rem 0 0;
   overflow-wrap: anywhere;
+  padding: 1.5rem 1rem;
+  text-align: center;
 }
 
 .trade-time-meta {
@@ -802,7 +811,7 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem 0.65rem;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .trade-time-meta span {
