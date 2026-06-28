@@ -331,7 +331,7 @@ h2 {
   align-items: center;
   background: linear-gradient(135deg, #ffffff 0%, #fdfbf7 58%, #f9fbff 100%);
   border: 1px solid rgba(16, 26, 46, 0.1);
-  border-radius: 28px;
+  border-radius: 20px;
   box-shadow: 0 24px 70px rgba(16, 26, 46, 0.12);
   display: flex;
   gap: 1.5rem;
@@ -482,7 +482,7 @@ h2 {
     linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(234, 241, 255, 0.7));
   background-size: 32px 32px, 32px 32px, auto;
   border: 1px solid rgba(89, 112, 149, 0.14);
-  border-radius: 24px;
+  border-radius: 20px;
   min-height: clamp(220px, 22vw, 280px);
   overflow: hidden;
   padding: 0.75rem;
@@ -526,7 +526,7 @@ h2 {
 
 .stat-card,
 .report-card {
-  border-radius: 24px;
+  border-radius: 20px;
   container-type: inline-size;
   min-height: 8.5rem;
   min-width: 0;
@@ -590,7 +590,7 @@ h2 {
 }
 
 .panel {
-  border-radius: 28px;
+  border-radius: 20px;
   min-width: 0;
   padding: clamp(1.1rem, 2vw, 1.4rem);
 }
@@ -1748,7 +1748,7 @@ h2,
 .report-card:hover,
 .trade-card:hover {
   border-color: rgba(201, 148, 32, 0.42);
-  box-shadow: 0 24px 70px rgba(16, 26, 46, 0.14);
+  box-shadow: 0 12px 28px rgba(16, 26, 46, 0.10);
   transform: translateY(-2px);
 }
 
@@ -1833,8 +1833,8 @@ h2,
     radial-gradient(circle at 12% 0%, rgba(242, 210, 117, 0.18), transparent 32%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(244, 248, 255, 0.48));
   border: 1px solid rgba(201, 148, 32, 0.12);
-  border-radius: 36px;
-  box-shadow: 0 28px 80px rgba(16, 26, 46, 0.08);
+  border-radius: 24px;
+  box-shadow: 0 8px 24px rgba(16, 26, 46, 0.07);
   margin: clamp(1.6rem, 3vw, 2.5rem) 0;
   padding: clamp(1.25rem, 2.6vw, 2rem);
 }
@@ -1877,8 +1877,8 @@ h2,
     radial-gradient(circle at top right, rgba(201, 148, 32, 0.16), transparent 38%);
   border: 1px solid rgba(201, 148, 32, 0.11);
   border-top: 0;
-  border-radius: 30px;
-  box-shadow: 0 18px 42px rgba(16, 26, 46, 0.075), inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  border-radius: 20px;
+  box-shadow: 0 6px 18px rgba(16, 26, 46, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.92);
   min-height: 10.8rem;
   padding: clamp(1.25rem, 2vw, 1.65rem);
 }
@@ -1970,8 +1970,8 @@ h2,
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(250, 252, 255, 0.92));
   border: 1px solid rgba(148, 163, 184, 0.16);
-  border-radius: 30px;
-  box-shadow: 0 18px 48px rgba(16, 26, 46, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  border-radius: 20px;
+  box-shadow: 0 6px 18px rgba(16, 26, 46, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.9);
   padding: clamp(0.75rem, 1.35vw, 1.05rem);
 }
 
