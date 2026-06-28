@@ -2292,7 +2292,7 @@ h2,
 .hero-card {
   align-items: stretch;
   background: linear-gradient(150deg, #ffffff 0%, #fdfbf6 50%, #f5f8ff 100%);
-  border: 1px solid rgba(16, 26, 46, 0.08);
+  border: 1px solid rgba(201, 148, 32, 0.20);
   border-radius: 2rem;
   box-shadow:
     0 2px 0 rgba(255,255,255,0.95) inset,
