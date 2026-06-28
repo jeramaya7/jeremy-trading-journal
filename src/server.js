@@ -176,6 +176,7 @@ export function verifySignedState(state, expectedEnvironment, secret, now = Date
 }
 
 export async function exchangeAuthorizationCode(config, code, fetchImpl = fetch) {
+  console.log('=== CTRADER TOKEN EXCHANGE START ===');
   const tokenUrl = new URL(CTRADER_TOKEN_URL);
   tokenUrl.searchParams.set('grant_type', 'authorization_code');
   tokenUrl.searchParams.set('code', code);
