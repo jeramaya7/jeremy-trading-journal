@@ -2857,7 +2857,7 @@ function bindEvents() {
 
   document.querySelector('#toggleManualTrade')?.addEventListener('click', toggleManualTradeForm, { signal });
   document.querySelector('#shareDashboard')?.addEventListener('click', openShareDashboardView, { signal });
-  document.querySelector('#runDnaDoctor')?.addEventListener('click', async (, { signal }) => {
+  document.querySelector('#runDnaDoctor')?.addEventListener('click', async () => {
     // Preserve existing report during re-scan — never flash empty content
     dnaDoctorState = { status: 'loading', report: dnaDoctorState.report, error: null, dismissError: false };
     render();
@@ -2883,16 +2883,16 @@ function bindEvents() {
     render();
   });
 
-  document.querySelector('#dnaDoctorDismissError')?.addEventListener('click', (, { signal }) => {
+  document.querySelector('#dnaDoctorDismissError')?.addEventListener('click', () => {
     dnaDoctorState = { ...dnaDoctorState, dismissError: true };
     document.querySelector('#dnaDoctorErrorBanner')?.remove();
   });
 
-  document.querySelector('[data-session-notes-open]')?.addEventListener('click', (, { signal }) => {
+  document.querySelector('[data-session-notes-open]')?.addEventListener('click', () => {
     isSessionNotesModalOpen = true;
     render();
   });
-  document.querySelector('[data-session-notes-cancel]')?.addEventListener('click', (, { signal }) => {
+  document.querySelector('[data-session-notes-cancel]')?.addEventListener('click', () => {
     isSessionNotesModalOpen = false;
     render();
   });
@@ -2903,7 +2903,7 @@ function bindEvents() {
     render();
   });
   document.querySelectorAll('[data-page-mode]').forEach((button) => {
-    button.addEventListener('click', (, { signal }) => {
+    button.addEventListener('click', () => {
       setPageMode(button.dataset.pageMode);
       render();
     });
@@ -2925,16 +2925,16 @@ function bindEvents() {
   });
   document.querySelector('#autoSyncCTrader').addEventListener('change', changeCTraderAutoSyncSetting, { signal });
   document.querySelector('#cTraderAccountSelect')?.addEventListener('change', changeCTraderAccountSelection, { signal });
-  document.querySelector('#refreshCTraderAccounts')?.addEventListener('click', (, { signal }) => loadCTraderAccounts({ force: true }));
+  document.querySelector('#refreshCTraderAccounts')?.addEventListener('click', () => loadCTraderAccounts({ force: true }));
   document.querySelector('#connectCTrader')?.addEventListener('click', startCTraderOAuthFlow, { signal });
-  document.querySelector('#syncCTrader').addEventListener('click', (, { signal }) => syncCTrader({ source: 'manual' }));
+  document.querySelector('#syncCTrader').addEventListener('click', () => syncCTrader({ source: 'manual' }));
   document.querySelector('#deleteAllCTraderImports').addEventListener('click', deleteAllCTraderImports, { signal });
   document.querySelector('#exportTrades').addEventListener('click', exportTrades, { signal });
-  document.querySelector('#storageWarnExport')?.addEventListener('click', (, { signal }) => { exportTrades(); dismissStorageWarning(); });
+  document.querySelector('#storageWarnExport')?.addEventListener('click', () => { exportTrades(); dismissStorageWarning(); });
   document.querySelector('#storageWarnDismiss')?.addEventListener('click', dismissStorageWarning, { signal });
   document.querySelector('#importTrades').addEventListener('change', importTrades, { signal });
   document.querySelectorAll('[data-setup-sort-key]').forEach((button) => {
-    button.addEventListener('click', (, { signal }) => {
+    button.addEventListener('click', () => {
       setupAnalyticsSort = {
         key: button.dataset.setupSortKey,
         direction: button.dataset.setupSortDirection,
@@ -2943,27 +2943,27 @@ function bindEvents() {
     });
   });
   document.querySelectorAll('[data-asset-filter]').forEach((button) => {
-    button.addEventListener('click', (, { signal }) => {
+    button.addEventListener('click', () => {
       selectedAssetFilter = selectedAssetFilter === button.dataset.assetFilter ? '' : button.dataset.assetFilter;
       render();
       document.querySelector('.journal-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   });
   document.querySelectorAll('[data-calendar-date]').forEach((button) => {
-    button.addEventListener('click', (, { signal }) => openCalendarDayReview(button.dataset.calendarDate));
+    button.addEventListener('click', () => openCalendarDayReview(button.dataset.calendarDate));
   });
   document.querySelector('[data-calendar-review-close]')?.addEventListener('click', closeCalendarDayReview, { signal });
   document.querySelector('[data-calendar-review-open-journal]')?.addEventListener('click', (event, { signal }) => {
     openJournalForCalendarDate(event.currentTarget.dataset.calendarReviewOpenJournal);
   });
   document.querySelectorAll('[data-calendar-display-mode]').forEach((button) => {
-    button.addEventListener('click', (, { signal }) => {
+    button.addEventListener('click', () => {
       setMonthlyCalendarDisplayMode(button.dataset.calendarDisplayMode);
       render();
     });
   });
   document.querySelectorAll('[data-calendar-month]').forEach((button) => {
-    button.addEventListener('click', (, { signal }) => {
+    button.addEventListener('click', () => {
       if (button.disabled) {
         return;
       }
@@ -2976,7 +2976,7 @@ function bindEvents() {
     });
   });
   document.querySelectorAll('[data-dna-timeframe]').forEach((button) => {
-    button.addEventListener('click', (, { signal }) => {
+    button.addEventListener('click', () => {
       setDnaResultsTimeframe(button.dataset.dnaTimeframe);
       render();
     });
