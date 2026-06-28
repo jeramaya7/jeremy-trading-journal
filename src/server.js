@@ -187,10 +187,13 @@ export async function exchangeAuthorizationCode(config, code, fetchImpl = fetch)
   const responseText = await tokenResponse.text();
   console.log('[cTrader token exchange] status:', tokenResponse.status);
   console.log('[cTrader token exchange] content-type:', tokenResponse.headers.get('content-type'));
+  console.log('[cTrader token exchange] retry-after:', tokenResponse.headers.get('retry-after'));
+  console.log('[cTrader token exchange] x-ratelimit-remaining:', tokenResponse.headers.get('x-ratelimit-remaining'));
   console.log('[cTrader token exchange] redirect_uri sent:', config.redirectUri);
+  console.log('[cTrader token exchange] client_id sent:', config.clientId);
   if (!tokenResponse.headers.get('content-type')?.includes('application/json')) {
     console.log('[cTrader token exchange] non-JSON body (first 300 chars):', responseText.slice(0, 300));
-    throw new Error(`cTrader token endpoint returned non-JSON (status ${tokenResponse.status}) — check redirect URI configuration`);
+    throw new Error(`cTrader token endpoint returned non-JSON (status ${tokenResponse.status}) — check redirect URI or rate limit`);
   }
   const responseBody = JSON.parse(responseText);
   if (!tokenResponse.ok) {
