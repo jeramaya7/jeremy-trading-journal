@@ -499,10 +499,6 @@ h2 {
   stroke-dasharray: 6 6;
 }
 
-.equity-curve-fill {
-  fill: url(#equityFill);
-}
-
 .equity-curve-line {
   filter: drop-shadow(0 4px 8px rgba(201, 148, 32, 0.18));
   stroke: var(--dna-gold);
