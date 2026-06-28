@@ -2291,7 +2291,7 @@ h2,
 /* ── Card shell ── */
 .hero-card {
   align-items: stretch;
-  background: linear-gradient(150deg, #ffffff 0%, #fdfbf6 50%, #f5f8ff 100%);
+  background: #ffffff;
   border: 1px solid rgba(201, 148, 32, 0.20);
   border-radius: 2rem;
   box-shadow:
@@ -2306,9 +2306,9 @@ h2,
   position: relative;
 }
 
-/* Subtle warm glow behind logo */
+/* Subtle warm glow behind logo only */
 .hero-card::before {
-  background: radial-gradient(ellipse at 15% 30%, rgba(201, 148, 32, 0.09), transparent 60%);
+  background: radial-gradient(ellipse at 18% 35%, rgba(201, 148, 32, 0.07), transparent 45%);
   content: "";
   inset: 0;
   pointer-events: none;
