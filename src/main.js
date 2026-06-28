@@ -192,7 +192,13 @@ function loadTrades() {
     return starterTrades;
   }
 
-  const parsedTrades = JSON.parse(savedTrades);
+  let parsedTrades;
+  try {
+    parsedTrades = JSON.parse(savedTrades);
+  } catch {
+    console.error('[DNA] localStorage trade data is corrupted and could not be parsed. Falling back to starter trades.');
+    return starterTrades;
+  }
   if (!Array.isArray(parsedTrades)) {
     return starterTrades;
   }
