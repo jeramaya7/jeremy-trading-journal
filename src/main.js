@@ -2180,7 +2180,14 @@ function renderEquityCurveCard(tradeList = trades) {
         <div class="equity-curve-chart" role="img" aria-label="${escapeHtml(selectedTimeframeLabel)} cumulative equity curve ending at ${escapeHtml(currency(endingPnl))}">
           ${equityCurve.length ? `
             <svg viewBox="0 0 ${chartWidth} ${chartHeight}" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="equityFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="rgba(201,148,32,0.18)"/>
+                  <stop offset="100%" stop-color="rgba(201,148,32,0)"/>
+                </linearGradient>
+              </defs>
               <line class="equity-zero-line" x1="${chartPadding}" y1="${zeroY.toFixed(2)}" x2="${chartWidth - chartPadding}" y2="${zeroY.toFixed(2)}"></line>
+              <polygon class="equity-curve-fill" points="${points} ${(chartWidth - chartPadding).toFixed(2)},${zeroY.toFixed(2)} ${chartPadding},${zeroY.toFixed(2)}"></polygon>
               <polyline class="equity-curve-line" points="${points}"></polyline>
             </svg>
           ` : '<p class="empty-state">Import or log closed trades to build your equity curve.</p>'}
