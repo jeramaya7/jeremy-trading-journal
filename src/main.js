@@ -3839,6 +3839,13 @@ function importTrades(event) {
         window.alert('Import failed: this does not look like a DNA journal export. Please choose a JSON file exported from DNA.');
         return;
       }
+      const existingCount = trades.length;
+      const confirmed = window.confirm(
+        `Import ${importedTrades.length} trade${importedTrades.length === 1 ? '' : 's'} from "${file.name}"?\n\nThis will replace your current ${existingCount} trade${existingCount === 1 ? '' : 's'}. This cannot be undone.`,
+      );
+      if (!confirmed) {
+        return;
+      }
       persistTrades(importedTrades);
     } catch (error) {
       window.alert(`Import failed: the file could not be read as JSON. ${error.message}`);
