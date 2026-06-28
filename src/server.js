@@ -184,7 +184,15 @@ export async function exchangeAuthorizationCode(config, code, fetchImpl = fetch)
   tokenUrl.searchParams.set('client_secret', config.clientSecret);
 
   const tokenResponse = await fetchImpl(tokenUrl, { method: 'GET' });
-  const responseBody = await tokenResponse.json();
+  const responseText = await tokenResponse.text();
+  console.log('[cTrader token exchange] status:', tokenResponse.status);
+  console.log('[cTrader token exchange] content-type:', tokenResponse.headers.get('content-type'));
+  console.log('[cTrader token exchange] redirect_uri sent:', config.redirectUri);
+  if (!tokenResponse.headers.get('content-type')?.includes('application/json')) {
+    console.log('[cTrader token exchange] non-JSON body (first 300 chars):', responseText.slice(0, 300));
+    throw new Error(`cTrader token endpoint returned non-JSON (status ${tokenResponse.status}) — check redirect URI configuration`);
+  }
+  const responseBody = JSON.parse(responseText);
   if (!tokenResponse.ok) {
     throw new Error(responseBody.error_description || responseBody.error || 'cTrader token exchange failed');
   }
