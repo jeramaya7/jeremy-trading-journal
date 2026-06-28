@@ -1354,8 +1354,8 @@ h2 {
 
 .setup-analytics-table th,
 .setup-analytics-table td {
-  border-bottom: 1px solid #d8e1ee;
-  padding: 0.85rem 0.75rem;
+  border-bottom: 1px solid rgba(16, 26, 46, 0.08);
+  padding: 0.65rem 0.75rem;
   text-align: right;
   white-space: nowrap;
 }
@@ -1368,6 +1368,10 @@ h2 {
 
 .setup-analytics-table tbody tr:last-child td {
   border-bottom: 0;
+}
+
+.setup-analytics-table tbody tr:hover td {
+  background: rgba(16, 26, 46, 0.03);
 }
 
 .setup-analytics-table td {
@@ -1431,7 +1435,7 @@ h2 {
 .monthly-calendar-weekday {
   color: var(--dna-gold);
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
