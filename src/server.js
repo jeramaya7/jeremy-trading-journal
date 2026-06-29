@@ -199,6 +199,15 @@ export async function exchangeAuthorizationCode(config, code, fetchImpl = fetch)
   }
   const responseBody = JSON.parse(responseText);
   if (!tokenResponse.ok) {
+    const maskedUrl = new URL(tokenUrl.toString());
+    maskedUrl.searchParams.set('client_secret', '[REDACTED]');
+    maskedUrl.searchParams.set('code', '[REDACTED]');
+    console.warn('[cTrader] Token exchange error — status: %d %s, url: %s, body: %s',
+      tokenResponse.status,
+      tokenResponse.statusText,
+      maskedUrl.toString(),
+      JSON.stringify(responseBody)
+    );
     throw new Error(
       responseBody.errorCode ||
       responseBody.description ||
