@@ -199,7 +199,13 @@ export async function exchangeAuthorizationCode(config, code, fetchImpl = fetch)
   }
   const responseBody = JSON.parse(responseText);
   if (!tokenResponse.ok) {
-    throw new Error(responseBody.error_description || responseBody.error || 'cTrader token exchange failed');
+    throw new Error(
+      responseBody.errorCode ||
+      responseBody.description ||
+      responseBody.error_description ||
+      responseBody.error ||
+      `cTrader token exchange failed (HTTP ${tokenResponse.status})`
+    );
   }
 
   return normalizeTokenResponse(responseBody);
