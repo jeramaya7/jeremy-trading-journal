@@ -411,6 +411,8 @@ h2 {
 }
 
 .trading-today-kpi-strip {
+  gap: clamp(0.65rem, 1vw, 0.9rem);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   margin: -0.25rem 0 0.7rem;
 }
 
