@@ -167,6 +167,19 @@ const CLOSE_REASON_OPTIONS = [
   'Trailed Stop',
   'Trend Change',
 ];
+const MARKET_STATE_OPTIONS = [
+  'Choppy',
+  'Consolidating',
+  'Flat & Narrow',
+  'Trending Down',
+  'Trending Up',
+  'Wide State',
+];
+const POSITION_TYPE_OPTIONS = [
+  'Position 1',
+  'Position 2',
+  'Position 3',
+];
 
 const app = document.querySelector('#root');
 
@@ -2312,6 +2325,8 @@ function tradeCard(trade) {
   ], 'risk-management-panel');
   const journalPanel = tradePanel('Journal', [
     tradeMetric('Setup', trade.setup),
+    tradeMetric('State', trade.state),
+    tradeMetric('Position', trade.position),
     tradeMetric('Close Reason', trade.closeReason),
     tradeMetric('Loss Reason', trade.lossReason),
     tradeMetric('Tags', trade.tags),
@@ -2457,6 +2472,26 @@ function renderCloseReasonSelect(trade) {
   `;
 }
 
+function renderMarketStateSelect(trade) {
+  const current = String(trade.state || '').trim();
+  return `
+    <select name="state" aria-label="Market State">
+      <option value="">No state</option>
+      ${MARKET_STATE_OPTIONS.map((option) => renderSelectOption(option, current)).join('')}
+    </select>
+  `;
+}
+
+function renderPositionTypeSelect(trade) {
+  const current = String(trade.position || '').trim();
+  return `
+    <select name="position" aria-label="Position Type">
+      <option value="">No position type</option>
+      ${POSITION_TYPE_OPTIONS.map((option) => renderSelectOption(option, current)).join('')}
+    </select>
+  `;
+}
+
 function getSetupFormValue(formData) {
   const setupChoice = String(formData.get('setupChoice') || '').trim();
   if (setupChoice === CUSTOM_SETUP_OPTION) {
@@ -2473,6 +2508,9 @@ function editTradeForm(trade) {
     : '';
   return `
       <form class="edit-trade-form" data-edit-trade-form="${escapeHtml(trade.id)}">
+        <div class="edit-mode-banner" aria-label="Edit mode active">
+          ${icon('edit')} Editing Trade
+        </div>
         <div class="edit-form-row edit-price-row" aria-label="Trade prices">
           ${field('Entry Price', `<input name="entry" type="number" value="${escapeHtml(trade.entry)}" readonly />`)}
           ${field('Exit Price', `<input name="exit" type="number" value="${escapeHtml(trade.exit)}" readonly />`)}
@@ -2484,9 +2522,13 @@ function editTradeForm(trade) {
           ${field('Final Take Profit', `<input name="adjustedTakeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedTakeProfit ?? '')}" placeholder="Optional" />`)}
         </div>
         <div class="edit-form-row edit-classification-row" aria-label="Trade classification">
-          ${field('Setup', renderPlayBookSetupSelect(trade))}
           ${field('Close Reason', renderCloseReasonSelect(trade))}
           ${field('Loss Reason', renderLossReasonSelect(trade))}
+        </div>
+        <div class="edit-form-row edit-journal-row" aria-label="Journal context">
+          ${field('Setup', renderPlayBookSetupSelect(trade))}
+          ${field('State', renderMarketStateSelect(trade))}
+          ${field('Position', renderPositionTypeSelect(trade))}
         </div>
         <div class="edit-form-row edit-tags-row">
           ${field('Tags', `<input name="tags" value="${escapeHtml(trade.tags)}" placeholder="gap, reversal, A+" />`)}
@@ -3152,6 +3194,8 @@ async function submitTradeEdit(event) {
     setup: getSetupFormValue(formData),
     lossReason: String(formData.get('lossReason')).trim(),
     closeReason,
+    state: String(formData.get('state')).trim(),
+    position: String(formData.get('position')).trim(),
     tags: String(formData.get('tags')).trim(),
     notes: String(formData.get('notes')).trim(),
     adjustedStopLoss,

@@ -1176,13 +1176,28 @@ a:focus-visible {
 }
 
 .edit-trade-form {
-  background: #f8fafc;
-  border: 1px solid #d8e1ee;
+  background: rgba(201, 148, 32, 0.04);
+  border: 1.5px solid rgba(201, 148, 32, 0.30);
+  border-top: 3px solid var(--dna-gold);
   border-radius: 16px;
   display: grid;
   gap: 0.75rem;
   margin-top: 0.9rem;
   padding: 0.9rem;
+}
+
+.edit-mode-banner {
+  align-items: center;
+  background: rgba(201, 148, 32, 0.12);
+  border-radius: 10px;
+  color: var(--dna-gold);
+  display: flex;
+  font-size: 0.82rem;
+  font-weight: 800;
+  gap: 0.45rem;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 0.75rem;
+  text-transform: uppercase;
 }
 
 .edit-form-row {
@@ -1200,6 +1215,10 @@ a:focus-visible {
 }
 
 .edit-classification-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.edit-journal-row {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
@@ -1264,7 +1283,7 @@ a:focus-visible {
 @media (max-width: 980px) {
   .edit-price-row,
   .edit-take-profit-row,
-  .edit-classification-row {
+  .edit-journal-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1272,7 +1291,8 @@ a:focus-visible {
 @media (max-width: 620px) {
   .edit-price-row,
   .edit-take-profit-row,
-  .edit-classification-row {
+  .edit-classification-row,
+  .edit-journal-row {
     grid-template-columns: 1fr;
   }
 
