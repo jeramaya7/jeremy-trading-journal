@@ -191,7 +191,7 @@ export async function exchangeAuthorizationCode(config, code, fetchImpl = fetch)
   tokenUrl.searchParams.set('client_id', config.clientId);
   tokenUrl.searchParams.set('client_secret', config.clientSecret);
 
-  const tokenResponse = await fetchImpl(tokenUrl, { method: 'GET' });
+  const tokenResponse = await fetchImpl(tokenUrl, { method: 'GET', headers: { 'Accept': 'application/json' } });
   const responseText = await tokenResponse.text();
   if (!tokenResponse.headers.get('content-type')?.includes('application/json')) {
     console.warn('[cTrader] Token endpoint returned non-JSON (status %d) — possible rate limit or redirect URI mismatch', tokenResponse.status);
@@ -306,7 +306,7 @@ async function refreshCtraderTokens(config, refreshToken, options = {}, fetchImp
   tokenUrl.searchParams.set('client_id', config.clientId);
   tokenUrl.searchParams.set('client_secret', config.clientSecret);
 
-  const tokenResponse = await fetchImpl(tokenUrl, { method: 'GET' });
+  const tokenResponse = await fetchImpl(tokenUrl, { method: 'POST', headers: { 'Accept': 'application/json' } });
   const responseBody = await tokenResponse.json();
   if (!tokenResponse.ok) {
     throw new Error(responseBody.error_description || responseBody.error || 'cTrader token refresh failed');
