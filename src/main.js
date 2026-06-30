@@ -168,17 +168,23 @@ const CLOSE_REASON_OPTIONS = [
   'Trend Change',
 ];
 const MARKET_STATE_OPTIONS = [
-  'Choppy',
-  'Consolidating',
-  'Flat & Narrow',
-  'Trending Down',
-  'Trending Up',
-  'Wide State',
+  'Narrow',
+  'Trending',
+  'Wide',
 ];
+const LEGACY_MARKET_STATE_MAP = {
+  'Choppy': 'Narrow',
+  'Consolidating': 'Narrow',
+  'Flat & Narrow': 'Narrow',
+  'Trending Down': 'Trending',
+  'Trending Up': 'Trending',
+  'Wide State': 'Wide',
+};
 const POSITION_TYPE_OPTIONS = [
   'Position 1',
   'Position 2',
   'Position 3',
+  'Position 4',
 ];
 
 const app = document.querySelector('#root');
@@ -2368,7 +2374,7 @@ function tradeCard(trade) {
    * ${trade.closeReason ? `<p class="close-reason"><strong>Close Reason:</strong> ${escapeHtml(trade.closeReason)}</p>` : ''}
    */
   return `
-    <article class="trade-card" data-trade-card="${escapeHtml(trade.id)}">
+    <article class="trade-card${isEditing ? ' trade-card--editing' : ''}" data-trade-card="${escapeHtml(trade.id)}">
       <div class="trade-card-header">
         <div class="trade-card-heading">
           <div class="trade-title-row">
@@ -2472,8 +2478,13 @@ function renderCloseReasonSelect(trade) {
   `;
 }
 
+function normalizeMarketState(raw) {
+  const trimmed = String(raw || '').trim();
+  return LEGACY_MARKET_STATE_MAP[trimmed] ?? trimmed;
+}
+
 function renderMarketStateSelect(trade) {
-  const current = String(trade.state || '').trim();
+  const current = normalizeMarketState(trade.state);
   return `
     <select name="state" aria-label="Market State">
       <option value="">No state</option>
@@ -2509,7 +2520,7 @@ function editTradeForm(trade) {
   return `
       <form class="edit-trade-form" data-edit-trade-form="${escapeHtml(trade.id)}">
         <div class="edit-mode-banner" aria-label="Edit mode active">
-          ${icon('edit')} Editing Trade
+          ✏️ EDIT MODE
         </div>
         <div class="edit-form-row edit-price-row" aria-label="Trade prices">
           ${field('Entry Price', `<input name="entry" type="number" value="${escapeHtml(trade.entry)}" readonly />`)}
