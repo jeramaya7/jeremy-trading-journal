@@ -2652,7 +2652,7 @@ function render(options = {}) {
     },
   ];
   const filteredTrades = getFilteredTrades();
-  const monthlyTradingCalendarSection = renderMonthlyTradingCalendar(monthlyCalendarDate, dnaResultsTrades);
+  const monthlyTradingCalendarSection = renderMonthlyTradingCalendar(monthlyCalendarDate, trades);
   const setupAnalyticsSection = renderSetupAnalytics(dnaResultsTrades);
   const assetAnalyticsSection = renderAssetAnalytics(dnaResultsTrades);
   const timeOfDayAnalyticsSection = renderTimeOfDayAnalytics(dnaResultsTrades);
