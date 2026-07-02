@@ -42,7 +42,7 @@ test('dashboard renders one shared DNA timeframe toggle that drives dashboard se
   assert.ok(source.includes('${renderDnaResultsTimeframeToggle()}'), 'The timeframe toggle should render visibly in the dashboard.');
   assert.ok(source.indexOf('${renderDnaResultsTimeframeToggle()}') < source.indexOf('${renderHeroStatsRow(stats)}'), 'The timeframe toggle should render above the KPI row.');
   assert.ok(source.includes('${renderEquityCurveCard(dnaResultsTrades)}'), 'Equity curve should use the shared DNA-filtered trades.');
-  assert.ok(source.includes('renderMonthlyTradingCalendar(monthlyCalendarDate, dnaResultsTrades)'), 'Calendar summary should use the shared DNA-filtered trades.');
+  assert.ok(source.includes('renderMonthlyTradingCalendar(monthlyCalendarDate, trades)'), 'Calendar should use all trades so daily P/L shows regardless of the DNA timeframe selector.');
   assert.ok(source.includes('renderSetupAnalytics(dnaResultsTrades)'), 'Setup Analytics should use the shared DNA-filtered trades.');
   assert.equal(source.includes('[data-equity-period]'), false, 'Old independent equity curve period controls should be removed.');
 });
