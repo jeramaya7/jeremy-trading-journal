@@ -2408,6 +2408,7 @@ function tradeCard(trade) {
         ].filter(v => v && String(v).trim()).map(v => `<span class="tc-pill">${escapeHtml(String(v))}</span>`).join('')}
       </div>
       ${[
+        trade.setup,
         trade.state ? normalizeMarketState(trade.state) : '',
         trade.position,
         trade.closeReason,
@@ -2418,6 +2419,7 @@ function tradeCard(trade) {
         <span class="tc-analysis-label">Analysis</span>
         <div class="tc-analysis-pills">
           ${[
+            trade.setup,
             trade.state ? normalizeMarketState(trade.state) : '',
             trade.position,
             trade.closeReason,
