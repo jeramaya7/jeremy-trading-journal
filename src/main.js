@@ -164,6 +164,7 @@ const CLOSE_REASON_OPTIONS = [
   'Secured Profit Early',
   'Stop Loss',
   'Take Profit',
+  'TLB Exit — Trend Line Break',
   'Trailed Stop',
   'Trend Change',
 ];
@@ -2333,7 +2334,7 @@ function tradeCard(trade) {
     tradeMetric('Setup', trade.setup),
     tradeMetric('State', trade.state),
     tradeMetric('Position', trade.position),
-    tradeMetric('Close Reason', trade.closeReason),
+    tradeMetric('Exit Reason', trade.closeReason),
     tradeMetric('Loss Reason', trade.lossReason),
     tradeMetric('Tags', trade.tags),
   ], 'journal-panel');
@@ -2516,7 +2517,7 @@ function renderLossReasonSelect(trade) {
 function renderCloseReasonSelect(trade) {
   const currentCloseReason = String(trade.closeReason || '').trim();
   return `
-    <select name="closeReason" aria-label="Close Reason">
+    <select name="closeReason" aria-label="Exit Reason">
       <option value="">No close reason</option>
       ${CLOSE_REASON_OPTIONS.map((option) => renderSelectOption(option, currentCloseReason)).join('')}
     </select>
@@ -2577,14 +2578,14 @@ function editTradeForm(trade) {
           ${field('Initial Take Profit', `<input name="takeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.takeProfit ?? '')}" placeholder="Optional" />`)}
           ${field('Final Take Profit', `<input name="adjustedTakeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedTakeProfit ?? '')}" placeholder="Optional" />`)}
         </div>
-        <div class="edit-form-row edit-classification-row" aria-label="Trade classification">
-          ${field('Close Reason', renderCloseReasonSelect(trade))}
-          ${field('Loss Reason', renderLossReasonSelect(trade))}
-        </div>
         <div class="edit-form-row edit-journal-row" aria-label="Journal context">
           ${field('Setup', renderPlayBookSetupSelect(trade))}
           ${field('State', renderMarketStateSelect(trade))}
           ${field('Position', renderPositionTypeSelect(trade))}
+        </div>
+        <div class="edit-form-row edit-classification-row" aria-label="Trade classification">
+          ${field('Exit Reason', renderCloseReasonSelect(trade))}
+          ${field('Loss Reason', renderLossReasonSelect(trade))}
         </div>
         <div class="edit-form-row edit-tags-row">
           ${field('Tags', `<input name="tags" value="${escapeHtml(trade.tags)}" placeholder="gap, reversal, A+" />`)}
