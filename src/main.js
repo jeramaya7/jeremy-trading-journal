@@ -2373,32 +2373,63 @@ function tradeCard(trade) {
    * ${trade.lossReason ? `<p class="loss-reason"><strong>Loss Reason:</strong> ${escapeHtml(trade.lossReason)}</p>` : ''}
    * ${trade.closeReason ? `<p class="close-reason"><strong>Close Reason:</strong> ${escapeHtml(trade.closeReason)}</p>` : ''}
    */
+  const dirLabel = String(trade.direction || '');
+  const dirClass = dirLabel.toLowerCase();
+  const dirArrow = dirClass === 'short' ? '▼' : '▲';
   return `
     <article class="trade-card${isEditing ? ' trade-card--editing' : ''}" data-trade-card="${escapeHtml(trade.id)}">
-      <div class="trade-card-header">
-        <div class="trade-card-heading">
-          <div class="trade-title-row">
-            <div class="trade-title-content">
-              <p class="trade-symbol">${escapeHtml(displaySymbol)}</p>
-              <div class="trade-header-badges">
-                ${tradeBadge('Setup', setupName, 'setup')}
-                ${tradeBadge('Direction', trade.direction, String(trade.direction || '').toLowerCase())}
-                ${tradeBadge('Timeframe', trade.timeframe || tradeDuration, 'timeframe')}
-              </div>
-            </div>
-            <strong class="trade-pnl-badge ${tone}" aria-label="P&L ${currency(pnl)}">${currency(pnl)}</strong>
-          </div>
+      <div class="tc-hero">
+        <div class="tc-hero-left">
+          <span class="tc-direction ${dirClass}">${dirArrow} ${escapeHtml(dirLabel || 'Long')}</span>
+          <p class="trade-symbol">${escapeHtml(displaySymbol)}</p>
+          ${setupName ? `<span class="tc-setup">${escapeHtml(setupName)}</span>` : ''}
         </div>
+        <strong class="trade-pnl-badge ${tone}" aria-label="P&L ${currency(pnl)}">${currency(pnl)}</strong>
       </div>
-      <dl class="trade-summary-strip">${summaryStrip}
-      </dl>
-      <div class="trade-panel-grid">
-        ${riskPanel}
-        ${journalPanel}
-        ${detailsPanel}
-        ${sourcePanel}
+      <div class="tc-metrics">
+        <div class="tc-mc"><span class="tc-ml">Entry</span><span class="tc-mv">${formatOptionalCurrency(trade.entry) || '—'}</span></div>
+        <div class="tc-md" aria-hidden="true"></div>
+        <div class="tc-mc"><span class="tc-ml">Stop</span><span class="tc-mv">${activeStopLoss !== null ? currency(activeStopLoss) : (stopLoss !== null ? currency(stopLoss) : '—')}</span></div>
+        <div class="tc-md" aria-hidden="true"></div>
+        <div class="tc-mc"><span class="tc-ml">Exit</span><span class="tc-mv">${formatOptionalCurrency(trade.exit) || '—'}</span></div>
+        <div class="tc-md" aria-hidden="true"></div>
+        <div class="tc-mc"><span class="tc-ml">R</span><span class="tc-mv ${rTone}">${rMultiple !== null ? formatRMultiple(rMultiple) : '—'}</span></div>
+        <div class="tc-md" aria-hidden="true"></div>
+        <div class="tc-mc"><span class="tc-ml">Risk $</span><span class="tc-mv">${riskDollars !== null ? currency(riskDollars) : '—'}</span></div>
+        <div class="tc-md" aria-hidden="true"></div>
+        <div class="tc-mc"><span class="tc-ml">Risk %</span><span class="tc-mv">${riskPercent !== null ? formatRiskPercent(riskPercent) : '—'}</span></div>
       </div>
-      ${isEditing ? editTradeForm(trade) : tradeJournalDetails(trade)}
+      <div class="tc-meta">
+        ${[
+          isImported ? openedTime : tradeTime,
+          tradeDuration,
+          trade.timeframe,
+          trade.state ? normalizeMarketState(trade.state) : '',
+          trade.position,
+          trade.size,
+          trade.closeReason,
+          trade.lossReason,
+          trade.tags,
+        ].filter(v => v && String(v).trim()).map(v => `<span class="tc-pill">${escapeHtml(String(v))}</span>`).join('')}
+      </div>
+      ${trade.notes && !isEditing ? `<p class="tc-notes">${escapeHtml(trade.notes)}</p>` : ''}
+      ${!isEditing ? `
+      <details class="tc-expander">
+        <summary class="tc-expander-summary">Risk, journal &amp; details</summary>
+        <div class="tc-expander-body">
+          <div class="trade-panel-grid">
+            ${riskPanel}
+            ${journalPanel}
+            ${detailsPanel}
+            ${sourcePanel}
+          </div>
+          ${trade.screenshot?.dataUrl ? `
+          <details class="edit-collapsible journal-detail-section">
+            <summary>${icon('image')} Screenshot Attachment</summary>
+            ${screenshotPreview(trade)}
+          </details>` : ''}
+        </div>
+      </details>` : editTradeForm(trade)}
       ${!isEditing ? `
         <div class="trade-card-actions">
           <button class="edit-button" type="button" data-edit-trade="${escapeHtml(trade.id)}" aria-label="Edit journaling fields for ${escapeHtml(displaySymbol)} trade">${icon('edit')} Edit</button>
