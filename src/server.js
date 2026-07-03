@@ -15,7 +15,6 @@ const ROOT_DIR = join(fileURLToPath(new URL('..', import.meta.url)));
 const DEFAULT_RECENT_DEALS_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
 const DEFAULT_DEALS_MAX_ROWS = 100;
 const RAW_DEALS_FILE_NAME = 'ctrader-raw-deals.json';
-const JOURNAL_ANNOTATIONS_FILE_NAME = 'journal-annotations.json';
 const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'position', 'tradeManagement', 'closeReason', 'lossReason', 'tags', 'notes'];
 const CTRADER_DEBUG_POSITION_ID = '543914821';
 const CTRADER_AUTHORIZE_URL = 'https://id.ctrader.com/my/settings/openapi/grantingaccess/';
@@ -836,39 +835,97 @@ export async function storeRawCtraderDeals(dealsResult, options = {}) {
   return storedPayload;
 }
 
-// Loads the journal annotations store from disk. Missing file, missing data
-// directory, or corrupt/non-object JSON all resolve to an empty store rather
-// than throwing — an unreadable store must never crash the server.
-async function loadJournalAnnotations(options = {}) {
-  const storePath = getJournalAnnotationsStorePath(options);
-  try {
-    const raw = await readFile(storePath, 'utf8');
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      return parsed;
+function getSupabaseConfig(env = process.env) {
+  const url = env.SUPABASE_URL;
+  const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY;
+  const missing = [];
+  if (!url) missing.push('SUPABASE_URL');
+  if (!serviceRoleKey) missing.push('SUPABASE_SERVICE_ROLE_KEY');
+  if (missing.length) {
+    return { ok: false, missing };
+  }
+  return { ok: true, url: url.replace(/\/+$/, ''), serviceRoleKey };
+}
+
+function supabaseHeaders(config, extra = {}) {
+  return {
+    apikey: config.serviceRoleKey,
+    Authorization: `Bearer ${config.serviceRoleKey}`,
+    'Content-Type': 'application/json',
+    ...extra,
+  };
+}
+
+// Loads every saved annotation from the journal_annotations table, keyed by
+// trade_id. A row with a missing/non-object `data` column is skipped rather
+// than allowed to corrupt the response.
+async function loadJournalAnnotations(config, fetchImpl = fetch) {
+  const response = await fetchImpl(`${config.url}/rest/v1/journal_annotations?select=trade_id,data`, {
+    method: 'GET',
+    headers: supabaseHeaders(config),
+  });
+  if (!response.ok) {
+    const bodyText = await response.text().catch(() => '');
+    throw new Error(`Supabase read failed (HTTP ${response.status}): ${bodyText || response.statusText}`);
+  }
+  const rows = await response.json();
+  const store = {};
+  if (Array.isArray(rows)) {
+    for (const row of rows) {
+      if (row && typeof row.trade_id === 'string' && row.data && typeof row.data === 'object') {
+        store[row.trade_id] = row.data;
+      }
     }
-    console.warn('[journal annotations] Store file did not contain a JSON object — treating as empty');
-    return {};
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      return {};
-    }
-    console.warn('[journal annotations] Failed to read store (non-fatal):', error.message);
-    return {};
+  }
+  return store;
+}
+
+// Loads the saved annotation fields for a single trade, or {} if the trade
+// has no row yet.
+async function loadJournalAnnotationRow(config, tradeId, fetchImpl = fetch) {
+  const response = await fetchImpl(
+    `${config.url}/rest/v1/journal_annotations?trade_id=eq.${encodeURIComponent(tradeId)}&select=data&limit=1`,
+    { method: 'GET', headers: supabaseHeaders(config) },
+  );
+  if (!response.ok) {
+    const bodyText = await response.text().catch(() => '');
+    throw new Error(`Supabase read failed (HTTP ${response.status}): ${bodyText || response.statusText}`);
+  }
+  const rows = await response.json();
+  if (Array.isArray(rows) && rows[0] && rows[0].data && typeof rows[0].data === 'object') {
+    return rows[0].data;
+  }
+  return {};
+}
+
+// Upserts one trade's annotation row. `resolution=merge-duplicates` makes
+// this an insert-or-update keyed on the table's trade_id primary key.
+async function upsertJournalAnnotation(config, tradeId, data, fetchImpl = fetch) {
+  const response = await fetchImpl(`${config.url}/rest/v1/journal_annotations`, {
+    method: 'POST',
+    headers: supabaseHeaders(config, { Prefer: 'resolution=merge-duplicates,return=representation' }),
+    body: JSON.stringify([{ trade_id: tradeId, data }]),
+  });
+  if (!response.ok) {
+    const bodyText = await response.text().catch(() => '');
+    throw new Error(`Supabase write failed (HTTP ${response.status}): ${bodyText || response.statusText}`);
   }
 }
 
-async function saveJournalAnnotations(store, options = {}) {
-  const storePath = getJournalAnnotationsStorePath(options);
-  await mkdir(getDataDir(options), { recursive: true, mode: 0o700 });
-  const tempPath = `${storePath}.${process.pid}.${Date.now()}.tmp`;
-  await writeFile(tempPath, `${JSON.stringify(store, null, 2)}\n`, { mode: 0o600 });
-  await rename(tempPath, storePath);
-}
-
 async function getJournalAnnotationsEndpoint(response, options = {}) {
-  const store = await loadJournalAnnotations(options);
-  sendJson(response, 200, store);
+  const config = getSupabaseConfig(options.env || process.env);
+  if (!config.ok) {
+    sendJson(response, 500, { error: 'Missing Supabase configuration', missing: config.missing });
+    return;
+  }
+
+  try {
+    const store = await loadJournalAnnotations(config, options.fetchImpl || fetch);
+    sendJson(response, 200, store);
+  } catch (error) {
+    console.warn('[journal annotations] Failed to load store (non-fatal):', error.message);
+    sendJson(response, 502, { error: 'Failed to load annotations from Supabase.' });
+  }
 }
 
 async function putJournalAnnotationEndpoint(request, response, tradeId, options = {}) {
@@ -891,7 +948,7 @@ async function putJournalAnnotationEndpoint(request, response, tradeId, options 
     return;
   }
 
-  // Strip anything not in the allowed field list — the store only ever
+  // Strip anything not in the allowed field list — Supabase only ever
   // persists the eight known annotation fields.
   const sanitizedFields = {};
   for (const field of JOURNAL_ANNOTATION_FIELDS) {
@@ -900,20 +957,23 @@ async function putJournalAnnotationEndpoint(request, response, tradeId, options 
     }
   }
 
+  const config = getSupabaseConfig(options.env || process.env);
+  if (!config.ok) {
+    sendJson(response, 500, { error: 'Missing Supabase configuration', missing: config.missing });
+    return;
+  }
+
   try {
-    const store = await loadJournalAnnotations(options);
-    const existing = store[tradeId] && typeof store[tradeId] === 'object' && !Array.isArray(store[tradeId])
-      ? store[tradeId]
-      : {};
+    const fetchImpl = options.fetchImpl || fetch;
+    const existing = await loadJournalAnnotationRow(config, tradeId, fetchImpl);
     // Partial update: only fields present in this request overwrite; any
     // previously saved fields not included here are preserved.
     const merged = { ...existing, ...sanitizedFields };
-    store[tradeId] = merged;
-    await saveJournalAnnotations(store, options);
+    await upsertJournalAnnotation(config, tradeId, merged, fetchImpl);
     sendJson(response, 200, { tradeId, ...merged });
   } catch (error) {
     console.warn('[journal annotations] Failed to save annotation (non-fatal):', error.message);
-    sendJson(response, 500, { error: 'Failed to save annotation.' });
+    sendJson(response, 502, { error: 'Failed to save annotation to Supabase.' });
   }
 }
 
@@ -1316,10 +1376,6 @@ function getTokenStorePath(options = {}) {
 
 function getRawDealsStorePath(options = {}) {
   return options.rawDealsStorePath || join(getDataDir(options), RAW_DEALS_FILE_NAME);
-}
-
-function getJournalAnnotationsStorePath(options = {}) {
-  return options.journalAnnotationsStorePath || join(getDataDir(options), JOURNAL_ANNOTATIONS_FILE_NAME);
 }
 
 // Returns the parsed token record stored in the CTRADER_TOKEN_RECORD env var, or null.
