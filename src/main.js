@@ -2404,14 +2404,28 @@ function tradeCard(trade) {
           isImported ? openedTime : tradeTime,
           tradeDuration,
           trade.timeframe,
-          trade.state ? normalizeMarketState(trade.state) : '',
-          trade.position,
           trade.size,
-          trade.closeReason,
-          trade.lossReason,
-          trade.tags,
         ].filter(v => v && String(v).trim()).map(v => `<span class="tc-pill">${escapeHtml(String(v))}</span>`).join('')}
       </div>
+      ${[
+        trade.state ? normalizeMarketState(trade.state) : '',
+        trade.position,
+        trade.closeReason,
+        trade.lossReason,
+        trade.tags,
+      ].filter(v => v && String(v).trim()).length ? `
+      <div class="tc-analysis">
+        <span class="tc-analysis-label">Analysis</span>
+        <div class="tc-analysis-pills">
+          ${[
+            trade.state ? normalizeMarketState(trade.state) : '',
+            trade.position,
+            trade.closeReason,
+            trade.lossReason,
+            trade.tags,
+          ].filter(v => v && String(v).trim()).map(v => `<span class="tc-pill tc-pill--analysis">${escapeHtml(String(v))}</span>`).join('')}
+        </div>
+      </div>` : ''}
       ${trade.notes && !isEditing ? `<p class="tc-notes">${escapeHtml(trade.notes)}</p>` : ''}
       ${!isEditing ? `
       <details class="tc-expander">
