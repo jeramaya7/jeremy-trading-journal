@@ -1,38 +1,86 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
 import { createAppServer } from '../src/server.js';
 
-async function withServer(fn) {
+const validEnv = {
+  SUPABASE_URL: 'https://example.supabase.co',
+  SUPABASE_SERVICE_ROLE_KEY: 'test-service-role-key',
+};
+
+// A minimal in-memory stand-in for Supabase's PostgREST API, just enough to
+// exercise the GET/PUT annotation routes: a single table keyed by trade_id.
+function createFakeSupabase() {
+  const rows = new Map(); // trade_id -> data object
+  const calls = [];
+
+  async function fetchImpl(url, requestInit = {}) {
+    const parsedUrl = new URL(url);
+    calls.push({ method: requestInit.method || 'GET', pathname: parsedUrl.pathname, search: parsedUrl.search });
+
+    if (requestInit.method === 'POST') {
+      const body = JSON.parse(requestInit.body);
+      for (const record of body) {
+        rows.set(record.trade_id, record.data);
+      }
+      return jsonResponse(200, body.map((record) => ({ trade_id: record.trade_id, data: record.data })));
+    }
+
+    // GET
+    const tradeIdFilter = parsedUrl.searchParams.get('trade_id');
+    if (tradeIdFilter) {
+      const tradeId = tradeIdFilter.replace(/^eq\./, '');
+      const data = rows.get(tradeId);
+      return jsonResponse(200, data ? [{ trade_id: tradeId, data }] : []);
+    }
+
+    return jsonResponse(200, Array.from(rows.entries()).map(([trade_id, data]) => ({ trade_id, data })));
+  }
+
+  function jsonResponse(status, body) {
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      statusText: status === 200 ? 'OK' : 'Error',
+      json: async () => body,
+      text: async () => JSON.stringify(body),
+    };
+  }
+
+  return { fetchImpl, rows, calls };
+}
+
+async function withServer(fn, { fetchImpl, env } = {}) {
   const dataDir = await mkdtemp(join(tmpdir(), 'journal-annotations-test-'));
-  const journalAnnotationsStorePath = join(dataDir, 'journal-annotations.json');
-  const server = createAppServer({ dataDir, journalAnnotationsStorePath });
+  const server = createAppServer({ dataDir, env: env || validEnv, fetchImpl });
 
   await new Promise((resolve) => server.listen(0, resolve));
   try {
     const { port } = server.address();
-    await fn({ port, dataDir, journalAnnotationsStorePath });
+    await fn({ port });
   } finally {
     await new Promise((resolve) => server.close(resolve));
     await rm(dataDir, { recursive: true, force: true });
   }
 }
 
-test('GET /api/journal/annotations returns an empty object when no store file exists', async () => {
+test('GET /api/journal/annotations returns an empty object when Supabase has no rows', async () => {
+  const { fetchImpl } = createFakeSupabase();
   await withServer(async ({ port }) => {
     const response = await fetch(`http://127.0.0.1:${port}/api/journal/annotations`);
     const body = await response.json();
 
     assert.equal(response.status, 200);
     assert.deepEqual(body, {});
-  });
+  }, { fetchImpl });
 });
 
 test('PUT /api/journal/annotations/:tradeId saves the first annotation for a trade', async () => {
-  await withServer(async ({ port, journalAnnotationsStorePath }) => {
+  const { fetchImpl, rows } = createFakeSupabase();
+  await withServer(async ({ port }) => {
     const response = await fetch(`http://127.0.0.1:${port}/api/journal/annotations/trade-1`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -42,15 +90,12 @@ test('PUT /api/journal/annotations/:tradeId saves the first annotation for a tra
 
     assert.equal(response.status, 200);
     assert.deepEqual(body, { tradeId: 'trade-1', setup: 'ORB', state: 'A+', notes: 'Clean breakout' });
-
-    const stored = JSON.parse(await readFile(journalAnnotationsStorePath, 'utf8'));
-    assert.deepEqual(stored, {
-      'trade-1': { setup: 'ORB', state: 'A+', notes: 'Clean breakout' },
-    });
-  });
+    assert.deepEqual(rows.get('trade-1'), { setup: 'ORB', state: 'A+', notes: 'Clean breakout' });
+  }, { fetchImpl });
 });
 
 test('PUT /api/journal/annotations/:tradeId partially updates an existing trade, preserving other fields', async () => {
+  const { fetchImpl } = createFakeSupabase();
   await withServer(async ({ port }) => {
     await fetch(`http://127.0.0.1:${port}/api/journal/annotations/trade-1`, {
       method: 'PUT',
@@ -73,10 +118,11 @@ test('PUT /api/journal/annotations/:tradeId partially updates an existing trade,
       tags: ['london-open'],
       notes: 'Updated after review',
     });
-  });
+  }, { fetchImpl });
 });
 
 test('GET /api/journal/annotations returns multiple trades keyed by trade id', async () => {
+  const { fetchImpl } = createFakeSupabase();
   await withServer(async ({ port }) => {
     await fetch(`http://127.0.0.1:${port}/api/journal/annotations/trade-1`, {
       method: 'PUT',
@@ -97,10 +143,11 @@ test('GET /api/journal/annotations returns multiple trades keyed by trade id', a
       'trade-1': { setup: 'ORB' },
       'trade-2': { setup: 'Reversal', lossReason: 'Chased entry' },
     });
-  });
+  }, { fetchImpl });
 });
 
 test('PUT /api/journal/annotations/:tradeId strips fields outside the allowed list', async () => {
+  const { fetchImpl } = createFakeSupabase();
   await withServer(async ({ port }) => {
     const response = await fetch(`http://127.0.0.1:${port}/api/journal/annotations/trade-1`, {
       method: 'PUT',
@@ -108,7 +155,6 @@ test('PUT /api/journal/annotations/:tradeId strips fields outside the allowed li
       body: JSON.stringify({
         setup: 'ORB',
         notes: 'Kept field',
-        __proto__: 'ignored',
         accountBalance: 100000,
         isAdmin: true,
       }),
@@ -119,10 +165,11 @@ test('PUT /api/journal/annotations/:tradeId strips fields outside the allowed li
     assert.deepEqual(body, { tradeId: 'trade-1', setup: 'ORB', notes: 'Kept field' });
     assert.equal(body.accountBalance, undefined);
     assert.equal(body.isAdmin, undefined);
-  });
+  }, { fetchImpl });
 });
 
 test('PUT /api/journal/annotations/:tradeId returns 400 for malformed JSON and does not crash the server', async () => {
+  const { fetchImpl } = createFakeSupabase();
   await withServer(async ({ port }) => {
     const response = await fetch(`http://127.0.0.1:${port}/api/journal/annotations/trade-1`, {
       method: 'PUT',
@@ -137,10 +184,11 @@ test('PUT /api/journal/annotations/:tradeId returns 400 for malformed JSON and d
     // Server should still be responsive after the malformed request.
     const followUp = await fetch(`http://127.0.0.1:${port}/api/journal/annotations`);
     assert.equal(followUp.status, 200);
-  });
+  }, { fetchImpl });
 });
 
 test('PUT /api/journal/annotations/:tradeId returns 400 when the payload is not a JSON object', async () => {
+  const { fetchImpl } = createFakeSupabase();
   await withServer(async ({ port }) => {
     const arrayResponse = await fetch(`http://127.0.0.1:${port}/api/journal/annotations/trade-1`, {
       method: 'PUT',
@@ -155,15 +203,15 @@ test('PUT /api/journal/annotations/:tradeId returns 400 when the payload is not 
       body: JSON.stringify('just a string'),
     });
     assert.equal(stringResponse.status, 400);
-  });
+  }, { fetchImpl });
 });
 
-test('journal annotations persist across a fresh server instance pointed at the same store file', async () => {
+test('annotations persist across a fresh server instance backed by the same fake Supabase store', async () => {
+  const { fetchImpl } = createFakeSupabase();
   const dataDir = await mkdtemp(join(tmpdir(), 'journal-annotations-persist-test-'));
-  const journalAnnotationsStorePath = join(dataDir, 'journal-annotations.json');
 
   try {
-    const firstServer = createAppServer({ dataDir, journalAnnotationsStorePath });
+    const firstServer = createAppServer({ dataDir, env: validEnv, fetchImpl });
     await new Promise((resolve) => firstServer.listen(0, resolve));
     const firstPort = firstServer.address().port;
 
@@ -174,7 +222,7 @@ test('journal annotations persist across a fresh server instance pointed at the 
     });
     await new Promise((resolve) => firstServer.close(resolve));
 
-    const secondServer = createAppServer({ dataDir, journalAnnotationsStorePath });
+    const secondServer = createAppServer({ dataDir, env: validEnv, fetchImpl });
     await new Promise((resolve) => secondServer.listen(0, resolve));
     const secondPort = secondServer.address().port;
 
@@ -193,27 +241,44 @@ test('journal annotations persist across a fresh server instance pointed at the 
   }
 });
 
-test('a corrupt store file on disk resolves to an empty store instead of crashing the server', async () => {
-  const dataDir = await mkdtemp(join(tmpdir(), 'journal-annotations-corrupt-test-'));
-  const journalAnnotationsStorePath = join(dataDir, 'journal-annotations.json');
-  await writeFile(journalAnnotationsStorePath, '{ not valid json at all', 'utf8');
+test('a Supabase read failure returns 502 instead of crashing the server', async () => {
+  const fetchImpl = async () => ({
+    ok: false,
+    status: 500,
+    statusText: 'Internal Server Error',
+    json: async () => ({ message: 'boom' }),
+    text: async () => 'boom',
+  });
 
-  const server = createAppServer({ dataDir, journalAnnotationsStorePath });
-  await new Promise((resolve) => server.listen(0, resolve));
-  try {
-    const { port } = server.address();
+  await withServer(async ({ port }) => {
     const response = await fetch(`http://127.0.0.1:${port}/api/journal/annotations`);
-    const body = await response.json();
+    assert.equal(response.status, 502);
 
-    assert.equal(response.status, 200);
-    assert.deepEqual(body, {});
-  } finally {
-    await new Promise((resolve) => server.close(resolve));
-    await rm(dataDir, { recursive: true, force: true });
-  }
+    // Server should still be responsive after the failure.
+    const followUp = await fetch(`http://127.0.0.1:${port}/api/journal/annotations`);
+    assert.equal(followUp.status, 502);
+  }, { fetchImpl });
+});
+
+test('missing Supabase configuration returns 500 with the missing variable names', async () => {
+  const { fetchImpl } = createFakeSupabase();
+  await withServer(async ({ port }) => {
+    const getResponse = await fetch(`http://127.0.0.1:${port}/api/journal/annotations`);
+    const getBody = await getResponse.json();
+    assert.equal(getResponse.status, 500);
+    assert.deepEqual(getBody.missing, ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']);
+
+    const putResponse = await fetch(`http://127.0.0.1:${port}/api/journal/annotations/trade-1`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ setup: 'ORB' }),
+    });
+    assert.equal(putResponse.status, 500);
+  }, { fetchImpl, env: {} });
 });
 
 test('OPTIONS preflight for the annotations endpoint allows PUT', async () => {
+  const { fetchImpl } = createFakeSupabase();
   await withServer(async ({ port }) => {
     const response = await fetch(`http://127.0.0.1:${port}/api/journal/annotations/trade-1`, {
       method: 'OPTIONS',
@@ -221,5 +286,5 @@ test('OPTIONS preflight for the annotations endpoint allows PUT', async () => {
 
     assert.equal(response.status, 204);
     assert.match(response.headers.get('access-control-allow-methods') || '', /PUT/);
-  });
+  }, { fetchImpl });
 });
