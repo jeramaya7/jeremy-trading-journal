@@ -15,6 +15,8 @@ const ROOT_DIR = join(fileURLToPath(new URL('..', import.meta.url)));
 const DEFAULT_RECENT_DEALS_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
 const DEFAULT_DEALS_MAX_ROWS = 100;
 const RAW_DEALS_FILE_NAME = 'ctrader-raw-deals.json';
+const JOURNAL_ANNOTATIONS_FILE_NAME = 'journal-annotations.json';
+const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'position', 'tradeManagement', 'closeReason', 'lossReason', 'tags', 'notes'];
 const CTRADER_DEBUG_POSITION_ID = '543914821';
 const CTRADER_AUTHORIZE_URL = 'https://id.ctrader.com/my/settings/openapi/grantingaccess/';
 const CTRADER_TOKEN_URL = 'https://openapi.ctrader.com/apps/token';
@@ -86,6 +88,17 @@ export function createAppServer(options = {}) {
 
     if (request.method === 'POST' && url.pathname === '/api/dna-doctor') {
       await runDnaDoctorEndpoint(request, response, options);
+      return;
+    }
+
+    if (request.method === 'GET' && url.pathname === '/api/journal/annotations') {
+      await getJournalAnnotationsEndpoint(response, options);
+      return;
+    }
+
+    if (request.method === 'PUT' && url.pathname.startsWith('/api/journal/annotations/')) {
+      const tradeId = decodeURIComponent(url.pathname.slice('/api/journal/annotations/'.length));
+      await putJournalAnnotationEndpoint(request, response, tradeId, options);
       return;
     }
 
@@ -823,6 +836,87 @@ export async function storeRawCtraderDeals(dealsResult, options = {}) {
   return storedPayload;
 }
 
+// Loads the journal annotations store from disk. Missing file, missing data
+// directory, or corrupt/non-object JSON all resolve to an empty store rather
+// than throwing — an unreadable store must never crash the server.
+async function loadJournalAnnotations(options = {}) {
+  const storePath = getJournalAnnotationsStorePath(options);
+  try {
+    const raw = await readFile(storePath, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed;
+    }
+    console.warn('[journal annotations] Store file did not contain a JSON object — treating as empty');
+    return {};
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return {};
+    }
+    console.warn('[journal annotations] Failed to read store (non-fatal):', error.message);
+    return {};
+  }
+}
+
+async function saveJournalAnnotations(store, options = {}) {
+  const storePath = getJournalAnnotationsStorePath(options);
+  await mkdir(getDataDir(options), { recursive: true, mode: 0o700 });
+  const tempPath = `${storePath}.${process.pid}.${Date.now()}.tmp`;
+  await writeFile(tempPath, `${JSON.stringify(store, null, 2)}\n`, { mode: 0o600 });
+  await rename(tempPath, storePath);
+}
+
+async function getJournalAnnotationsEndpoint(response, options = {}) {
+  const store = await loadJournalAnnotations(options);
+  sendJson(response, 200, store);
+}
+
+async function putJournalAnnotationEndpoint(request, response, tradeId, options = {}) {
+  if (!tradeId) {
+    sendJson(response, 400, { error: 'A tradeId is required in the URL path.' });
+    return;
+  }
+
+  let payload;
+  try {
+    const body = await readRequestBody(request);
+    payload = body ? JSON.parse(body) : {};
+  } catch {
+    sendJson(response, 400, { error: 'Invalid JSON payload.' });
+    return;
+  }
+
+  if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
+    sendJson(response, 400, { error: 'Payload must be a JSON object.' });
+    return;
+  }
+
+  // Strip anything not in the allowed field list — the store only ever
+  // persists the eight known annotation fields.
+  const sanitizedFields = {};
+  for (const field of JOURNAL_ANNOTATION_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(payload, field)) {
+      sanitizedFields[field] = payload[field];
+    }
+  }
+
+  try {
+    const store = await loadJournalAnnotations(options);
+    const existing = store[tradeId] && typeof store[tradeId] === 'object' && !Array.isArray(store[tradeId])
+      ? store[tradeId]
+      : {};
+    // Partial update: only fields present in this request overwrite; any
+    // previously saved fields not included here are preserved.
+    const merged = { ...existing, ...sanitizedFields };
+    store[tradeId] = merged;
+    await saveJournalAnnotations(store, options);
+    sendJson(response, 200, { tradeId, ...merged });
+  } catch (error) {
+    console.warn('[journal annotations] Failed to save annotation (non-fatal):', error.message);
+    sendJson(response, 500, { error: 'Failed to save annotation.' });
+  }
+}
+
 async function getCtraderStatus(response, options = {}) {
   const config = getCtraderConfig(options.env);
   if (!config.ok) {
@@ -1224,6 +1318,10 @@ function getRawDealsStorePath(options = {}) {
   return options.rawDealsStorePath || join(getDataDir(options), RAW_DEALS_FILE_NAME);
 }
 
+function getJournalAnnotationsStorePath(options = {}) {
+  return options.journalAnnotationsStorePath || join(getDataDir(options), JOURNAL_ANNOTATIONS_FILE_NAME);
+}
+
 // Returns the parsed token record stored in the CTRADER_TOKEN_RECORD env var, or null.
 function loadTokenFromEnvVar(env = process.env) {
   const raw = (env || process.env).CTRADER_TOKEN_RECORD;
@@ -1492,7 +1590,7 @@ ${(payload.sessions || []).map((s) => `${s.session}: ${s.trades} trades, ${Numbe
 function setCorsHeaders(response, options = {}) {
   const allowedOrigin = options.corsOrigin || process.env.JOURNAL_FRONTEND_ORIGIN || '*';
   response.setHeader('Access-Control-Allow-Origin', allowedOrigin);
-  response.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Accept, Content-Type');
 }
 
