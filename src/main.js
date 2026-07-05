@@ -2468,7 +2468,7 @@ function tradeCard(trade) {
         <div class="tc-hero-left">
           <span class="tc-direction ${dirClass}">${dirArrow} ${escapeHtml(dirLabel || 'Long')}</span>
           <p class="trade-symbol">${escapeHtml(displaySymbol)}</p>
-          ${setupName ? `<span class="tc-setup">${escapeHtml(setupName)}</span>` : ''}
+          ${setupName && !isEditing ? `<span class="tc-setup">${escapeHtml(setupName)}</span>` : ''}
         </div>
         <strong class="trade-pnl-badge ${tone}" aria-label="P&L ${currency(pnl)}">${currency(pnl)}</strong>
       </div>
@@ -2631,7 +2631,7 @@ function renderPositionTypeSelect(trade) {
   const current = String(trade.position || '').trim();
   return `
     <select name="position" aria-label="Position Type">
-      <option value="">No position type</option>
+      <option value="">None</option>
       ${POSITION_TYPE_OPTIONS.map((option) => renderSelectOption(option, current)).join('')}
     </select>
   `;
@@ -2641,7 +2641,7 @@ function renderGradeSelect(trade) {
   const current = String(trade.grade || '').trim();
   return `
     <select name="grade" aria-label="Grade">
-      <option value="">No grade</option>
+      <option value="">Not Graded</option>
       ${GRADE_OPTIONS.map((option) => renderSelectOption(option, current)).join('')}
     </select>
   `;
@@ -2651,7 +2651,7 @@ function renderTradeManagementSelect(trade) {
   const current = String(trade.tradeManagement || '').trim();
   return `
     <select name="tradeManagement" aria-label="Trade Management">
-      <option value="">No trade management</option>
+      <option value="">None</option>
       ${TRADE_MANAGEMENT_OPTIONS.map((option) => renderSelectOption(option, current)).join('')}
     </select>
   `;
