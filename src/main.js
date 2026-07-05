@@ -26,6 +26,10 @@ const LEGACY_TRADE_LINE_BREAK_SETUP = 'Trade Line Break';
 const TREND_LINE_BREAK_SETUP = 'Trend Line Break';
 const AUTO_SYNC_INTERVAL_MS = 60 * 1000;
 
+// Fields the backend persists to Supabase for cross-device annotation sync.
+// Must match JOURNAL_ANNOTATION_FIELDS in src/server.js.
+const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'position', 'tradeManagement', 'closeReason', 'lossReason', 'tags', 'notes'];
+
 const starterTrades = [
   {
     id: 'sample-1',
@@ -287,6 +291,67 @@ function persistTrades(nextTrades, options = {}) {
     return;
   }
   render();
+}
+
+// Keeps only the fields the backend/Supabase are allowed to store, so we
+// never send unrelated trade data (price, size, screenshot, etc.) up.
+function extractAnnotationFields(source) {
+  const fields = {};
+  for (const field of JOURNAL_ANNOTATION_FIELDS) {
+    if (source && Object.prototype.hasOwnProperty.call(source, field)) {
+      fields[field] = source[field];
+    }
+  }
+  return fields;
+}
+
+// Fire-and-forget push of one trade's annotation fields to the cloud so
+// other devices can pick them up. Never blocks the UI and never throws:
+// if the backend/Supabase is unreachable, the edit is still saved locally.
+async function pushTradeAnnotationToCloud(tradeId, annotationFields) {
+  try {
+    await fetchBackendJson(`/api/journal/annotations/${encodeURIComponent(String(tradeId))}`, {
+      fetchOptions: {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(annotationFields),
+      },
+    });
+  } catch (error) {
+    console.warn('[DNA] Could not sync trade annotation to the cloud (saved locally only):', error.message);
+  }
+}
+
+// On startup, pulls every saved annotation from the cloud and merges it
+// into local trades by id. Cloud fields win for the fields it knows about;
+// anything not covered by JOURNAL_ANNOTATION_FIELDS (price, screenshot,
+// etc.) is left untouched. Runs quietly in the background after the first
+// render, so a slow/offline backend never delays the initial page paint.
+async function loadCloudAnnotationsAndMerge() {
+  try {
+    const { body } = await fetchBackendJson('/api/journal/annotations');
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return;
+    }
+
+    let didMergeAnyTrade = false;
+    const mergedTrades = trades.map((trade) => {
+      const cloudFields = body[String(trade.id)];
+      if (!cloudFields || typeof cloudFields !== 'object') {
+        return trade;
+      }
+      didMergeAnyTrade = true;
+      return { ...trade, ...extractAnnotationFields(cloudFields) };
+    });
+
+    if (didMergeAnyTrade) {
+      trades = normalizeTradeSetups(mergedTrades);
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));
+      render();
+    }
+  } catch (error) {
+    console.warn('[DNA] Could not load cloud annotations (using local data only):', error.message);
+  }
 }
 
 function isTradeEditLocked() {
@@ -2409,7 +2474,6 @@ function tradeCard(trade) {
         ].filter(v => v && String(v).trim()).map(v => `<span class="tc-pill">${escapeHtml(String(v))}</span>`).join('')}
       </div>
       ${[
-        trade.setup,
         trade.state ? normalizeMarketState(trade.state) : '',
         trade.position,
         trade.closeReason,
@@ -2420,7 +2484,6 @@ function tradeCard(trade) {
         <span class="tc-analysis-label">Analysis</span>
         <div class="tc-analysis-pills">
           ${[
-            trade.setup,
             trade.state ? normalizeMarketState(trade.state) : '',
             trade.position,
             trade.closeReason,
@@ -3276,6 +3339,7 @@ async function submitTradeEdit(event) {
       ? { ...trade, ...journalingUpdates, ...screenshotUpdate }
       : trade
   )), { preserveTradeId: tradeId, renderOptions: { force: true } });
+  pushTradeAnnotationToCloud(tradeId, extractAnnotationFields(journalingUpdates));
 }
 
 function updateRiskPercentField(event) {
@@ -3969,4 +4033,4 @@ handleCTraderOAuthReturn().then((handledOAuthReturn) => {
     syncCTraderOnStartup();
   }
 });
-
+loadCloudAnnotationsAndMerge();
