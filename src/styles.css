@@ -1228,8 +1228,8 @@ a:focus-visible {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.edit-tags-row {
-  grid-template-columns: 1fr;
+.edit-management-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .edit-collapsible {
@@ -1298,7 +1298,8 @@ a:focus-visible {
   .edit-price-row,
   .edit-take-profit-row,
   .edit-classification-row,
-  .edit-journal-row {
+  .edit-journal-row,
+  .edit-management-row {
     grid-template-columns: 1fr;
   }
 

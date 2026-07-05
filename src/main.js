@@ -28,7 +28,7 @@ const AUTO_SYNC_INTERVAL_MS = 60 * 1000;
 
 // Fields the backend persists to Supabase for cross-device annotation sync.
 // Must match JOURNAL_ANNOTATION_FIELDS in src/server.js.
-const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'position', 'tradeManagement', 'closeReason', 'lossReason', 'tags', 'notes'];
+const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'position', 'tradeManagement', 'grade', 'closeReason', 'lossReason', 'tags', 'notes'];
 
 const starterTrades = [
   {
@@ -190,6 +190,25 @@ const POSITION_TYPE_OPTIONS = [
   'Position 2',
   'Position 3',
   'Position 4',
+];
+const GRADE_OPTIONS = [
+  'A+',
+  'A',
+  'B',
+  'C',
+  'F',
+];
+const TRADE_MANAGEMENT_OPTIONS = [
+  'Set & Forget',
+  'Hit Take Profit',
+  'Hit Stop Loss',
+  'Break Even',
+  'Trail Stop',
+  'Partial Profit',
+  'Early Exit',
+  'Add to Position',
+  'Reverse Position',
+  'Other',
 ];
 
 const app = document.querySelector('#root');
@@ -2168,6 +2187,7 @@ function icon(name) {
     edit: '<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
     save: '<svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>',
     share: '<svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98"/><path d="M15.41 6.51L8.59 10.49"/></svg>',
+    tag: '<svg viewBox="0 0 24 24"><path d="M20.59 13.41L11 3.83A2 2 0 0 0 9.5 3H4a1 1 0 0 0-1 1v5.5a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.59-4.59a2 2 0 0 0 0-2.83z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>',
   };
   return icons[name] ?? '';
 }
@@ -2476,9 +2496,10 @@ function tradeCard(trade) {
       ${[
         trade.state ? normalizeMarketState(trade.state) : '',
         trade.position,
+        trade.tradeManagement,
+        trade.grade,
         trade.closeReason,
         trade.lossReason,
-        trade.tags,
       ].filter(v => v && String(v).trim()).length ? `
       <div class="tc-analysis">
         <span class="tc-analysis-label">Analysis</span>
@@ -2486,9 +2507,10 @@ function tradeCard(trade) {
           ${[
             trade.state ? normalizeMarketState(trade.state) : '',
             trade.position,
+            trade.tradeManagement,
+            trade.grade,
             trade.closeReason,
             trade.lossReason,
-            trade.tags,
           ].filter(v => v && String(v).trim()).map(v => `<span class="tc-pill tc-pill--analysis">${escapeHtml(String(v))}</span>`).join('')}
         </div>
       </div>` : ''}
@@ -2527,10 +2549,16 @@ function tradeJournalDetails(trade) {
         <summary>${icon('image')} Screenshot Attachment</summary>
         ${screenshotPreview(trade)}
       </details>` : '';
+  const tagsDetail = trade.tags ? `
+      <details class="edit-collapsible journal-detail-section">
+        <summary>${icon('tag')} Tags</summary>
+        <p class="notes">${escapeHtml(trade.tags)}</p>
+      </details>` : '';
 
   return `
       ${notesDetail}
-      ${screenshotDetail}`;
+      ${screenshotDetail}
+      ${tagsDetail}`;
 }
 
 function renderSelectOption(option, selectedValue) {
@@ -2609,6 +2637,26 @@ function renderPositionTypeSelect(trade) {
   `;
 }
 
+function renderGradeSelect(trade) {
+  const current = String(trade.grade || '').trim();
+  return `
+    <select name="grade" aria-label="Grade">
+      <option value="">No grade</option>
+      ${GRADE_OPTIONS.map((option) => renderSelectOption(option, current)).join('')}
+    </select>
+  `;
+}
+
+function renderTradeManagementSelect(trade) {
+  const current = String(trade.tradeManagement || '').trim();
+  return `
+    <select name="tradeManagement" aria-label="Trade Management">
+      <option value="">No trade management</option>
+      ${TRADE_MANAGEMENT_OPTIONS.map((option) => renderSelectOption(option, current)).join('')}
+    </select>
+  `;
+}
+
 function getSetupFormValue(formData) {
   const setupChoice = String(formData.get('setupChoice') || '').trim();
   if (setupChoice === CUSTOM_SETUP_OPTION) {
@@ -2640,19 +2688,24 @@ function editTradeForm(trade) {
         </div>
         <div class="edit-form-row edit-journal-row" aria-label="Journal context">
           ${field('Setup', renderPlayBookSetupSelect(trade))}
-          ${field('State', renderMarketStateSelect(trade))}
           ${field('Position', renderPositionTypeSelect(trade))}
+          ${field('State', renderMarketStateSelect(trade))}
+        </div>
+        <div class="edit-form-row edit-management-row" aria-label="Trade management and grade">
+          ${field('Trade Management', renderTradeManagementSelect(trade))}
+          ${field('Grade', renderGradeSelect(trade))}
         </div>
         <div class="edit-form-row edit-classification-row" aria-label="Trade classification">
           ${field('Exit Reason', renderCloseReasonSelect(trade))}
           ${field('Loss Reason', renderLossReasonSelect(trade))}
         </div>
-        <div class="edit-form-row edit-tags-row">
-          ${field('Tags', `<input name="tags" value="${escapeHtml(trade.tags)}" placeholder="gap, reversal, A+" />`)}
-        </div>
         <details class="edit-collapsible">
           <summary>${icon('book')} Notes</summary>
           ${field('Notes', `<textarea name="notes" rows="5" placeholder="What was the plan? What happened? What will you repeat or avoid?">${escapeHtml(trade.notes)}</textarea>`)}
+        </details>
+        <details class="edit-collapsible">
+          <summary>${icon('tag')} Tags</summary>
+          ${field('Tags', `<input name="tags" value="${escapeHtml(trade.tags)}" placeholder="gap, reversal, A+" />`)}
         </details>
         <details class="edit-collapsible">
           <summary>${icon('image')} Screenshot Attachment</summary>
@@ -3313,6 +3366,8 @@ async function submitTradeEdit(event) {
     closeReason,
     state: String(formData.get('state')).trim(),
     position: String(formData.get('position')).trim(),
+    tradeManagement: String(formData.get('tradeManagement')).trim(),
+    grade: String(formData.get('grade')).trim(),
     tags: String(formData.get('tags')).trim(),
     notes: String(formData.get('notes')).trim(),
     adjustedStopLoss,
