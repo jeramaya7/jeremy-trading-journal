@@ -2492,7 +2492,6 @@ function tradeCard(trade) {
           ].filter(v => v && String(v).trim()).map(v => `<span class="tc-pill tc-pill--analysis">${escapeHtml(String(v))}</span>`).join('')}
         </div>
       </div>` : ''}
-      ${trade.notes && !isEditing ? `<p class="tc-notes">${escapeHtml(trade.notes)}</p>` : ''}
       ${!isEditing ? `
       <details class="tc-expander">
         <summary class="tc-expander-summary">Risk, journal &amp; details</summary>
@@ -2503,11 +2502,7 @@ function tradeCard(trade) {
             ${detailsPanel}
             ${sourcePanel}
           </div>
-          ${trade.screenshot?.dataUrl ? `
-          <details class="edit-collapsible journal-detail-section">
-            <summary>${icon('image')} Screenshot Attachment</summary>
-            ${screenshotPreview(trade)}
-          </details>` : ''}
+          ${tradeJournalDetails(trade)}
         </div>
       </details>` : editTradeForm(trade)}
       ${!isEditing ? `
