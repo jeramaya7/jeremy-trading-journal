@@ -2576,11 +2576,12 @@ function isPlayBookSetup(setup) {
 
 function renderPlayBookSetupSelect(trade) {
   const currentSetup = String(trade.setup || '').trim();
-  const selectedSetup = isPlayBookSetup(currentSetup) ? currentSetup : CUSTOM_SETUP_OPTION;
+  const selectedSetup = !currentSetup ? '' : (isPlayBookSetup(currentSetup) ? currentSetup : CUSTOM_SETUP_OPTION);
   const customValue = selectedSetup === CUSTOM_SETUP_OPTION ? currentSetup : '';
   const customHidden = selectedSetup === CUSTOM_SETUP_OPTION ? '' : ' hidden';
   return `
     <select name="setupChoice" data-setup-choice="${escapeHtml(trade.id)}" aria-label="Play Book setup">
+      <option value=""${selectedSetup === '' ? ' selected' : ''}>None</option>
       ${PLAY_BOOK_SETUP_OPTIONS.map((option) => renderSetupOption(option, selectedSetup)).join('')}
       ${renderSetupOption(CUSTOM_SETUP_OPTION, selectedSetup)}
     </select>
