@@ -2565,7 +2565,7 @@ h2,
   display: grid;
   gap: 0;
   grid-template-columns: 1fr minmax(360px, 400px);
-  min-height: clamp(520px, 48vw, 640px);
+  min-height: clamp(360px, 34vw, 460px);
   overflow: hidden;
   position: relative;
 }
@@ -2579,7 +2579,7 @@ h2,
   flex-direction: column;
   justify-content: center;
   min-width: 0;
-  padding: clamp(3rem, 5.5vw, 5rem) clamp(2.5rem, 5vw, 4.5rem);
+  padding: clamp(1.75rem, 3vw, 2.75rem) clamp(2.5rem, 5vw, 4.5rem);
   position: relative;
   z-index: 1;
 }
@@ -2587,7 +2587,7 @@ h2,
 /* Logo — the visual anchor */
 .dna-brand-lockup {
   display: block;
-  margin-bottom: clamp(0.65rem, 1.2vw, 1rem);
+  margin-bottom: clamp(0.4rem, 0.8vw, 0.6rem);
 }
 
 .dna-logo {
@@ -2609,7 +2609,7 @@ h2,
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.0;
-  margin: 0 0 clamp(0.5rem, 1vw, 0.75rem) 0;
+  margin: 0 0 clamp(0.3rem, 0.6vw, 0.45rem) 0;
   white-space: nowrap;
 }
 
@@ -2619,14 +2619,14 @@ h2,
   font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1.35;
-  margin: 0 0 clamp(0.6rem, 1.2vw, 0.85rem) 0;
+  margin: 0 0 clamp(0.4rem, 0.8vw, 0.55rem) 0;
 }
 
 .hero-copy {
   color: var(--dna-muted);
   font-size: clamp(0.84rem, 1.05vw, 0.92rem);
   line-height: 1.65;
-  margin: 0 0 clamp(1.5rem, 2.5vw, 2rem) 0;
+  margin: 0 0 clamp(0.9rem, 1.5vw, 1.25rem) 0;
   max-width: 50ch;
 }
 
@@ -2680,7 +2680,7 @@ h2,
   flex-direction: column;
   min-width: 0;
   overflow: visible;
-  padding: clamp(1.5rem, 2.5vw, 2rem);
+  padding: clamp(1rem, 1.75vw, 1.5rem);
   position: relative;
   z-index: 1;
 }
@@ -2718,7 +2718,7 @@ h2,
   display: grid;
   gap: 0;
   grid-template-columns: repeat(4, 1fr);
-  padding: clamp(1.1rem, 2vw, 1.6rem) clamp(1.5rem, 3vw, 3rem);
+  padding: clamp(0.7rem, 1.25vw, 1rem) clamp(1.5rem, 3vw, 3rem);
   position: relative;
   z-index: 1;
 }
