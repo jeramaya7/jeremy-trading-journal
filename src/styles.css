@@ -1143,6 +1143,10 @@ a:focus-visible {
   min-height: 42px;
 }
 
+.ctrader-connection-card .import-status {
+  padding: 0.6rem 0.75rem;
+}
+
 .selected-account-meta {
   color: var(--dna-gold);
   font-size: 0.84rem;
@@ -1818,7 +1822,7 @@ h2,
     linear-gradient(145deg, rgba(16, 26, 46, 0.98), rgba(23, 36, 60, 0.96));
   border: 1px solid rgba(201, 148, 32, 0.42);
   box-shadow: 0 24px 60px rgba(16, 26, 46, 0.24), inset 0 1px 0 rgba(242, 210, 117, 0.16);
-  gap: 1rem;
+  gap: 0.65rem;
   min-height: 0;
   opacity: 1;
   padding: 1.15rem;
