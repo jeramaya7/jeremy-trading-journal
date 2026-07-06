@@ -1879,15 +1879,15 @@ h2,
   border: 1px solid rgba(201, 148, 32, 0.12);
   border-radius: 24px;
   box-shadow: 0 8px 24px rgba(16, 26, 46, 0.07);
-  margin: clamp(1.6rem, 3vw, 2.5rem) 0;
-  padding: clamp(1.25rem, 2.6vw, 2rem);
+  margin: clamp(1.1rem, 2vw, 1.75rem) 0;
+  padding: clamp(1rem, 1.9vw, 1.5rem);
 }
 
 .dashboard-snapshot-header {
   background: transparent;
   border: 0;
   box-shadow: none;
-  margin-bottom: clamp(1.25rem, 2.2vw, 1.8rem);
+  margin-bottom: clamp(0.9rem, 1.6vw, 1.3rem);
   padding: 0.25rem 0.25rem 0;
 }
 
@@ -1907,12 +1907,12 @@ h2,
 }
 
 .dashboard-card-groups {
-  gap: clamp(1rem, 1.8vw, 1.45rem);
-  margin: clamp(1.2rem, 2.2vw, 1.75rem) 0;
+  gap: clamp(0.75rem, 1.3vw, 1.05rem);
+  margin: clamp(0.9rem, 1.6vw, 1.3rem) 0;
 }
 
 .dashboard-card-row {
-  gap: clamp(1rem, 1.8vw, 1.35rem);
+  gap: clamp(0.75rem, 1.3vw, 1rem);
 }
 
 .dashboard-card-row .stat-card {
@@ -1923,14 +1923,14 @@ h2,
   border-top: 0;
   border-radius: 20px;
   box-shadow: 0 6px 18px rgba(16, 26, 46, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.92);
-  min-height: 10.8rem;
-  padding: clamp(1.25rem, 2vw, 1.65rem);
+  min-height: 9rem;
+  padding: clamp(1rem, 1.6vw, 1.3rem);
 }
 
 .dashboard-card-row .stat-icon {
   border-radius: 18px;
-  margin-bottom: 1.15rem;
-  padding: 0.7rem;
+  margin-bottom: 0.7rem;
+  padding: 0.6rem;
 }
 
 .dashboard-card-row .stat-card span {
