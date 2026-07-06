@@ -401,22 +401,32 @@ h2 {
 }
 
 .hero-stats-row {
-  gap: clamp(0.85rem, 1.5vw, 1.15rem);
+  gap: clamp(0.6rem, 1vw, 0.85rem);
   margin: 0;
 }
 
 .hero-stats-row .stat-card {
   background: rgba(255, 255, 255, 0.76);
-  min-height: 7.4rem;
+  min-height: 6.4rem;
+  padding: 0.85rem;
+}
+
+.hero-stats-row .stat-icon {
+  margin-bottom: 0.45rem;
+  padding: 0.5rem;
+}
+
+.hero-stats-row .stat-card span {
+  margin-bottom: 0.25rem;
 }
 
 .trading-today-kpi-strip {
-  margin: -0.25rem 0 0.7rem;
+  margin: -0.25rem 0 0.5rem;
 }
 
 .trading-today-kpi-strip .stat-card {
-  min-height: 6.85rem;
-  padding: 0.9rem 1rem;
+  min-height: 6.2rem;
+  padding: 0.75rem 0.85rem;
 }
 
 .equity-curve-card {
