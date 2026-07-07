@@ -65,6 +65,47 @@ export function mapCtraderClosingDealToJournalTrade(deal, openingDeal = null, op
   const symbolMetadata = options.symbolMetadata || getCtraderSymbolMetadataForDeal(deal, openingDeal, options);
   const symbol = getCtraderDealSymbol(deal, openingDeal, symbolMetadata);
   const symbolId = getCtraderDealSymbolId(deal, openingDeal);
+  // TEMPORARY DIAGNOSTIC LOGGING — investigating blank Stop Loss/Take Profit
+  // on freshly imported trades. Safe to remove once the root cause is
+  // confirmed; does not change any calculation or stored data.
+  if (stopLoss === null || takeProfit === null) {
+    console.warn('[cTrader SL/TP DEBUG] Protection field unresolved for deal', {
+      dealId: deal.dealId ?? null,
+      positionId,
+      symbol,
+      missing: { stopLoss: stopLoss === null, takeProfit: takeProfit === null },
+      dealFields: {
+        stopLoss: deal?.stopLoss,
+        stopLossPrice: deal?.stopLossPrice,
+        relativeStopLoss: deal?.relativeStopLoss,
+        slPrice: deal?.slPrice,
+        sl: deal?.sl,
+        takeProfit: deal?.takeProfit,
+        takeProfitPrice: deal?.takeProfitPrice,
+        relativeTakeProfit: deal?.relativeTakeProfit,
+        tpPrice: deal?.tpPrice,
+        tp: deal?.tp,
+        order: deal?.order ?? null,
+        position: deal?.position ?? null,
+        closePositionDetail: deal?.closePositionDetail ?? null,
+      },
+      openingDealFields: openingDeal ? {
+        stopLoss: openingDeal?.stopLoss,
+        stopLossPrice: openingDeal?.stopLossPrice,
+        relativeStopLoss: openingDeal?.relativeStopLoss,
+        slPrice: openingDeal?.slPrice,
+        sl: openingDeal?.sl,
+        takeProfit: openingDeal?.takeProfit,
+        takeProfitPrice: openingDeal?.takeProfitPrice,
+        relativeTakeProfit: openingDeal?.relativeTakeProfit,
+        tpPrice: openingDeal?.tpPrice,
+        tp: openingDeal?.tp,
+        order: openingDeal?.order ?? null,
+        position: openingDeal?.position ?? null,
+      } : null,
+      ordersForPosition: getCtraderOrdersForPosition(options.ordersByPositionId, positionId),
+    });
+  }
   const hasNumericSourceSymbol = isNumericIdentifier(deal?.symbol)
     || isNumericIdentifier(deal?.closePositionDetail?.symbol)
     || isNumericIdentifier(openingDeal?.symbol);
