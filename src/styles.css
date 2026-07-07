@@ -83,7 +83,7 @@ button:disabled {
 .report-card,
 .trade-card {
   background: #ffffff;
-  border: 1px solid rgba(201, 148, 32, 0.18);
+  border: 1px solid rgba(16, 26, 46, 0.08);
   box-shadow: 0 8px 24px rgba(16, 26, 46, 0.08);
 }
 
@@ -179,7 +179,7 @@ h2 {
 
 .primary-button {
   background: linear-gradient(135deg, var(--dna-gold), #b47a12);
-  box-shadow: 0 16px 30px rgba(201, 148, 32, 0.28);
+  box-shadow: 0 10px 20px rgba(201, 148, 32, 0.18);
   color: #ffffff;
   margin-top: 1rem;
   width: 100%;
@@ -195,7 +195,7 @@ h2 {
 .share-dashboard-button {
   align-items: center;
   background: linear-gradient(135deg, var(--dna-navy), var(--dna-gold));
-  box-shadow: 0 14px 28px rgba(201, 148, 32, 0.24);
+  box-shadow: 0 10px 18px rgba(201, 148, 32, 0.14);
   color: #ffffff;
   display: inline-flex;
   flex: 0 0 auto;
@@ -208,7 +208,7 @@ h2 {
 
 .connect-button {
   background: linear-gradient(135deg, var(--dna-gold), #ad7410);
-  box-shadow: 0 16px 34px rgba(201, 148, 32, 0.28);
+  box-shadow: 0 10px 20px rgba(201, 148, 32, 0.18);
   color: #ffffff;
   flex-basis: 100%;
   text-decoration: none;
@@ -233,8 +233,8 @@ h2 {
 
 .auto-sync-toggle {
   align-items: center;
-  background: rgba(201, 148, 32, 0.12);
-  border: 1px solid rgba(201, 148, 32, 0.28);
+  background: rgba(201, 148, 32, 0.08);
+  border: 1px solid rgba(201, 148, 32, 0.20);
   border-radius: 14px;
   color: var(--dna-navy);
   cursor: pointer;
@@ -329,7 +329,7 @@ h2 {
 
 .share-view-header {
   align-items: center;
-  background: linear-gradient(135deg, #ffffff 0%, #fdfbf7 58%, #f9fbff 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #f8f8f8 58%, #f7f9fc 100%);
   border: 1px solid rgba(16, 26, 46, 0.1);
   border-radius: 20px;
   box-shadow: 0 24px 70px rgba(16, 26, 46, 0.12);
@@ -510,7 +510,7 @@ h2 {
 }
 
 .equity-curve-line {
-  filter: drop-shadow(0 4px 8px rgba(201, 148, 32, 0.18));
+  filter: drop-shadow(0 2px 5px rgba(201, 148, 32, 0.10));
   stroke: var(--dna-gold);
   stroke-width: 2.5;
 }
@@ -1529,12 +1529,12 @@ a:focus-visible {
 }
 
 .monthly-calendar-day-selected {
-  box-shadow: 0 0 0 2px rgba(201, 148, 32, 0.45);
+  box-shadow: 0 0 0 2px rgba(201, 148, 32, 0.35);
 }
 
 .monthly-calendar-day-today {
-  border-color: rgba(201, 148, 32, 0.52);
-  box-shadow: inset 0 0 0 1px rgba(201, 148, 32, 0.28), 0 8px 18px rgba(34, 52, 82, 0.08);
+  border-color: rgba(201, 148, 32, 0.4);
+  box-shadow: inset 0 0 0 1px rgba(201, 148, 32, 0.18), 0 8px 18px rgba(34, 52, 82, 0.08);
 }
 
 .monthly-calendar-day-today .monthly-calendar-date {
@@ -1794,21 +1794,21 @@ h2,
 
 .stat-card,
 .report-card {
-  border-top: 4px solid rgba(201, 148, 32, 0.72);
+  border-top: 4px solid rgba(201, 148, 32, 0.32);
   transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
 }
 
 .stat-card:hover,
 .report-card:hover,
 .trade-card:hover {
-  border-color: rgba(201, 148, 32, 0.42);
+  border-color: rgba(16, 26, 46, 0.16);
   box-shadow: 0 12px 28px rgba(16, 26, 46, 0.10);
   transform: translateY(-2px);
 }
 
 .stat-icon {
   background: linear-gradient(135deg, rgba(16, 26, 46, 0.96), rgba(34, 52, 82, 0.96));
-  border: 1px solid rgba(201, 148, 32, 0.36);
+  border: 1px solid rgba(201, 148, 32, 0.22);
   box-shadow: 0 12px 24px rgba(16, 26, 46, 0.18);
   color: var(--dna-gold-light);
 }
@@ -1830,8 +1830,8 @@ h2,
 .ctrader-connection-card {
   background:
     linear-gradient(145deg, rgba(16, 26, 46, 0.98), rgba(23, 36, 60, 0.96));
-  border: 1px solid rgba(201, 148, 32, 0.42);
-  box-shadow: 0 24px 60px rgba(16, 26, 46, 0.24), inset 0 1px 0 rgba(242, 210, 117, 0.16);
+  border: 1px solid rgba(201, 148, 32, 0.30);
+  box-shadow: 0 24px 60px rgba(16, 26, 46, 0.24), inset 0 1px 0 rgba(242, 210, 117, 0.07);
   gap: 0.65rem;
   min-height: 0;
   opacity: 1;
@@ -1884,9 +1884,9 @@ h2,
 
 .dashboard-snapshot {
   background:
-    radial-gradient(circle at 12% 0%, rgba(242, 210, 117, 0.18), transparent 32%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(244, 248, 255, 0.48));
-  border: 1px solid rgba(201, 148, 32, 0.12);
+    radial-gradient(circle at 12% 0%, rgba(242, 210, 117, 0.07), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(244, 248, 255, 0.6));
+  border: 1px solid rgba(16, 26, 46, 0.07);
   border-radius: 24px;
   box-shadow: 0 8px 24px rgba(16, 26, 46, 0.07);
   margin: clamp(1.1rem, 2vw, 1.75rem) 0;
@@ -1909,7 +1909,7 @@ h2,
 
 .dashboard-snapshot-generated-date {
   background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(201, 148, 32, 0.14);
+  border: 1px solid rgba(16, 26, 46, 0.09);
   border-radius: 999px;
   box-shadow: 0 12px 34px rgba(16, 26, 46, 0.06);
   color: #64748b;
@@ -1928,8 +1928,8 @@ h2,
 .dashboard-card-row .stat-card {
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.92)),
-    radial-gradient(circle at top right, rgba(201, 148, 32, 0.16), transparent 38%);
-  border: 1px solid rgba(201, 148, 32, 0.11);
+    radial-gradient(circle at top right, rgba(201, 148, 32, 0.07), transparent 38%);
+  border: 1px solid rgba(16, 26, 46, 0.07);
   border-top: 0;
   border-radius: 20px;
   box-shadow: 0 6px 18px rgba(16, 26, 46, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.92);
@@ -2063,7 +2063,7 @@ h2,
 }
 
 .trade-setup-badge {
-  background: linear-gradient(135deg, rgba(201, 148, 32, 0.15), rgba(242, 210, 117, 0.22));
+  background: linear-gradient(135deg, rgba(201, 148, 32, 0.10), rgba(242, 210, 117, 0.14));
   border: 0;
   border-radius: 999px;
   color: #7c5611;
@@ -2209,8 +2209,8 @@ h2,
 }
 
 .trade-badge.setup {
-  background: linear-gradient(135deg, rgba(201, 148, 32, 0.15), rgba(242, 210, 117, 0.22));
-  border-color: rgba(201, 148, 32, 0.26);
+  background: linear-gradient(135deg, rgba(201, 148, 32, 0.10), rgba(242, 210, 117, 0.14));
+  border-color: rgba(201, 148, 32, 0.20);
   color: #7c5611;
 }
 
@@ -2377,8 +2377,8 @@ h2,
 }
 
 .tc-setup {
-  background: linear-gradient(135deg, rgba(201, 148, 32, 0.15), rgba(242, 210, 117, 0.22));
-  border: 1px solid rgba(201, 148, 32, 0.32);
+  background: linear-gradient(135deg, rgba(201, 148, 32, 0.10), rgba(242, 210, 117, 0.14));
+  border: 1px solid rgba(201, 148, 32, 0.22);
   border-radius: 999px;
   color: #7c5611;
   font-size: 0.76rem;
@@ -2872,8 +2872,8 @@ h2,
 
 .storage-warning-banner {
   align-items: center;
-  background: linear-gradient(135deg, #fef9ec, #fffbf0);
-  border: 1px solid rgba(201, 148, 32, 0.35);
+  background: linear-gradient(135deg, #fbfaf7, #fdfdfc);
+  border: 1px solid rgba(201, 148, 32, 0.22);
   border-left: 4px solid var(--dna-gold);
   border-radius: 12px;
   display: flex;
