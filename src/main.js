@@ -112,6 +112,12 @@ let isLoadingCTraderAccounts = false;
 let hasHandledCTraderOAuthReturn = false;
 let editingTradeId = null;
 let isManualTradeFormOpen = false;
+// Cross-device annotation refresh: guards for the focus/visibility-triggered
+// re-fetch added below. See maybeRefreshCloudAnnotations().
+let isSyncingCloudAnnotations = false;
+let lastCloudAnnotationsSyncAt = 0;
+const CLOUD_ANNOTATIONS_MIN_REFRESH_INTERVAL_MS = 20 * 1000;
+const pendingAnnotationPushes = new Set();
 let manualTradeDateKey = formatDateKey(new Date());
 let setupAnalyticsSort = { key: 'netPnl', direction: 'desc' };
 let selectedAssetFilter = '';
@@ -327,9 +333,14 @@ function extractAnnotationFields(source) {
 // Fire-and-forget push of one trade's annotation fields to the cloud so
 // other devices can pick them up. Never blocks the UI and never throws:
 // if the backend/Supabase is unreachable, the edit is still saved locally.
+// The trade id is tracked in pendingAnnotationPushes for the duration of the
+// request so a concurrent cloud refresh (see maybeRefreshCloudAnnotations)
+// knows not to merge in a possibly-stale server snapshot over this edit.
 async function pushTradeAnnotationToCloud(tradeId, annotationFields) {
+  const key = String(tradeId);
+  pendingAnnotationPushes.add(key);
   try {
-    await fetchBackendJson(`/api/journal/annotations/${encodeURIComponent(String(tradeId))}`, {
+    await fetchBackendJson(`/api/journal/annotations/${encodeURIComponent(key)}`, {
       fetchOptions: {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -338,14 +349,23 @@ async function pushTradeAnnotationToCloud(tradeId, annotationFields) {
     });
   } catch (error) {
     console.warn('[DNA] Could not sync trade annotation to the cloud (saved locally only):', error.message);
+  } finally {
+    pendingAnnotationPushes.delete(key);
   }
 }
 
-// On startup, pulls every saved annotation from the cloud and merges it
-// into local trades by id. Cloud fields win for the fields it knows about;
-// anything not covered by JOURNAL_ANNOTATION_FIELDS (price, screenshot,
-// etc.) is left untouched. Runs quietly in the background after the first
-// render, so a slow/offline backend never delays the initial page paint.
+// Pulls every saved annotation from the cloud and merges it into local
+// trades by id. Cloud fields win for the fields it knows about; anything not
+// covered by JOURNAL_ANNOTATION_FIELDS (price, screenshot, etc.) is left
+// untouched. Called once on startup, and again whenever the tab regains
+// focus (see maybeRefreshCloudAnnotations) so a second device's edits show
+// up without polling.
+//
+// Two trades are deliberately skipped so this never clobbers a newer local
+// edit: the trade currently open in the edit form (its fields aren't saved
+// to `trades` yet, so there's nothing cloud data should overwrite), and any
+// trade with a push still in flight (its local edit may not have reached
+// the server yet, so the fetched snapshot could be stale relative to it).
 async function loadCloudAnnotationsAndMerge() {
   try {
     const { body } = await fetchBackendJson('/api/journal/annotations');
@@ -355,7 +375,11 @@ async function loadCloudAnnotationsAndMerge() {
 
     let didMergeAnyTrade = false;
     const mergedTrades = trades.map((trade) => {
-      const cloudFields = body[String(trade.id)];
+      const tradeKey = String(trade.id);
+      if (tradeKey === String(editingTradeId) || pendingAnnotationPushes.has(tradeKey)) {
+        return trade;
+      }
+      const cloudFields = body[tradeKey];
       if (!cloudFields || typeof cloudFields !== 'object') {
         return trade;
       }
@@ -370,6 +394,33 @@ async function loadCloudAnnotationsAndMerge() {
     }
   } catch (error) {
     console.warn('[DNA] Could not load cloud annotations (using local data only):', error.message);
+  }
+}
+
+// Re-runs loadCloudAnnotationsAndMerge() when the tab regains focus, so a
+// change made on another device shows up without the user having to reload.
+// No polling: this only ever fires from the focus/visibilitychange listeners
+// registered at startup. Two guards keep server requests to a minimum and
+// prevent duplicate concurrent fetches:
+// - isSyncingCloudAnnotations: skips if a refresh is already in flight
+//   (e.g. both 'focus' and 'visibilitychange' fire for the same tab switch).
+// - lastCloudAnnotationsSyncAt: skips if the last refresh was very recent
+//   (e.g. rapid alt-tabbing), so switching back and forth doesn't spam
+//   the backend.
+async function maybeRefreshCloudAnnotations() {
+  if (isSyncingCloudAnnotations) {
+    return;
+  }
+  if (Date.now() - lastCloudAnnotationsSyncAt < CLOUD_ANNOTATIONS_MIN_REFRESH_INTERVAL_MS) {
+    return;
+  }
+
+  isSyncingCloudAnnotations = true;
+  try {
+    await loadCloudAnnotationsAndMerge();
+  } finally {
+    lastCloudAnnotationsSyncAt = Date.now();
+    isSyncingCloudAnnotations = false;
   }
 }
 
@@ -4085,3 +4136,14 @@ handleCTraderOAuthReturn().then((handledOAuthReturn) => {
   }
 });
 loadCloudAnnotationsAndMerge();
+
+// Keep cross-device annotation edits in sync without polling: re-check the
+// cloud whenever the user switches back to this tab or this window.
+window.addEventListener('focus', () => {
+  maybeRefreshCloudAnnotations();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    maybeRefreshCloudAnnotations();
+  }
+});
