@@ -91,3 +91,23 @@ test('biggest winner and loser calculate from closed trade P&L', () => {
   assert.ok(source.includes('function calculateBiggestLoser(tradeList)'), 'Biggest Loser should have a dedicated helper.');
   assert.ok(source.includes('Math.min(...losingPnlValues)'), 'Biggest Loser should select the lowest losing P&L.');
 });
+
+test('breakeven buffer classifies trades within -0.1R to +0.1R as breakeven everywhere wins/losses are counted', () => {
+  assert.ok(source.includes('const BREAKEVEN_R_THRESHOLD = 0.1;'), 'Breakeven threshold should be 0.1R.');
+  assert.ok(source.includes('function classifyTradeOutcome(pnl, rMultiple)'), 'A single shared classifier should decide win/loss/breakeven.');
+  assert.ok(source.includes("if (rMultiple > BREAKEVEN_R_THRESHOLD) return 'win';"), 'Above +0.1R should count as a win.');
+  assert.ok(source.includes("if (rMultiple < -BREAKEVEN_R_THRESHOLD) return 'loss';"), 'Below -0.1R should count as a loss.');
+  assert.ok(source.includes("return 'breakeven';"), 'Between -0.1R and +0.1R should count as breakeven.');
+
+  // Every place wins/losses were previously counted by raw P/L sign should
+  // now go through the shared classifier instead, so a trade is never a
+  // Win in one report and Breakeven in another.
+  assert.equal((source.match(/classifyTradeOutcome\(pnl, rMultiple\)/g) ?? []).length >= 4,
+    true, 'The main dashboard, setup, asset, and session analytics should all classify trades the same way.');
+  assert.ok(source.includes('classifyTradeOutcome(pnlValues[index], calculateRMultiple(trade))'), 'The main dashboard stats should classify each trade individually.');
+  assert.ok(source.includes('classifyTradeOutcome(tradePnls[index], calculateRMultiple(trade))'), 'The calendar day review summary should use the shared classifier.');
+
+  // Actual P/L is never hidden or altered by classification — only the
+  // win/loss/breakeven bucket a trade counts toward changes.
+  assert.ok(source.includes('const totalPnl = pnlValues.reduce((sum, value) => sum + value, 0);'), 'Total P/L should still sum every trade\'s real P/L, breakeven included.');
+});

@@ -78,7 +78,38 @@ test('cTrader sync stores selected account balance on imported trades for Risk %
   assert.equal(journalTrade.accountBalance, 25000);
   assert.equal(journalTrade.accountBalanceFetchedAt, '2026-06-12T14:59:00.000Z');
   assert.equal(journalTrade.stopLoss, 1.095);
+  // Final Stop Loss defaults to the initial Stop Loss on import (still
+  // manually editable afterward) so the journal never shows a blank
+  // "Final" value for a trade that hasn't actually been adjusted yet.
+  assert.equal(journalTrade.adjustedStopLoss, 1.095);
+});
+
+test('cTrader sync leaves Final SL/TP blank on import when no initial SL/TP is known', () => {
+  const journalTrade = convertCTraderPreviewTradeToJournalEntry(closedPreviewTrade, {
+    now: () => Date.parse('2026-06-12T15:00:00.000Z'),
+  });
+
+  assert.equal(journalTrade.stopLoss, undefined);
   assert.equal(journalTrade.adjustedStopLoss, undefined);
+  assert.equal(journalTrade.takeProfit, undefined);
+  assert.equal(journalTrade.adjustedTakeProfit, undefined);
+});
+
+test('cTrader sync does not override a Final SL/TP that was already set', () => {
+  const journalTrade = convertCTraderPreviewTradeToJournalEntry({
+    ...closedPreviewTrade,
+    stopLoss: 1.095,
+    adjustedStopLoss: 1.09,
+    takeProfit: 1.15,
+    adjustedTakeProfit: 1.16,
+  }, {
+    now: () => Date.parse('2026-06-12T15:00:00.000Z'),
+  });
+
+  assert.equal(journalTrade.stopLoss, 1.095);
+  assert.equal(journalTrade.adjustedStopLoss, 1.09);
+  assert.equal(journalTrade.takeProfit, 1.15);
+  assert.equal(journalTrade.adjustedTakeProfit, 1.16);
 });
 
 test('cTrader sync imports only trades not already in the journal', () => {
@@ -262,8 +293,32 @@ test('cTrader sync fills original take profit on existing imported trades only w
   assert.equal(syncPlan.importedCount, 0);
   assert.equal(syncPlan.skippedCount, 2);
   assert.equal(updatedExistingTrades.trades[0].takeProfit, 1.11);
-  assert.equal(updatedExistingTrades.trades[0].adjustedTakeProfit, undefined);
+  // Final Take Profit defaults to the newly-backfilled initial Take Profit,
+  // same as on first import, since it wasn't set yet.
+  assert.equal(updatedExistingTrades.trades[0].adjustedTakeProfit, 1.11);
   assert.equal(updatedExistingTrades.trades[1].takeProfit, 1.25);
+});
+
+test('cTrader sync backfill does not override a Final SL/TP that was already set manually', () => {
+  const existingTrades = [
+    {
+      id: 'ctrader-501',
+      provider: 'ctrader',
+      sourceTradeId: '501',
+      symbol: 'EURUSD',
+      brokerSymbol: 'EURUSD',
+      takeProfit: '',
+      adjustedTakeProfit: 1.2,
+    },
+  ];
+
+  const syncPlan = buildCTraderSyncPlan([{ ...closedPreviewTrade, takeProfit: 1.11 }], existingTrades, {
+    now: () => Date.parse('2026-06-12T15:00:00.000Z'),
+  });
+  const updatedExistingTrades = applyCTraderImportedTradeUpdates(existingTrades, syncPlan.skippedTrades);
+
+  assert.equal(updatedExistingTrades.trades[0].takeProfit, 1.11);
+  assert.equal(updatedExistingTrades.trades[0].adjustedTakeProfit, 1.2);
 });
 
 test('cTrader sync recognizes legacy imported trades without provider before importing duplicates', () => {

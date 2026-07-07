@@ -28,7 +28,7 @@ const AUTO_SYNC_INTERVAL_MS = 60 * 1000;
 
 // Fields the backend persists to Supabase for cross-device annotation sync.
 // Must match JOURNAL_ANNOTATION_FIELDS in src/server.js.
-const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'position', 'tradeManagement', 'grade', 'closeReason', 'lossReason', 'tags', 'notes'];
+const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'position', 'tradeManagement', 'grade', 'closeReason', 'lossReason', 'tags', 'notes', 'adjustedStopLoss', 'adjustedTakeProfit'];
 
 const starterTrades = [
   {
@@ -868,6 +868,29 @@ function calculatePnl(trade) {
   return (gross * getTradeContractSize(trade)) - fees;
 }
 
+// A trade this close to flat relative to risk counts as Breakeven rather
+// than a Win or a Loss, even though its raw dollar P/L is rarely exactly
+// zero. This only changes which bucket a trade is counted in for win-rate
+// style stats — it never changes the trade's actual P/L or R value.
+const BREAKEVEN_R_THRESHOLD = 0.1;
+
+// Single shared classification used everywhere wins/losses are counted
+// (dashboard stats, setup/asset/session analytics, calendar day review) so
+// a trade is never a Win in one report and Breakeven in another. Prefers
+// R multiple when it's available; falls back to the P/L sign for trades
+// where R can't be computed (matches the pre-Breakeven-Buffer behavior for
+// those trades, since there's no risk basis to measure against).
+function classifyTradeOutcome(pnl, rMultiple) {
+  if (rMultiple !== null && Number.isFinite(rMultiple)) {
+    if (rMultiple > BREAKEVEN_R_THRESHOLD) return 'win';
+    if (rMultiple < -BREAKEVEN_R_THRESHOLD) return 'loss';
+    return 'breakeven';
+  }
+  if (pnl > 0) return 'win';
+  if (pnl < 0) return 'loss';
+  return 'breakeven';
+}
+
 function getReportPeriodStart(referenceDate, period) {
   const periodStart = new Date(referenceDate);
   periodStart.setHours(0, 0, 0, 0);
@@ -1008,17 +1031,20 @@ function getSetupAnalytics(tradeList = trades) {
 
     const pnl = calculatePnl(trade);
     const rMultiple = calculateRMultiple(trade);
+    const outcome = classifyTradeOutcome(pnl, rMultiple);
     const report = setupReports.get(setupName) ?? {
       setupName,
       tradeCount: 0,
       winCount: 0,
+      breakevenCount: 0,
       rCount: 0,
       totalR: 0,
       netPnl: 0,
     };
 
     report.tradeCount += 1;
-    report.winCount += pnl > 0 ? 1 : 0;
+    report.winCount += outcome === 'win' ? 1 : 0;
+    report.breakevenCount += outcome === 'breakeven' ? 1 : 0;
     report.netPnl += pnl;
 
     if (rMultiple !== null) {
@@ -1034,6 +1060,7 @@ function getSetupAnalytics(tradeList = trades) {
       setupName: report.setupName,
       tradeCount: report.tradeCount,
       winRate: report.tradeCount ? (report.winCount / report.tradeCount) * 100 : 0,
+      breakevenCount: report.breakevenCount,
       averageR: report.rCount ? report.totalR / report.rCount : null,
       netPnl: report.netPnl,
     }))
@@ -1076,11 +1103,13 @@ function getAssetAnalytics(tradeList = trades) {
 
     const pnl = calculatePnl(trade);
     const rMultiple = calculateRMultiple(trade);
+    const outcome = classifyTradeOutcome(pnl, rMultiple);
     const report = assetReports.get(asset) ?? {
       asset,
       displayName: getFriendlyAssetName(asset),
       tradeCount: 0,
       winCount: 0,
+      breakevenCount: 0,
       rCount: 0,
       totalR: 0,
       winningPnlCount: 0,
@@ -1091,15 +1120,16 @@ function getAssetAnalytics(tradeList = trades) {
     };
 
     report.tradeCount += 1;
-    report.winCount += pnl > 0 ? 1 : 0;
+    report.winCount += outcome === 'win' ? 1 : 0;
+    report.breakevenCount += outcome === 'breakeven' ? 1 : 0;
     report.netPnl += pnl;
 
-    if (pnl > 0) {
+    if (outcome === 'win') {
       report.winningPnlCount += 1;
       report.totalWinningPnl += pnl;
     }
 
-    if (pnl < 0) {
+    if (outcome === 'loss') {
       report.losingPnlCount += 1;
       report.totalLosingPnl += pnl;
     }
@@ -1118,6 +1148,7 @@ function getAssetAnalytics(tradeList = trades) {
       displayName: report.displayName,
       tradeCount: report.tradeCount,
       winRate: report.tradeCount ? (report.winCount / report.tradeCount) * 100 : 0,
+      breakevenCount: report.breakevenCount,
       netPnl: report.netPnl,
       averageR: report.rCount ? report.totalR / report.rCount : null,
       averageWinner: report.winningPnlCount ? report.totalWinningPnl / report.winningPnlCount : null,
@@ -1440,6 +1471,7 @@ function buildSessionStats(tradeList, labelFn, labelOrder) {
       label,
       tradeCount: 0,
       winCount: 0,
+      breakevenCount: 0,
       rCount: 0,
       totalR: 0,
       winningPnl: [],
@@ -1454,10 +1486,12 @@ function buildSessionStats(tradeList, labelFn, labelOrder) {
     if (!report) return;
     const pnl = calculatePnl(trade);
     const rMultiple = calculateRMultiple(trade);
+    const outcome = classifyTradeOutcome(pnl, rMultiple);
     report.tradeCount += 1;
     report.netPnl += pnl;
-    if (pnl > 0) { report.winCount += 1; report.winningPnl.push(pnl); }
-    if (pnl < 0) { report.losingPnl.push(pnl); }
+    if (outcome === 'win') { report.winCount += 1; report.winningPnl.push(pnl); }
+    if (outcome === 'loss') { report.losingPnl.push(pnl); }
+    if (outcome === 'breakeven') { report.breakevenCount += 1; }
     if (rMultiple !== null) { report.rCount += 1; report.totalR += rMultiple; }
   });
 
@@ -1466,6 +1500,7 @@ function buildSessionStats(tradeList, labelFn, labelOrder) {
     .map((r) => ({
       label: r.label,
       tradeCount: r.tradeCount,
+      breakevenCount: r.breakevenCount,
       winRate: r.tradeCount ? (r.winCount / r.tradeCount) * 100 : 0,
       netPnl: r.netPnl,
       totalR: r.rCount ? r.totalR : null,
@@ -1899,8 +1934,10 @@ function renderCalendarDayReviewSummary(dateKey, dayTrades) {
   const startingBalance = dayTrades.map(getTradeStartingBalance).find((balance) => balance !== null) ?? null;
   const pnlPercent = startingBalance ? formatPercent((pnl / startingBalance) * 100) : '—';
   const tradePnls = dayTrades.map(calculatePnl);
-  const winningPnls = tradePnls.filter((value) => value > 0);
-  const losingPnls = tradePnls.filter((value) => value < 0);
+  const tradeOutcomes = dayTrades.map((trade, index) => classifyTradeOutcome(tradePnls[index], calculateRMultiple(trade)));
+  const winningPnls = tradePnls.filter((value, index) => tradeOutcomes[index] === 'win');
+  const losingPnls = tradePnls.filter((value, index) => tradeOutcomes[index] === 'loss');
+  const breakevenCount = tradeOutcomes.filter((outcome) => outcome === 'breakeven').length;
   const rValues = dayTrades.map(calculateRMultiple).filter(Number.isFinite);
   const wins = winningPnls.length;
   const winRate = dayTrades.length ? (wins / dayTrades.length) * 100 : null;
@@ -2127,12 +2164,14 @@ function getStats(tradeList = trades) {
   // const riskDollarValues = trades.map(calculateRiskDollars).filter(Number.isFinite);
   // const riskPercentValues = trades.map(calculateRiskPercent).filter(Number.isFinite);
   const pnlValues = tradeList.map(calculatePnl);
+  const outcomes = tradeList.map((trade, index) => classifyTradeOutcome(pnlValues[index], calculateRMultiple(trade)));
   const totalRiskUsed = tradeList.map(calculateOriginalRiskDollars).filter(Number.isFinite).reduce((sum, value) => sum + value, 0);
   const performanceR = totalRiskUsed > 0 ? pnlValues.reduce((sum, value) => sum + value, 0) / totalRiskUsed : null;
   const riskDollarValues = tradeList.map(calculateRiskDollars).filter(Number.isFinite);
   const riskPercentValues = tradeList.map(calculateRiskPercent).filter(Number.isFinite);
-  const wins = pnlValues.filter((value) => value > 0);
-  const losses = pnlValues.filter((value) => value < 0);
+  const wins = pnlValues.filter((value, index) => outcomes[index] === 'win');
+  const losses = pnlValues.filter((value, index) => outcomes[index] === 'loss');
+  const breakevenCount = outcomes.filter((outcome) => outcome === 'breakeven').length;
   const totalPnl = pnlValues.reduce((sum, value) => sum + value, 0);
   const averageWin = wins.length ? wins.reduce((sum, value) => sum + value, 0) / wins.length : 0;
   const averageLoss = losses.length ? losses.reduce((sum, value) => sum + value, 0) / losses.length : 0;
@@ -2151,6 +2190,7 @@ function getStats(tradeList = trades) {
   return {
     totalPnl,
     winRate: tradeList.length ? (wins.length / tradeList.length) * 100 : 0,
+    breakevenCount,
     tradeCount: tradeList.length,
     averageWin,
     averageLoss,

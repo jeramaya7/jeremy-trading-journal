@@ -84,6 +84,16 @@ export function applyCTraderImportedTradeUpdates(existingTrades, skippedTrades) 
       ...(update.contractSize !== undefined ? { contractSize: update.contractSize } : {}),
       ...(update.stopLoss !== undefined && isBlankTradeValue(trade.stopLoss) ? { stopLoss: update.stopLoss } : {}),
       ...(update.takeProfit !== undefined && isBlankTradeValue(trade.takeProfit) ? { takeProfit: update.takeProfit } : {}),
+      // Same Final TP/SL default as a fresh import: only applies the first
+      // time the initial SL/TP becomes known (trade.stopLoss/takeProfit was
+      // blank) and only if the trade's Final SL/TP hasn't already been set
+      // manually. Still fully editable afterward.
+      ...(update.stopLoss !== undefined && isBlankTradeValue(trade.stopLoss) && isBlankTradeValue(trade.adjustedStopLoss)
+        ? { adjustedStopLoss: update.stopLoss }
+        : {}),
+      ...(update.takeProfit !== undefined && isBlankTradeValue(trade.takeProfit) && isBlankTradeValue(trade.adjustedTakeProfit)
+        ? { adjustedTakeProfit: update.takeProfit }
+        : {}),
     };
     const didChange = nextTrade.symbol !== trade.symbol
       || nextTrade.brokerSymbol !== trade.brokerSymbol
@@ -129,6 +139,16 @@ export function convertCTraderPreviewTradeToJournalEntry(previewTrade, options =
     emotion: previewTrade.emotion || '',
     tags: '',
     notes: '',
+    // Final TP/SL default to the broker-reported initial TP/SL so the
+    // journal never shows a blank "Final" value for a trade that hasn't
+    // actually been adjusted yet. Still fully editable afterward — this
+    // only sets the starting value.
+    ...(isBlankTradeValue(previewTrade.adjustedStopLoss) && !isBlankTradeValue(previewTrade.stopLoss)
+      ? { adjustedStopLoss: previewTrade.stopLoss }
+      : {}),
+    ...(isBlankTradeValue(previewTrade.adjustedTakeProfit) && !isBlankTradeValue(previewTrade.takeProfit)
+      ? { adjustedTakeProfit: previewTrade.takeProfit }
+      : {}),
     importedAt: getImportedAt(options),
     ...getImportedAccountBalanceFields(options.accountBalance),
   };
