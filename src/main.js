@@ -28,7 +28,7 @@ const AUTO_SYNC_INTERVAL_MS = 60 * 1000;
 
 // Fields the backend persists to Supabase for cross-device annotation sync.
 // Must match JOURNAL_ANNOTATION_FIELDS in src/server.js.
-const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'position', 'tradeManagement', 'grade', 'closeReason', 'lossReason', 'tags', 'notes', 'adjustedStopLoss', 'adjustedTakeProfit'];
+const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'position', 'tradeManagement', 'grade', 'closeReason', 'lossReason', 'tags', 'notes', 'adjustedStopLoss', 'adjustedTakeProfit', 'takeProfit', 'stopLoss'];
 
 const starterTrades = [
   {
@@ -3463,6 +3463,7 @@ async function submitTradeEdit(event) {
     tags: String(formData.get('tags')).trim(),
     notes: String(formData.get('notes')).trim(),
     adjustedStopLoss,
+    stopLoss: toOptionalNumber(formData.get('stopLoss')),
     takeProfit: toOptionalNumber(formData.get('takeProfit')),
     adjustedTakeProfit: toOptionalNumber(formData.get('adjustedTakeProfit')),
   };

@@ -1203,6 +1203,62 @@ test('uses a numeric cTrader order type (STOP_LIMIT) closing order as the stop l
 });
 
 
+test('uses a numeric cTrader order type (LIMIT) closing order as the take profit', () => {
+  // Same root cause as the numeric Stop Loss bug above, on the Take Profit
+  // side: cTrader can report the protective take-profit as an order with
+  // orderType: 2 (LIMIT) and closingOrder: true, not as a named
+  // "take profit" field. This order's limitPrice should still be read as
+  // the trade's Take Profit. A non-closing LIMIT order (e.g. a limit entry)
+  // must NOT be mistaken for a take profit.
+  const [trade] = mapCtraderDealsToJournalTrades({
+    deal: [
+      {
+        dealId: 430,
+        positionId: 530,
+        symbolName: 'XAUUSD',
+        tradeSide: 'BUY',
+        executionPrice: 4143.81,
+        executionTimestamp: 1_699_000_000_000,
+        filledVolume: 100,
+      },
+      {
+        dealId: 431,
+        positionId: 530,
+        symbolName: 'XAUUSD',
+        tradeSide: 'SELL',
+        executionPrice: 4150.2,
+        executionTimestamp: 1_700_000_000_000,
+        closePositionDetail: {
+          entryPrice: 4143.81,
+          closedVolume: 100,
+        },
+      },
+    ],
+  }, {
+    symbolMetadata: { lotSize: 10000 },
+    ordersByPositionId: {
+      530: [
+        {
+          orderId: 373747541,
+          orderType: 2,
+          closingOrder: false,
+          positionId: 530,
+        },
+        {
+          orderId: 373747557,
+          orderType: 2,
+          orderStatus: 2,
+          closingOrder: true,
+          limitPrice: 4150.2,
+          positionId: 530,
+        },
+      ],
+    },
+  });
+
+  assert.equal(trade.takeProfit, 4150.2);
+});
+
 test('cTrader mapper converts relative protection fields into initial stop loss and take profit prices', () => {
   const longTrade = mapCtraderClosingDealToJournalTrade({
     dealId: 413,

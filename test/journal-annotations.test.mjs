@@ -168,6 +168,55 @@ test('PUT /api/journal/annotations/:tradeId strips fields outside the allowed li
   }, { fetchImpl });
 });
 
+test('PUT /api/journal/annotations/:tradeId saves and syncs Initial Take Profit (takeProfit) and Final Take Profit (adjustedTakeProfit)', async () => {
+  // Regression test: takeProfit (Initial Take Profit) was previously missing
+  // from JOURNAL_ANNOTATION_FIELDS, so edits to it were silently stripped
+  // before reaching Supabase and never appeared on a second device, even
+  // though adjustedTakeProfit (Final Take Profit) synced fine. Both fields
+  // must now round-trip through PUT and GET.
+  const { fetchImpl } = createFakeSupabase();
+  await withServer(async ({ port }) => {
+    const putResponse = await fetch(`http://127.0.0.1:${port}/api/journal/annotations/trade-1`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ takeProfit: 1.205, adjustedTakeProfit: 1.21 }),
+    });
+    const putBody = await putResponse.json();
+
+    assert.equal(putResponse.status, 200);
+    assert.deepEqual(putBody, { tradeId: 'trade-1', takeProfit: 1.205, adjustedTakeProfit: 1.21 });
+
+    const getResponse = await fetch(`http://127.0.0.1:${port}/api/journal/annotations`);
+    const getBody = await getResponse.json();
+
+    assert.deepEqual(getBody, { 'trade-1': { takeProfit: 1.205, adjustedTakeProfit: 1.21 } });
+  }, { fetchImpl });
+});
+
+test('PUT /api/journal/annotations/:tradeId saves and syncs Initial Stop Loss (stopLoss) alongside Final Stop Loss (adjustedStopLoss)', async () => {
+  // Regression test: stopLoss (Initial Stop Loss) had the same gap as
+  // takeProfit above — missing from JOURNAL_ANNOTATION_FIELDS, so it never
+  // reached Supabase and never appeared on a second device. Fixed the same
+  // way: stopLoss now round-trips through PUT and GET like adjustedStopLoss.
+  const { fetchImpl } = createFakeSupabase();
+  await withServer(async ({ port }) => {
+    const putResponse = await fetch(`http://127.0.0.1:${port}/api/journal/annotations/trade-1`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stopLoss: 1.095, adjustedStopLoss: 1.1 }),
+    });
+    const putBody = await putResponse.json();
+
+    assert.equal(putResponse.status, 200);
+    assert.deepEqual(putBody, { tradeId: 'trade-1', stopLoss: 1.095, adjustedStopLoss: 1.1 });
+
+    const getResponse = await fetch(`http://127.0.0.1:${port}/api/journal/annotations`);
+    const getBody = await getResponse.json();
+
+    assert.deepEqual(getBody, { 'trade-1': { stopLoss: 1.095, adjustedStopLoss: 1.1 } });
+  }, { fetchImpl });
+});
+
 test('PUT /api/journal/annotations/:tradeId returns 400 for malformed JSON and does not crash the server', async () => {
   const { fetchImpl } = createFakeSupabase();
   await withServer(async ({ port }) => {

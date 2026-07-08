@@ -313,9 +313,20 @@ function getCtraderOrderTakeProfit(order) {
   return takeProfit;
 }
 
+// cTrader's Open API reports order type as a numeric code, not a word, for
+// most accounts: 2 = LIMIT. A limit order that closes the position
+// (closingOrder: true) with a limitPrice is the protective Take Profit
+// actually filled by the broker, even though nothing in the payload is
+// literally named "take profit". (Mirrors the numeric Stop Loss detection
+// above — same root cause, same fix, applied to the TP side.)
+const CTRADER_TAKE_PROFIT_ORDER_TYPE_CODES = new Set([2]);
+
 function isCtraderTakeProfitOrder(order) {
   const type = order?.orderType ?? order?.type ?? '';
-  return /take.?profit/i.test(String(type));
+  if (/take.?profit/i.test(String(type))) {
+    return true;
+  }
+  return CTRADER_TAKE_PROFIT_ORDER_TYPE_CODES.has(Number(type)) && order?.closingOrder === true;
 }
 
 

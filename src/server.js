@@ -15,7 +15,7 @@ const ROOT_DIR = join(fileURLToPath(new URL('..', import.meta.url)));
 const DEFAULT_RECENT_DEALS_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
 const DEFAULT_DEALS_MAX_ROWS = 100;
 const RAW_DEALS_FILE_NAME = 'ctrader-raw-deals.json';
-const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'position', 'tradeManagement', 'grade', 'closeReason', 'lossReason', 'tags', 'notes', 'adjustedStopLoss', 'adjustedTakeProfit'];
+const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'position', 'tradeManagement', 'grade', 'closeReason', 'lossReason', 'tags', 'notes', 'adjustedStopLoss', 'adjustedTakeProfit', 'takeProfit', 'stopLoss'];
 const CTRADER_DEBUG_POSITION_ID = '543914821';
 const CTRADER_AUTHORIZE_URL = 'https://id.ctrader.com/my/settings/openapi/grantingaccess/';
 const CTRADER_TOKEN_URL = 'https://openapi.ctrader.com/apps/token';
@@ -949,7 +949,7 @@ async function putJournalAnnotationEndpoint(request, response, tradeId, options 
   }
 
   // Strip anything not in the allowed field list — Supabase only ever
-  // persists the eight known annotation fields.
+  // persists the known annotation fields.
   const sanitizedFields = {};
   for (const field of JOURNAL_ANNOTATION_FIELDS) {
     if (Object.prototype.hasOwnProperty.call(payload, field)) {
