@@ -136,3 +136,34 @@ test('every breakeven-count call site shares the same classifyTradeOutcome + cal
   const sharedCallSites = source.match(/classifyTradeOutcome\((?:pnl(?:Values\[index\])?|tradePnls\[index\]), (?:rMultiple|calculateRMultiple\(trade\))\)/g) ?? [];
   assert.ok(sharedCallSites.length >= 5, `Expected at least 5 shared classifyTradeOutcome call sites, found ${sharedCallSites.length}.`);
 });
+
+test('trade card Outcome badge reuses the shared classifier and the existing DNA pill style', () => {
+  // Display-only requirement: the card must show Win/Loss/Breakeven by
+  // calling the same classifyTradeOutcome() used everywhere else, not by
+  // re-deriving it from pnl/R with its own ad-hoc check, and it must reuse
+  // the existing gold/navy analysis pill styling rather than introducing a
+  // new win/loss color scheme.
+  assert.ok(
+    source.includes("const tradeOutcomeLabel = TRADE_OUTCOME_LABELS[classifyTradeOutcome(pnl, rMultiple)] || '';"),
+    'tradeCard() should derive its Outcome label from the shared classifyTradeOutcome(), not a separate calculation.',
+  );
+  assert.ok(
+    source.includes("const TRADE_OUTCOME_LABELS = { win: 'Win', loss: 'Loss', breakeven: 'Breakeven' };"),
+    'Outcome labels should be a plain Win/Loss/Breakeven lookup next to the classifier, not styled per outcome.',
+  );
+
+  const tradeCardStart = source.indexOf('function tradeCard(trade) {');
+  assert.notEqual(tradeCardStart, -1, 'tradeCard() should exist.');
+  const tradeCardEnd = source.indexOf('\nfunction ', tradeCardStart + 1);
+  const tradeCardBody = source.slice(tradeCardStart, tradeCardEnd === -1 ? undefined : tradeCardEnd);
+
+  assert.ok(tradeCardBody.includes('tradeOutcomeLabel,'), 'The Analysis pill row should include the Outcome label.');
+  assert.ok(
+    tradeCardBody.includes('<span class="tc-pill tc-pill--analysis">'),
+    'The Outcome pill should render with the same tc-pill--analysis class as the other Analysis badges, not a new class.',
+  );
+
+  // Guard against a new win/red/loss-green color scheme creeping in later:
+  // no outcome-specific CSS class or inline color should be introduced.
+  assert.equal(/tc-pill--(win|loss|breakeven)/.test(source), false, 'The Outcome badge must not introduce its own color-coded pill class.');
+});

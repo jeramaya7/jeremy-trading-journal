@@ -899,6 +899,12 @@ function classifyTradeOutcome(pnl, rMultiple) {
   return 'breakeven';
 }
 
+// Display labels for classifyTradeOutcome()'s result. Kept next to the
+// classifier so there's one place that owns both the bucket and its label —
+// display code should never re-derive win/loss/breakeven from pnl or R
+// itself.
+const TRADE_OUTCOME_LABELS = { win: 'Win', loss: 'Loss', breakeven: 'Breakeven' };
+
 function getReportPeriodStart(referenceDate, period) {
   const periodStart = new Date(referenceDate);
   periodStart.setHours(0, 0, 0, 0);
@@ -2486,6 +2492,7 @@ function tradeCard(trade) {
   const riskDollars = calculateRiskDollars(trade);
   const riskPercent = calculateRiskPercent(trade);
   const rMultiple = calculateRMultiple(trade);
+  const tradeOutcomeLabel = TRADE_OUTCOME_LABELS[classifyTradeOutcome(pnl, rMultiple)] || '';
   const tone = getPerformanceTone(pnl);
   const rTone = getPerformanceTone(rMultiple);
   const importedTimeDetail = cTraderTimeDetails(trade);
@@ -2593,6 +2600,7 @@ function tradeCard(trade) {
         ].filter(v => v && String(v).trim()).map(v => `<span class="tc-pill">${escapeHtml(String(v))}</span>`).join('')}
       </div>
       ${[
+        tradeOutcomeLabel,
         trade.state ? normalizeMarketState(trade.state) : '',
         trade.position,
         trade.tradeManagement,
@@ -2604,6 +2612,7 @@ function tradeCard(trade) {
         <span class="tc-analysis-label">Analysis</span>
         <div class="tc-analysis-pills">
           ${[
+            tradeOutcomeLabel,
             trade.state ? normalizeMarketState(trade.state) : '',
             trade.position,
             trade.tradeManagement,
