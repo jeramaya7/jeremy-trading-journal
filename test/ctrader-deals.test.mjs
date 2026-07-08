@@ -1147,6 +1147,61 @@ test('uses cTrader order history stop loss and take profit when deal fields are 
   assert.equal(trade.adjustedTakeProfit, undefined);
 });
 
+test('uses a numeric cTrader order type (STOP_LIMIT) closing order as the stop loss', () => {
+  // Real production example: cTrader reported the protective stop as an
+  // order with orderType: 4 (STOP_LIMIT) and closingOrder: true, not as a
+  // named "stop loss" field. This order's stopPrice should still be read
+  // as the trade's Stop Loss.
+  const [trade] = mapCtraderDealsToJournalTrades({
+    deal: [
+      {
+        dealId: 420,
+        positionId: 520,
+        symbolName: 'XAUUSD',
+        tradeSide: 'BUY',
+        executionPrice: 4143.81,
+        executionTimestamp: 1_699_000_000_000,
+        filledVolume: 100,
+      },
+      {
+        dealId: 421,
+        positionId: 520,
+        symbolName: 'XAUUSD',
+        tradeSide: 'SELL',
+        executionPrice: 4141.83,
+        executionTimestamp: 1_700_000_000_000,
+        closePositionDetail: {
+          entryPrice: 4143.81,
+          closedVolume: 100,
+        },
+      },
+    ],
+  }, {
+    symbolMetadata: { lotSize: 10000 },
+    ordersByPositionId: {
+      520: [
+        {
+          orderId: 373747540,
+          orderType: 1,
+          closingOrder: false,
+          positionId: 520,
+        },
+        {
+          orderId: 373747556,
+          orderType: 4,
+          orderStatus: 2,
+          closingOrder: true,
+          limitPrice: 4133.57,
+          stopPrice: 4141.7,
+          positionId: 520,
+        },
+      ],
+    },
+  });
+
+  assert.equal(trade.stopLoss, 4141.7);
+});
+
 
 test('cTrader mapper converts relative protection fields into initial stop loss and take profit prices', () => {
   const longTrade = mapCtraderClosingDealToJournalTrade({
