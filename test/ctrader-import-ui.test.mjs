@@ -136,12 +136,13 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(source, 'data-edit-trade-form="${escapeHtml(trade.id)}"', 'The edit form keeps a stable trade ID for saving changes.');
   assertIncludes(source, "${field('Setup', renderPlayBookSetupSelect(trade))}", 'The edit form allows setup changes through the Play Book dropdown.');
   assertIncludes(source, 'const PLAY_BOOK_SETUP_OPTIONS = [', 'The Play Book setup dropdown has a fixed setup list.');
-  assertIncludes(source, "'Elephant Bar'", 'The Play Book setup dropdown includes Elephant Bar.');
-  assertIncludes(source, "const TREND_LINE_BREAK_SETUP = 'Trend Line Break';", 'The Play Book setup dropdown includes the corrected Trend Line Break setup.');
-  assertIncludes(source, '  TREND_LINE_BREAK_SETUP,', 'The Play Book setup dropdown uses the corrected setup constant.');
+  assertIncludes(source, "'Event Bar'", 'The Play Book setup dropdown includes Event Bar.');
+  assertIncludes(source, "'Trendline Break'", 'The Play Book setup dropdown includes Trendline Break.');
   assert.ok(!source.includes("  'Trade Line Break',"), 'The Play Book setup dropdown no longer shows the misspelled setup label.');
-  assertIncludes(source, "'Ride the 🐋'", 'The Play Book setup dropdown includes Ride the whale.');
+  assert.ok(!source.includes("'Elephant Bar',") , 'The retired Elephant Bar label is no longer a selectable Play Book option (migrated to Event Bar instead).');
+  assert.ok(!source.includes("'Ride the 🐋',"), 'Ride the whale is retired from the Play Book dropdown (existing trades fall back to Custom).');
   assertIncludes(source, "const CUSTOM_SETUP_OPTION = 'Custom';", 'The Play Book setup dropdown includes a Custom option.');
+  assert.ok(!source.includes('>None</option>\n      ${PLAY_BOOK_SETUP_OPTIONS'), 'The Play Book setup dropdown no longer offers a None option.');
   assertIncludes(source, "const selectedSetup = isPlayBookSetup(currentSetup) ? currentSetup : CUSTOM_SETUP_OPTION;", 'Existing non-Play Book setup values open as Custom.');
   assertIncludes(source, "const customValue = selectedSetup === CUSTOM_SETUP_OPTION ? currentSetup : '';", 'Existing custom setup values are preserved in the custom setup input.');
   assert.ok(!source.includes("${field('Emotion'"), 'The edit form does not render an emotion field.');
@@ -154,14 +155,32 @@ test('trade cards expose an edit flow for local journaling fields', () => {
 
 
 
-test('legacy Trade Line Break setup values migrate to Trend Line Break', () => {
-  assertIncludes(source, "const LEGACY_TRADE_LINE_BREAK_SETUP = 'Trade Line Break';", 'The legacy setup name is retained only for migration.');
-  assertIncludes(source, "return setup === LEGACY_TRADE_LINE_BREAK_SETUP ? TREND_LINE_BREAK_SETUP : setup;", 'Setup normalization renames only the legacy setup value.');
+test('legacy setup names migrate to their current canonical name', () => {
+  // Generalized from a single Trade Line Break -> Trend Line Break pair
+  // into a full old-name -> new-name map so every retired/renamed Play
+  // Book setup (Elephant Bar, Buy the Retrace, MATX, MAX, Return to 200,
+  // Trend/Trade Line Break, Support & Resistance, The General Forecast)
+  // migrates the same way, wherever a setup is displayed, edited,
+  // filtered, analyzed, or reported.
+  assertIncludes(source, 'const LEGACY_SETUP_NAME_MAP = {', 'Legacy setup names are retained only for migration, in one shared map.');
+  assertIncludes(source, "'Trade Line Break': 'Trendline Break',", 'The old misspelled Trade Line Break value migrates to Trendline Break.');
+  assertIncludes(source, "'Trend Line Break': 'Trendline Break',", 'The old Trend Line Break value migrates to Trendline Break.');
+  assertIncludes(source, "'Elephant Bar': 'Event Bar',", 'Elephant Bar migrates to Event Bar.');
+  assertIncludes(source, "'Buy the Retrace': 'Enter Retrace',", 'Buy the Retrace migrates to Enter Retrace.');
+  assertIncludes(source, "'MATX': 'EMA Cross',", 'MATX migrates to EMA Cross.');
+  assertIncludes(source, "'MAX': 'EMA Cross',", 'MAX migrates to EMA Cross.');
+  assertIncludes(source, "'Return to 200': 'Wide State Reversal',", 'Return to 200 migrates to Wide State Reversal.');
+  assertIncludes(source, "'Support & Resistance': 'Support/Resistance',", 'Support & Resistance migrates to Support/Resistance.');
+  assertIncludes(source, "'The General Forecast': 'General Forecast',", 'The General Forecast migrates to General Forecast.');
+  assert.ok(!source.includes("'Scalp': "), 'Scalp is deliberately left unmigrated (falls back to Custom), per product decision.');
+
+  assertIncludes(source, 'function normalizeSetupName(setup) {', 'Setup normalization is a single shared function.');
+  assertIncludes(source, 'return Object.prototype.hasOwnProperty.call(LEGACY_SETUP_NAME_MAP, setup) ? LEGACY_SETUP_NAME_MAP[setup] : setup;', 'Setup normalization looks up the shared legacy map instead of a single hardcoded pair.');
   assertIncludes(source, 'const shouldMigrateSavedTrades = hasLegacySetupName(parsedTrades);', 'Saved journal entries are checked for legacy setup names when loaded from localStorage.');
   assertIncludes(source, 'const migratedTrades = shouldMigrateSavedTrades ? normalizeTradeSetups(parsedTrades) : parsedTrades;', 'Saved journal entries are normalized when migration is needed.');
   assertIncludes(source, 'window.localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedTrades));', 'Migrated saved journal entries are written back to localStorage.');
   assertIncludes(source, 'trades = normalizeTradeSetups(nextTrades);', 'Imported and saved journal entries are normalized before persistence/export.');
-  assertIncludes(source, "setup: normalizeSetupName(String(formData.get('setup')).trim()) || 'Uncategorized setup',", 'Manual entries typed with the legacy setup name are normalized.');
+  assertIncludes(source, "setup: normalizeSetupName(String(formData.get('setup')).trim()) || 'Uncategorized setup',", 'Manual entries typed with a legacy setup name are normalized.');
 });
 
 test('trade edit form changes stay local until the user saves', () => {

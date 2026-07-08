@@ -22,8 +22,25 @@ const DNA_TIMEFRAME_OPTIONS = [
   { value: 'all', label: 'Beginning' },
 ];
 
-const LEGACY_TRADE_LINE_BREAK_SETUP = 'Trade Line Break';
-const TREND_LINE_BREAK_SETUP = 'Trend Line Break';
+// Legacy Setup names (renamed or retired from the current Play Book list)
+// mapped to their current canonical name. Existing trades tagged with any
+// of these old names are transparently migrated to the new name wherever a
+// setup is displayed, edited, filtered, analyzed, or reported. Setup names
+// that were retired with no direct replacement (e.g. ORB, Ride the whale,
+// Set & Forget, TB Retrace, Scalp) are deliberately NOT in this map — they
+// keep their original text and fall through to the Custom setup input when
+// edited, same as any value that was never on the Play Book list.
+const LEGACY_SETUP_NAME_MAP = {
+  'Trade Line Break': 'Trendline Break',
+  'Trend Line Break': 'Trendline Break',
+  'Elephant Bar': 'Event Bar',
+  'Buy the Retrace': 'Enter Retrace',
+  'MATX': 'EMA Cross',
+  'MAX': 'EMA Cross',
+  'Return to 200': 'Wide State Reversal',
+  'Support & Resistance': 'Support/Resistance',
+  'The General Forecast': 'General Forecast',
+};
 const AUTO_SYNC_INTERVAL_MS = 60 * 1000;
 
 // Fields the backend persists to Supabase for cross-device annotation sync.
@@ -141,20 +158,17 @@ const FRIENDLY_ASSET_NAMES = {
 };
 
 const PLAY_BOOK_SETUP_OPTIONS = [
-  'Buy the Retrace',
-  'Elephant Bar',
+  'EMA Bounce',
+  'EMA Continuation',
+  'EMA Cross',
+  'Enter Retrace',
+  'Event Bar',
+  'General Forecast',
   'Hedge',
-  'MATX',
-  'MAX',
-  'ORB',
-  'Return to 200',
-  'Ride the 🐋',
-  'Scalp',
-  'Set & Forget',
-  'Support & Resistance',
-  'TB Retrace',
-  'The General Forecast',
-  TREND_LINE_BREAK_SETUP,
+  'Scalping',
+  'Support/Resistance',
+  'Trendline Break',
+  'Wide State Reversal',
 ];
 const CUSTOM_SETUP_OPTION = 'Custom';
 const LOSS_REASON_OPTIONS = [
@@ -220,17 +234,17 @@ const TRADE_MANAGEMENT_OPTIONS = [
 const app = document.querySelector('#root');
 
 function normalizeSetupName(setup) {
-  return setup === LEGACY_TRADE_LINE_BREAK_SETUP ? TREND_LINE_BREAK_SETUP : setup;
+  return Object.prototype.hasOwnProperty.call(LEGACY_SETUP_NAME_MAP, setup) ? LEGACY_SETUP_NAME_MAP[setup] : setup;
 }
 
 function hasLegacySetupName(nextTrades) {
-  return nextTrades.some((trade) => trade?.setup === LEGACY_TRADE_LINE_BREAK_SETUP);
+  return nextTrades.some((trade) => Object.prototype.hasOwnProperty.call(LEGACY_SETUP_NAME_MAP, trade?.setup));
 }
 
 function normalizeTradeSetups(nextTrades) {
   return nextTrades.map((trade) => (
-    trade?.setup === LEGACY_TRADE_LINE_BREAK_SETUP
-      ? { ...trade, setup: TREND_LINE_BREAK_SETUP }
+    Object.prototype.hasOwnProperty.call(LEGACY_SETUP_NAME_MAP, trade?.setup)
+      ? { ...trade, setup: LEGACY_SETUP_NAME_MAP[trade.setup] }
       : trade
   ));
 }
@@ -2704,7 +2718,7 @@ function renderPlayBookSetupSelect(trade) {
   const customHidden = selectedSetup === CUSTOM_SETUP_OPTION ? '' : ' hidden';
   return `
     <select name="setupChoice" data-setup-choice="${escapeHtml(trade.id)}" aria-label="Play Book setup">
-      <option value=""${selectedSetup === '' ? ' selected' : ''}>None</option>
+      <option value=""${selectedSetup === '' ? ' selected' : ''} hidden disabled></option>
       ${PLAY_BOOK_SETUP_OPTIONS.map((option) => renderSetupOption(option, selectedSetup)).join('')}
       ${renderSetupOption(CUSTOM_SETUP_OPTION, selectedSetup)}
     </select>
