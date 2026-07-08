@@ -50,6 +50,7 @@ const PURE_TRADE_MATH_FUNCTIONS = [
   'calculateProtectedProfitRMultiple',
   'calculateRMultiple',
   'classifyTradeOutcome',
+  'calculateWinRate',
 ];
 
 function loadTradeMathModule() {
@@ -135,6 +136,35 @@ test('every breakeven-count call site shares the same classifyTradeOutcome + cal
   // once, instead of needing five separate patches.
   const sharedCallSites = source.match(/classifyTradeOutcome\((?:pnl(?:Values\[index\])?|tradePnls\[index\]), (?:rMultiple|calculateRMultiple\(trade\))\)/g) ?? [];
   assert.ok(sharedCallSites.length >= 5, `Expected at least 5 shared classifyTradeOutcome call sites, found ${sharedCallSites.length}.`);
+});
+
+test('calculateWinRate excludes Breakeven trades from both the numerator and the denominator', () => {
+  // Win Rate = Wins / (Wins + Losses). Breakevens must not count as a win,
+  // and must not water down the denominator either.
+  const { calculateWinRate } = loadTradeMathModule();
+
+  assert.equal(calculateWinRate(7, 3), 70, '7 wins, 3 losses, 0 breakeven -> 70%.');
+  // 6 wins, 3 losses, 5 breakeven: breakevens must be excluded from the
+  // denominator entirely, so this is 6/9, not 6/14.
+  assert.equal(calculateWinRate(6, 3), (6 / 9) * 100);
+  assert.equal(calculateWinRate(0, 0), null, 'No decided trades (e.g. all Breakeven) -> Win Rate is undefined, not 0%.');
+  assert.equal(calculateWinRate(0, 4), 0, 'All losses, no wins -> 0%.');
+  assert.equal(calculateWinRate(4, 0), 100, 'All wins, no losses -> 100%.');
+});
+
+test('every Win Rate call site uses the shared calculateWinRate() formula, not its own math', () => {
+  const winRateCallSites = source.match(/winRate:\s*calculateWinRate\([^)]*\)/g) ?? [];
+  const winRateAssignments = source.match(/const winRate = calculateWinRate\([^)]*\);/g) ?? [];
+  const totalSharedCallSites = winRateCallSites.length + winRateAssignments.length;
+  assert.ok(
+    totalSharedCallSites >= 5,
+    `Expected at least 5 places computing Win Rate via calculateWinRate(), found ${totalSharedCallSites}.`,
+  );
+
+  // Guard against a stray tradeCount- or dayTrades.length-denominated win
+  // rate calculation being reintroduced anywhere.
+  assert.equal(/winCount \/ .*tradeCount/.test(source), false, 'No Win Rate calculation should divide by total trade count (that would include Breakeven trades in the denominator).');
+  assert.equal(/wins(?:\.length)? \/ (?:tradeList\.length|dayTrades\.length)/.test(source), false, 'No Win Rate calculation should divide wins by total trade count.');
 });
 
 test('trade card Outcome badge reuses the shared classifier and the existing DNA pill style', () => {

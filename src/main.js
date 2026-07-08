@@ -905,6 +905,19 @@ function classifyTradeOutcome(pnl, rMultiple) {
 // itself.
 const TRADE_OUTCOME_LABELS = { win: 'Win', loss: 'Loss', breakeven: 'Breakeven' };
 
+// Win Rate = Wins ÷ (Wins + Losses). Breakeven trades (per
+// classifyTradeOutcome() above) are excluded entirely — not counted as a
+// win, and not counted in the denominator either — so a day, setup, asset,
+// or session full of scratch trades doesn't drag Win Rate toward 0%. If
+// there are no decided (win or loss) trades at all, Win Rate is undefined
+// (null) rather than 0%. Single shared formula for every place Win Rate is
+// reported (dashboard, setup analytics, asset analytics, session stats,
+// calendar day review) so none of them can drift out of sync.
+function calculateWinRate(winCount, lossCount) {
+  const decidedCount = winCount + lossCount;
+  return decidedCount > 0 ? (winCount / decidedCount) * 100 : null;
+}
+
 function getReportPeriodStart(referenceDate, period) {
   const periodStart = new Date(referenceDate);
   periodStart.setHours(0, 0, 0, 0);
@@ -1050,6 +1063,7 @@ function getSetupAnalytics(tradeList = trades) {
       setupName,
       tradeCount: 0,
       winCount: 0,
+      lossCount: 0,
       breakevenCount: 0,
       rCount: 0,
       totalR: 0,
@@ -1058,6 +1072,7 @@ function getSetupAnalytics(tradeList = trades) {
 
     report.tradeCount += 1;
     report.winCount += outcome === 'win' ? 1 : 0;
+    report.lossCount += outcome === 'loss' ? 1 : 0;
     report.breakevenCount += outcome === 'breakeven' ? 1 : 0;
     report.netPnl += pnl;
 
@@ -1073,7 +1088,7 @@ function getSetupAnalytics(tradeList = trades) {
     .map((report) => ({
       setupName: report.setupName,
       tradeCount: report.tradeCount,
-      winRate: report.tradeCount ? (report.winCount / report.tradeCount) * 100 : 0,
+      winRate: calculateWinRate(report.winCount, report.lossCount),
       breakevenCount: report.breakevenCount,
       averageR: report.rCount ? report.totalR / report.rCount : null,
       netPnl: report.netPnl,
@@ -1161,7 +1176,7 @@ function getAssetAnalytics(tradeList = trades) {
       asset: report.asset,
       displayName: report.displayName,
       tradeCount: report.tradeCount,
-      winRate: report.tradeCount ? (report.winCount / report.tradeCount) * 100 : 0,
+      winRate: calculateWinRate(report.winCount, report.losingPnlCount),
       breakevenCount: report.breakevenCount,
       netPnl: report.netPnl,
       averageR: report.rCount ? report.totalR / report.rCount : null,
@@ -1515,7 +1530,7 @@ function buildSessionStats(tradeList, labelFn, labelOrder) {
       label: r.label,
       tradeCount: r.tradeCount,
       breakevenCount: r.breakevenCount,
-      winRate: r.tradeCount ? (r.winCount / r.tradeCount) * 100 : 0,
+      winRate: calculateWinRate(r.winCount, r.losingPnl.length),
       netPnl: r.netPnl,
       totalR: r.rCount ? r.totalR : null,
       averageR: r.rCount ? r.totalR / r.rCount : null,
@@ -1954,7 +1969,7 @@ function renderCalendarDayReviewSummary(dateKey, dayTrades) {
   const breakevenCount = tradeOutcomes.filter((outcome) => outcome === 'breakeven').length;
   const rValues = dayTrades.map(calculateRMultiple).filter(Number.isFinite);
   const wins = winningPnls.length;
-  const winRate = dayTrades.length ? (wins / dayTrades.length) * 100 : null;
+  const winRate = calculateWinRate(wins, losingPnls.length);
   const averageR = rValues.length ? rValues.reduce((total, value) => total + value, 0) / rValues.length : null;
   const averageWinner = winningPnls.length ? winningPnls.reduce((total, value) => total + value, 0) / winningPnls.length : null;
   const averageLoser = losingPnls.length ? losingPnls.reduce((total, value) => total + value, 0) / losingPnls.length : null;
@@ -2203,7 +2218,7 @@ function getStats(tradeList = trades) {
 
   return {
     totalPnl,
-    winRate: tradeList.length ? (wins.length / tradeList.length) * 100 : 0,
+    winRate: calculateWinRate(wins.length, losses.length),
     breakevenCount,
     tradeCount: tradeList.length,
     averageWin,
