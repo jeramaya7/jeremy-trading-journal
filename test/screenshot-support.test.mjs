@@ -51,7 +51,7 @@ test('risk fields and calculations are available for trade logging', () => {
   assertIncludes(source, 'input name="riskPercent" type="number"', 'The trade form includes a calculated Risk % field.');
   assertIncludes(source, 'function getActiveStopLoss(trade)', 'Risk calculations resolve the active stop loss through a helper.');
   assertIncludes(source, 'return getStopLossHitPrice(trade) ?? toOptionalNumber(trade.adjustedStopLoss) ?? toOptionalNumber(trade.stopLoss);', 'Final Stop Loss overrides Initial Stop Loss when present.');
-  assertIncludes(source, "const riskPerUnit = trade.direction === 'Short'", 'Risk dollars are calculated from direction-aware entry and active stop distance.');
+  assertIncludes(source, "const riskPerUnit = Math.abs(trade.direction === 'Short'", 'Risk dollars are calculated from the direction-aware entry-to-stop distance, as a magnitude so a trailed stop past entry still yields a computable risk.');
   assertIncludes(source, "if (symbol === 'XAUUSD' || symbol.includes('GOLD')) {", 'XAUUSD risk calculations infer the 100-ounce gold contract for lot-sized manual and imported trades.');
   assertIncludes(source, 'const explicitContractSize = toOptionalNumber(trade.contractSize ?? trade.lotSizeInUnits);', 'Imported cTrader trades can use broker metadata for contract-size risk calculations.');
   assertIncludes(source, 'const accountSize = toOptionalNumber(trade.accountSize) ?? accountBalance;', 'Risk percent falls back to imported account balance.');

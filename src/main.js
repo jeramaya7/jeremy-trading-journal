@@ -762,9 +762,15 @@ function calculateOriginalRiskDollars(trade) {
     return null;
   }
 
-  const riskPerUnit = trade.direction === 'Short'
+  // Use the entry-to-stop distance as a magnitude, not a signed value. A
+  // stop that's been trailed to (or past) breakeven still represents a
+  // real, if small, risk distance from entry — treating it as "no risk"
+  // (null) made R-multiple uncomputable for those trades, which broke the
+  // ±0.1R Breakeven Buffer classification for them (they fell back to a
+  // raw P/L-sign check with no breakeven band at all).
+  const riskPerUnit = Math.abs(trade.direction === 'Short'
     ? originalStopLoss - entry
-    : entry - originalStopLoss;
+    : entry - originalStopLoss);
   const riskDollars = riskPerUnit * size * getTradeContractSize(trade);
   return riskDollars > 0 ? riskDollars : null;
 }
@@ -778,9 +784,11 @@ function calculateRiskDollars(trade) {
     return null;
   }
 
-  const riskPerUnit = trade.direction === 'Short'
+  // Same magnitude fix as calculateOriginalRiskDollars above, applied to the
+  // active (current/trailed) stop loss.
+  const riskPerUnit = Math.abs(trade.direction === 'Short'
     ? activeStopLoss - entry
-    : entry - activeStopLoss;
+    : entry - activeStopLoss);
   const riskDollars = riskPerUnit * size * getTradeContractSize(trade);
   return riskDollars > 0 ? riskDollars : null;
 }
