@@ -206,6 +206,7 @@ const LEGACY_MARKET_STATE_MAP = {
   'Wide State': 'Wide',
 };
 const POSITION_TYPE_OPTIONS = [
+  'Position 0',
   'Position 1',
   'Position 2',
   'Position 3',
