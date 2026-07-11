@@ -165,6 +165,7 @@ const PLAY_BOOK_SETUP_OPTIONS = [
   'Event Bar',
   'General Forecast',
   'Hedge',
+  'RBI / GBI',
   'Scalping',
   'Support/Resistance',
   'Trendline Break',

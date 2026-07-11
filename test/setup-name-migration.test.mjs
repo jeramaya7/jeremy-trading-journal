@@ -85,7 +85,7 @@ function loadSetupModule() {
   return context.module.exports;
 }
 
-test('the Play Book setup list is exactly the 12 requested options, Custom last', () => {
+test('the Play Book setup list is exactly the 13 requested options, Custom last', () => {
   const { PLAY_BOOK_SETUP_OPTIONS, CUSTOM_SETUP_OPTION } = loadSetupModule();
 
   // Array.from() rebuilds the array using this realm's Array constructor:
@@ -100,6 +100,7 @@ test('the Play Book setup list is exactly the 12 requested options, Custom last'
     'Event Bar',
     'General Forecast',
     'Hedge',
+    'RBI / GBI',
     'Scalping',
     'Support/Resistance',
     'Trendline Break',
@@ -108,6 +109,16 @@ test('the Play Book setup list is exactly the 12 requested options, Custom last'
   assert.equal(CUSTOM_SETUP_OPTION, 'Custom', 'Custom is appended after the fixed list, so it always renders last.');
   assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('None'), false, 'None is not a Play Book option.');
   assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('Custom'), false, 'Custom lives outside the fixed list, appended separately.');
+});
+
+test('RBI / GBI is a real, selectable Play Book setup, added between Hedge and Scalping', () => {
+  const { PLAY_BOOK_SETUP_OPTIONS, isPlayBookSetup } = loadSetupModule();
+
+  assert.equal(isPlayBookSetup('RBI / GBI'), true, 'RBI / GBI should be recognized as a fixed Play Book option.');
+  const hedgeIndex = PLAY_BOOK_SETUP_OPTIONS.indexOf('Hedge');
+  const rbiIndex = PLAY_BOOK_SETUP_OPTIONS.indexOf('RBI / GBI');
+  const scalpingIndex = PLAY_BOOK_SETUP_OPTIONS.indexOf('Scalping');
+  assert.ok(hedgeIndex < rbiIndex && rbiIndex < scalpingIndex, 'RBI / GBI should sit alphabetically between Hedge and Scalping.');
 });
 
 test('every specified legacy setup name migrates to its new canonical name', () => {
@@ -146,7 +157,7 @@ test('setups retired with no replacement (including Scalp) are left exactly as-i
 test('normalizeSetupName leaves already-current and unrelated setup names untouched', () => {
   const { normalizeSetupName } = loadSetupModule();
 
-  for (const currentName of ['EMA Bounce', 'EMA Continuation', 'Hedge', 'Wide State Reversal', 'Custom', '', 'Opening range breakout']) {
+  for (const currentName of ['EMA Bounce', 'EMA Continuation', 'Hedge', 'RBI / GBI', 'Wide State Reversal', 'Custom', '', 'Opening range breakout']) {
     assert.equal(normalizeSetupName(currentName), currentName);
   }
 });
@@ -198,6 +209,7 @@ test('regression: saving a trade with no setup chosen falls back to Uncategorize
   // A real, deliberate selection still saves normally.
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'EMA Bounce', setupCustom: '', setup: '' })), 'EMA Bounce');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Wide State Reversal', setupCustom: '', setup: '' })), 'Wide State Reversal');
+  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'RBI / GBI', setupCustom: '', setup: '' })), 'RBI / GBI');
 
   // Custom behavior is unchanged.
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Custom', setupCustom: 'My own setup', setup: '' })), 'My own setup');
