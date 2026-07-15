@@ -1239,7 +1239,7 @@ a:focus-visible {
 }
 
 .edit-journal-row {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .edit-management-row {

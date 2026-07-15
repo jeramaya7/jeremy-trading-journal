@@ -217,6 +217,28 @@ test('PUT /api/journal/annotations/:tradeId saves and syncs Initial Stop Loss (s
   }, { fetchImpl });
 });
 
+test('PUT /api/journal/annotations/:tradeId saves and syncs Timeframe like the other journal fields', async () => {
+  // New field: timeframe must round-trip through PUT and GET exactly like
+  // setup/state/position, so it saves, reloads, and syncs across devices.
+  const { fetchImpl } = createFakeSupabase();
+  await withServer(async ({ port }) => {
+    const putResponse = await fetch(`http://127.0.0.1:${port}/api/journal/annotations/trade-1`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ timeframe: '5m' }),
+    });
+    const putBody = await putResponse.json();
+
+    assert.equal(putResponse.status, 200);
+    assert.deepEqual(putBody, { tradeId: 'trade-1', timeframe: '5m' });
+
+    const getResponse = await fetch(`http://127.0.0.1:${port}/api/journal/annotations`);
+    const getBody = await getResponse.json();
+
+    assert.deepEqual(getBody, { 'trade-1': { timeframe: '5m' } });
+  }, { fetchImpl });
+});
+
 test('PUT /api/journal/annotations/:tradeId returns 400 for malformed JSON and does not crash the server', async () => {
   const { fetchImpl } = createFakeSupabase();
   await withServer(async ({ port }) => {

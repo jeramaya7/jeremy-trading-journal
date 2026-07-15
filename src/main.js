@@ -45,7 +45,7 @@ const AUTO_SYNC_INTERVAL_MS = 60 * 1000;
 
 // Fields the backend persists to Supabase for cross-device annotation sync.
 // Must match JOURNAL_ANNOTATION_FIELDS in src/server.js.
-const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'position', 'tradeManagement', 'grade', 'closeReason', 'lossReason', 'tags', 'notes', 'adjustedStopLoss', 'adjustedTakeProfit', 'takeProfit', 'stopLoss'];
+const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'position', 'timeframe', 'tradeManagement', 'grade', 'closeReason', 'lossReason', 'tags', 'notes', 'adjustedStopLoss', 'adjustedTakeProfit', 'takeProfit', 'stopLoss'];
 
 const starterTrades = [
   {
@@ -206,6 +206,16 @@ const LEGACY_MARKET_STATE_MAP = {
   'Trending Up': 'Trending',
   'Wide State': 'Wide',
 };
+const TRADE_TIMEFRAME_OPTIONS = [
+  '1m',
+  '2m',
+  '5m',
+  '15m',
+  '30m',
+  '1H',
+  '4H',
+  'Daily',
+];
 const POSITION_TYPE_OPTIONS = [
   'Position 0',
   'Position 1',
@@ -2772,6 +2782,16 @@ function renderPositionTypeSelect(trade) {
   `;
 }
 
+function renderTimeframeSelect(trade) {
+  const current = String(trade.timeframe || '').trim();
+  return `
+    <select name="timeframe" aria-label="Timeframe">
+      <option value="">None</option>
+      ${TRADE_TIMEFRAME_OPTIONS.map((option) => renderSelectOption(option, current)).join('')}
+    </select>
+  `;
+}
+
 function renderGradeSelect(trade) {
   const current = String(trade.grade || '').trim();
   return `
@@ -2825,6 +2845,7 @@ function editTradeForm(trade) {
           ${field('Setup', renderPlayBookSetupSelect(trade))}
           ${field('Position', renderPositionTypeSelect(trade))}
           ${field('State', renderMarketStateSelect(trade))}
+          ${field('Timeframe', renderTimeframeSelect(trade))}
         </div>
         <div class="edit-form-row edit-management-row" aria-label="Trade management and grade">
           ${field('Trade Management', renderTradeManagementSelect(trade))}
@@ -3501,6 +3522,7 @@ async function submitTradeEdit(event) {
     closeReason,
     state: String(formData.get('state')).trim(),
     position: String(formData.get('position')).trim(),
+    timeframe: String(formData.get('timeframe')).trim(),
     tradeManagement: String(formData.get('tradeManagement')).trim(),
     grade: String(formData.get('grade')).trim(),
     tags: String(formData.get('tags')).trim(),
