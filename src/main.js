@@ -892,26 +892,21 @@ function calculatePnl(trade) {
   return (gross * getTradeContractSize(trade)) - fees;
 }
 
-// A trade this close to flat relative to risk counts as Breakeven rather
-// than a Win or a Loss, even though its raw dollar P/L is rarely exactly
-// zero. This only changes which bucket a trade is counted in for win-rate
-// style stats — it never changes the trade's actual P/L or R value.
-const BREAKEVEN_R_THRESHOLD = 0.1;
+// A trade this close to flat in real dollar terms counts as Breakeven rather
+// than a Win or a Loss. This only changes which bucket a trade is counted in
+// for win-rate style stats — it never changes the trade's actual P/L or R
+// value. Fixed at $1.00: P/L at or beyond +/-$1.00 is a Win/Loss; anything
+// strictly inside that band (-$0.99 to +$0.99) is Breakeven. (Replaces the
+// earlier +/-0.1R-based rule, which classified by risk multiple rather than
+// a flat dollar amount.)
+const OUTCOME_DOLLAR_THRESHOLD = 1.00;
 
 // Single shared classification used everywhere wins/losses are counted
 // (dashboard stats, setup/asset/session analytics, calendar day review) so
-// a trade is never a Win in one report and Breakeven in another. Prefers
-// R multiple when it's available; falls back to the P/L sign for trades
-// where R can't be computed (matches the pre-Breakeven-Buffer behavior for
-// those trades, since there's no risk basis to measure against).
-function classifyTradeOutcome(pnl, rMultiple) {
-  if (rMultiple !== null && Number.isFinite(rMultiple)) {
-    if (rMultiple > BREAKEVEN_R_THRESHOLD) return 'win';
-    if (rMultiple < -BREAKEVEN_R_THRESHOLD) return 'loss';
-    return 'breakeven';
-  }
-  if (pnl > 0) return 'win';
-  if (pnl < 0) return 'loss';
+// a trade is never a Win in one report and Breakeven in another.
+function classifyTradeOutcome(pnl) {
+  if (pnl >= OUTCOME_DOLLAR_THRESHOLD) return 'win';
+  if (pnl <= -OUTCOME_DOLLAR_THRESHOLD) return 'loss';
   return 'breakeven';
 }
 
@@ -1074,7 +1069,7 @@ function getSetupAnalytics(tradeList = trades) {
 
     const pnl = calculatePnl(trade);
     const rMultiple = calculateRMultiple(trade);
-    const outcome = classifyTradeOutcome(pnl, rMultiple);
+    const outcome = classifyTradeOutcome(pnl);
     const report = setupReports.get(setupName) ?? {
       setupName,
       tradeCount: 0,
@@ -1148,7 +1143,7 @@ function getAssetAnalytics(tradeList = trades) {
 
     const pnl = calculatePnl(trade);
     const rMultiple = calculateRMultiple(trade);
-    const outcome = classifyTradeOutcome(pnl, rMultiple);
+    const outcome = classifyTradeOutcome(pnl);
     const report = assetReports.get(asset) ?? {
       asset,
       displayName: getFriendlyAssetName(asset),
@@ -1531,7 +1526,7 @@ function buildSessionStats(tradeList, labelFn, labelOrder) {
     if (!report) return;
     const pnl = calculatePnl(trade);
     const rMultiple = calculateRMultiple(trade);
-    const outcome = classifyTradeOutcome(pnl, rMultiple);
+    const outcome = classifyTradeOutcome(pnl);
     report.tradeCount += 1;
     report.netPnl += pnl;
     if (outcome === 'win') { report.winCount += 1; report.winningPnl.push(pnl); }
@@ -1979,7 +1974,7 @@ function renderCalendarDayReviewSummary(dateKey, dayTrades) {
   const startingBalance = dayTrades.map(getTradeStartingBalance).find((balance) => balance !== null) ?? null;
   const pnlPercent = startingBalance ? formatPercent((pnl / startingBalance) * 100) : '—';
   const tradePnls = dayTrades.map(calculatePnl);
-  const tradeOutcomes = dayTrades.map((trade, index) => classifyTradeOutcome(tradePnls[index], calculateRMultiple(trade)));
+  const tradeOutcomes = dayTrades.map((trade, index) => classifyTradeOutcome(tradePnls[index]));
   const winningPnls = tradePnls.filter((value, index) => tradeOutcomes[index] === 'win');
   const losingPnls = tradePnls.filter((value, index) => tradeOutcomes[index] === 'loss');
   const breakevenCount = tradeOutcomes.filter((outcome) => outcome === 'breakeven').length;
@@ -2209,7 +2204,7 @@ function getStats(tradeList = trades) {
   // const riskDollarValues = trades.map(calculateRiskDollars).filter(Number.isFinite);
   // const riskPercentValues = trades.map(calculateRiskPercent).filter(Number.isFinite);
   const pnlValues = tradeList.map(calculatePnl);
-  const outcomes = tradeList.map((trade, index) => classifyTradeOutcome(pnlValues[index], calculateRMultiple(trade)));
+  const outcomes = tradeList.map((trade, index) => classifyTradeOutcome(pnlValues[index]));
   const totalRiskUsed = tradeList.map(calculateOriginalRiskDollars).filter(Number.isFinite).reduce((sum, value) => sum + value, 0);
   const performanceR = totalRiskUsed > 0 ? pnlValues.reduce((sum, value) => sum + value, 0) / totalRiskUsed : null;
   const riskDollarValues = tradeList.map(calculateRiskDollars).filter(Number.isFinite);
@@ -2523,7 +2518,7 @@ function tradeCard(trade) {
   const riskDollars = calculateRiskDollars(trade);
   const riskPercent = calculateRiskPercent(trade);
   const rMultiple = calculateRMultiple(trade);
-  const tradeOutcomeLabel = TRADE_OUTCOME_LABELS[classifyTradeOutcome(pnl, rMultiple)] || '';
+  const tradeOutcomeLabel = TRADE_OUTCOME_LABELS[classifyTradeOutcome(pnl)] || '';
   const tone = getPerformanceTone(pnl);
   const rTone = getPerformanceTone(rMultiple);
   const importedTimeDetail = cTraderTimeDetails(trade);

@@ -92,20 +92,24 @@ test('biggest winner and loser calculate from closed trade P&L', () => {
   assert.ok(source.includes('Math.min(...losingPnlValues)'), 'Biggest Loser should select the lowest losing P&L.');
 });
 
-test('breakeven buffer classifies trades within -0.1R to +0.1R as breakeven everywhere wins/losses are counted', () => {
-  assert.ok(source.includes('const BREAKEVEN_R_THRESHOLD = 0.1;'), 'Breakeven threshold should be 0.1R.');
-  assert.ok(source.includes('function classifyTradeOutcome(pnl, rMultiple)'), 'A single shared classifier should decide win/loss/breakeven.');
-  assert.ok(source.includes("if (rMultiple > BREAKEVEN_R_THRESHOLD) return 'win';"), 'Above +0.1R should count as a win.');
-  assert.ok(source.includes("if (rMultiple < -BREAKEVEN_R_THRESHOLD) return 'loss';"), 'Below -0.1R should count as a loss.');
-  assert.ok(source.includes("return 'breakeven';"), 'Between -0.1R and +0.1R should count as breakeven.');
+test('Outcome classification uses a fixed $1.00 dollar threshold everywhere wins/losses are counted', () => {
+  assert.ok(source.includes('const OUTCOME_DOLLAR_THRESHOLD = 1.00;'), 'Outcome threshold should be a flat $1.00, not a risk multiple.');
+  assert.ok(source.includes('function classifyTradeOutcome(pnl)'), 'A single shared classifier should decide win/loss/breakeven from raw dollar P/L alone.');
+  assert.ok(source.includes('if (pnl >= OUTCOME_DOLLAR_THRESHOLD) return \'win\';'), 'P/L at or above +$1.00 should count as a win.');
+  assert.ok(source.includes('if (pnl <= -OUTCOME_DOLLAR_THRESHOLD) return \'loss\';'), 'P/L at or below -$1.00 should count as a loss.');
+  assert.ok(source.includes("return 'breakeven';"), 'P/L strictly between -$1.00 and +$1.00 should count as breakeven.');
 
-  // Every place wins/losses were previously counted by raw P/L sign should
-  // now go through the shared classifier instead, so a trade is never a
-  // Win in one report and Breakeven in another.
-  assert.equal((source.match(/classifyTradeOutcome\(pnl, rMultiple\)/g) ?? []).length >= 4,
-    true, 'The main dashboard, setup, asset, and session analytics should all classify trades the same way.');
-  assert.ok(source.includes('classifyTradeOutcome(pnlValues[index], calculateRMultiple(trade))'), 'The main dashboard stats should classify each trade individually.');
-  assert.ok(source.includes('classifyTradeOutcome(tradePnls[index], calculateRMultiple(trade))'), 'The calendar day review summary should use the shared classifier.');
+  // The old R-multiple-based rule must be gone, not just unused.
+  assert.equal(source.includes('BREAKEVEN_R_THRESHOLD'), false, 'The old ±0.1R breakeven threshold should be fully removed.');
+  assert.equal(source.includes('function classifyTradeOutcome(pnl, rMultiple)'), false, 'classifyTradeOutcome should no longer take an rMultiple parameter.');
+
+  // Every place wins/losses were previously counted should still go through
+  // the shared classifier instead, so a trade is never a Win in one report
+  // and Breakeven in another.
+  const sharedCallSites = source.match(/classifyTradeOutcome\((?:pnl(?:Values\[index\])?|tradePnls\[index\])\)/g) ?? [];
+  assert.ok(sharedCallSites.length >= 5, 'The main dashboard, setup, asset, session analytics, and calendar day review should all classify trades the same way.');
+  assert.ok(source.includes('classifyTradeOutcome(pnlValues[index])'), 'The main dashboard stats should classify each trade individually.');
+  assert.ok(source.includes('classifyTradeOutcome(tradePnls[index])'), 'The calendar day review summary should use the shared classifier.');
 
   // Actual P/L is never hidden or altered by classification — only the
   // win/loss/breakeven bucket a trade counts toward changes.

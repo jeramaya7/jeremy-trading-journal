@@ -4,11 +4,9 @@ import test from 'node:test';
 import vm from 'node:vm';
 
 // This file actually executes the trade math from src/main.js (rather than
-// just grepping the source, as most other tests here do) because the bug
-// this guards against is purely numeric: a real trade's R multiple silently
-// came back `null`, which skipped the ±0.1R Breakeven Buffer band entirely.
-// A string-match test can't catch that; only running the real functions
-// with the real numbers can.
+// just grepping the source, as most other tests here do) because Outcome
+// classification is purely numeric. A string-match test can't catch a wrong
+// boundary comparison; only running the real function with real numbers can.
 //
 // The functions under test are pure (no window/document/localStorage), so
 // they're extracted from the live source file and evaluated in isolation.
@@ -35,6 +33,14 @@ function extractFunction(name) {
   return source.slice(start, cursor + 1);
 }
 
+function extractConst(name) {
+  const marker = `const ${name} = `;
+  const markerIndex = source.indexOf(marker);
+  assert.notEqual(markerIndex, -1, `Expected to find const ${name} in src/main.js`);
+  const semicolonIndex = source.indexOf(';', markerIndex);
+  return source.slice(markerIndex, semicolonIndex + 1);
+}
+
 const PURE_TRADE_MATH_FUNCTIONS = [
   'toOptionalNumber',
   'isCTraderImportedTrade',
@@ -55,8 +61,10 @@ const PURE_TRADE_MATH_FUNCTIONS = [
 
 function loadTradeMathModule() {
   const code = [
-    // classifyTradeOutcome references this module-level constant.
-    "const BREAKEVEN_R_THRESHOLD = 0.1;",
+    // classifyTradeOutcome references this module-level constant; extracted
+    // from the real source rather than hardcoded so the test can't drift
+    // out of sync with the shipped threshold.
+    extractConst('OUTCOME_DOLLAR_THRESHOLD'),
     ...PURE_TRADE_MATH_FUNCTIONS.map(extractFunction),
     'module.exports = { ' + PURE_TRADE_MATH_FUNCTIONS.join(', ') + ' };',
   ].join('\n\n');
@@ -67,18 +75,34 @@ function loadTradeMathModule() {
   return context.module.exports;
 }
 
-test('regression: a trade stopped out at a trailed (breakeven+) stop classifies as Breakeven, not Win', () => {
+test('the old ±0.1R breakeven rule is fully removed, not just unused', () => {
+  assert.equal(source.includes('BREAKEVEN_R_THRESHOLD'), false, 'BREAKEVEN_R_THRESHOLD should no longer exist anywhere in main.js.');
+  assert.equal(/function classifyTradeOutcome\(pnl, rMultiple\)/.test(source), false, 'classifyTradeOutcome should take only pnl, not pnl + rMultiple.');
+});
+
+test('Outcome boundary values classify exactly as specified: $1.00 and beyond is decided, inside that is Breakeven', () => {
+  const { classifyTradeOutcome } = loadTradeMathModule();
+
+  assert.equal(classifyTradeOutcome(0.99), 'breakeven', '+$0.99 should be Breakeven.');
+  assert.equal(classifyTradeOutcome(-0.99), 'breakeven', '-$0.99 should be Breakeven.');
+  assert.equal(classifyTradeOutcome(1.00), 'win', '+$1.00 should be a Win.');
+  assert.equal(classifyTradeOutcome(-1.00), 'loss', '-$1.00 should be a Loss.');
+  assert.equal(classifyTradeOutcome(1.01), 'win', '+$1.01 should be a Win.');
+  assert.equal(classifyTradeOutcome(-1.01), 'loss', '-$1.01 should be a Loss.');
+  assert.equal(classifyTradeOutcome(0), 'breakeven', 'Exactly $0.00 should be Breakeven.');
+});
+
+test('regression: a trade stopped out at a trailed (breakeven+) stop still classifies as Breakeven under the dollar rule', () => {
   // Real-world case: Long XAUUSD, entered 4066.39, stop trailed up to
   // 4066.67 (above entry, locking in a sliver of profit), then price
-  // reversed and hit that trailed stop. Net P/L: +$0.42.
+  // reversed and hit that trailed stop. Net P/L: +$0.42 — inside the
+  // Breakeven dollar band regardless of how the R multiple computes.
   //
-  // Root cause: calculateOriginalRiskDollars/calculateRiskDollars computed
-  // entry-to-stop distance as a *signed* value and returned null whenever
-  // it wasn't positive. A stop trailed above entry on a Long makes that
-  // distance negative, so both functions returned null, calculateRMultiple
-  // fell through to null, and classifyTradeOutcome's fallback (raw P/L
-  // sign, with no breakeven band) called this a Win.
-  const { calculateRMultiple, calculatePnl, classifyTradeOutcome, calculateRiskDollars, calculateOriginalRiskDollars } = loadTradeMathModule();
+  // calculateOriginalRiskDollars/calculateRiskDollars must still compute the
+  // entry-to-stop distance as a magnitude (not a signed value that returns
+  // null when the stop sits above entry on a Long) — that fix is unrelated
+  // to Outcome classification and still backs the Risk $ and R displays.
+  const { calculatePnl, classifyTradeOutcome, calculateRiskDollars, calculateOriginalRiskDollars } = loadTradeMathModule();
 
   const trade = {
     provider: 'ctrader',
@@ -95,15 +119,11 @@ test('regression: a trade stopped out at a trailed (breakeven+) stop classifies 
   assert.notEqual(calculateOriginalRiskDollars(trade), null, 'Original risk $ should be computable from the entry-to-stop distance, even when the stop sits above entry.');
   assert.notEqual(calculateRiskDollars(trade), null, 'Risk $ should be computable from the entry-to-stop distance, even when the stop sits above entry.');
 
-  const rMultiple = calculateRMultiple(trade);
-  assert.notEqual(rMultiple, null, 'R multiple should be computable for this trade.');
-  assert.ok(Math.abs(rMultiple) <= 0.1, `Expected R multiple within the ±0.1R breakeven band, got ${rMultiple}.`);
-
-  assert.equal(classifyTradeOutcome(calculatePnl(trade), rMultiple), 'breakeven');
+  assert.equal(classifyTradeOutcome(calculatePnl(trade)), 'breakeven');
 });
 
 test('sanity: well-formed trades with a normal stop still classify as Win/Loss/Breakeven correctly', () => {
-  const { calculateRMultiple, calculatePnl, classifyTradeOutcome } = loadTradeMathModule();
+  const { calculatePnl, classifyTradeOutcome } = loadTradeMathModule();
 
   const bigWinner = {
     direction: 'Long', entry: 100, exit: 110, stopLoss: 95, size: 1, contractSize: 1,
@@ -118,23 +138,18 @@ test('sanity: well-formed trades with a normal stop still classify as Win/Loss/B
     direction: 'Short', entry: 100, exit: 90, stopLoss: 105, size: 1, contractSize: 1,
   };
 
-  for (const trade of [bigWinner, bigLoser, nearFlatWinner, shortBigWinner]) {
-    const rMultiple = calculateRMultiple(trade);
-    assert.notEqual(rMultiple, null, `R multiple should still be computable for ${JSON.stringify(trade)}`);
-  }
-
-  assert.equal(classifyTradeOutcome(calculatePnl(bigWinner), calculateRMultiple(bigWinner)), 'win');
-  assert.equal(classifyTradeOutcome(calculatePnl(bigLoser), calculateRMultiple(bigLoser)), 'loss');
-  assert.equal(classifyTradeOutcome(calculatePnl(nearFlatWinner), calculateRMultiple(nearFlatWinner)), 'breakeven');
-  assert.equal(classifyTradeOutcome(calculatePnl(shortBigWinner), calculateRMultiple(shortBigWinner)), 'win');
+  assert.equal(classifyTradeOutcome(calculatePnl(bigWinner)), 'win');
+  assert.equal(classifyTradeOutcome(calculatePnl(bigLoser)), 'loss');
+  assert.equal(classifyTradeOutcome(calculatePnl(nearFlatWinner)), 'breakeven', 'A $0.20 winner is inside the $1.00 Breakeven band.');
+  assert.equal(classifyTradeOutcome(calculatePnl(shortBigWinner)), 'win');
 });
 
-test('every breakeven-count call site shares the same classifyTradeOutcome + calculateRMultiple pipeline', () => {
+test('every breakeven-count call site shares the same single-argument classifyTradeOutcome(pnl) pipeline', () => {
   // The dashboard stats, setup analytics, asset analytics, session stats,
-  // and calendar day review summary must all route through the same
-  // classifier so this fix (and any future one) applies everywhere at
-  // once, instead of needing five separate patches.
-  const sharedCallSites = source.match(/classifyTradeOutcome\((?:pnl(?:Values\[index\])?|tradePnls\[index\]), (?:rMultiple|calculateRMultiple\(trade\))\)/g) ?? [];
+  // trade card, and calendar day review summary must all route through the
+  // same classifier so this rule (and any future one) applies everywhere at
+  // once, instead of needing six separate patches.
+  const sharedCallSites = source.match(/classifyTradeOutcome\((?:pnl(?:Values\[index\])?|tradePnls\[index\])\)/g) ?? [];
   assert.ok(sharedCallSites.length >= 5, `Expected at least 5 shared classifyTradeOutcome call sites, found ${sharedCallSites.length}.`);
 });
 
@@ -174,8 +189,8 @@ test('trade card Outcome badge reuses the shared classifier and the existing DNA
   // the existing gold/navy analysis pill styling rather than introducing a
   // new win/loss color scheme.
   assert.ok(
-    source.includes("const tradeOutcomeLabel = TRADE_OUTCOME_LABELS[classifyTradeOutcome(pnl, rMultiple)] || '';"),
-    'tradeCard() should derive its Outcome label from the shared classifyTradeOutcome(), not a separate calculation.',
+    source.includes("const tradeOutcomeLabel = TRADE_OUTCOME_LABELS[classifyTradeOutcome(pnl)] || '';"),
+    'tradeCard() should derive its Outcome label from the shared classifyTradeOutcome(pnl), not a separate calculation.',
   );
   assert.ok(
     source.includes("const TRADE_OUTCOME_LABELS = { win: 'Win', loss: 'Loss', breakeven: 'Breakeven' };"),
