@@ -219,11 +219,19 @@ test('the blank setup placeholder option is hidden and disabled, and never label
   const renderPlayBookSetupSelectSource = extractFunction('renderPlayBookSetupSelect');
 
   assert.ok(
-    /<option value=""\$\{selectedSetup === '' \? ' selected' : ''\} hidden disabled><\/option>/.test(renderPlayBookSetupSelectSource),
+    /<option value=""\$\{currentSetup === '' \? ' selected' : ''\} hidden disabled><\/option>/.test(renderPlayBookSetupSelectSource),
     'The blank placeholder option should be hidden and disabled, with no visible label.',
   );
   assert.equal(renderPlayBookSetupSelectSource.includes('>None<'), false, 'The word "None" must not appear anywhere in the Setup dropdown markup.');
 
   const { PLAY_BOOK_SETUP_OPTIONS } = loadSetupModule();
   assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('None'), false, 'None must never become a real, selectable Play Book/analytics setup value.');
+});
+
+test('the edit form no longer offers a free-text Setup Description / custom setup input — legacy setup names are preserved as their own option instead', () => {
+  const renderPlayBookSetupSelectSource = extractFunction('renderPlayBookSetupSelect');
+
+  assert.equal(renderPlayBookSetupSelectSource.includes('setupCustom'), false, 'The Setup dropdown should no longer render a free-text custom setup input.');
+  assert.equal(renderPlayBookSetupSelectSource.includes('data-custom-setup'), false, 'The custom setup input hook should be fully removed.');
+  assert.ok(renderPlayBookSetupSelectSource.includes('legacySetupOption'), 'A trade already saved with a non-Play-Book setup name should still render as its own selectable option, so its value is never silently lost or overwritten on save.');
 });

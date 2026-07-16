@@ -140,17 +140,81 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(source, "'Trendline Break'", 'The Play Book setup dropdown includes Trendline Break.');
   assert.ok(!source.includes("  'Trade Line Break',"), 'The Play Book setup dropdown no longer shows the misspelled setup label.');
   assert.ok(!source.includes("'Elephant Bar',") , 'The retired Elephant Bar label is no longer a selectable Play Book option (migrated to Event Bar instead).');
-  assert.ok(!source.includes("'Ride the 🐋',"), 'Ride the whale is retired from the Play Book dropdown (existing trades fall back to Custom).');
-  assertIncludes(source, "const CUSTOM_SETUP_OPTION = 'Custom';", 'The Play Book setup dropdown includes a Custom option.');
+  assert.ok(!source.includes("'Ride the 🐋',"), 'Ride the whale is retired from the Play Book dropdown.');
   assert.ok(!source.includes('>None</option>\n      ${PLAY_BOOK_SETUP_OPTIONS'), 'The Play Book setup dropdown no longer offers a None option.');
-  assertIncludes(source, "const selectedSetup = isPlayBookSetup(currentSetup) ? currentSetup : CUSTOM_SETUP_OPTION;", 'Existing non-Play Book setup values open as Custom.');
-  assertIncludes(source, "const customValue = selectedSetup === CUSTOM_SETUP_OPTION ? currentSetup : '';", 'Existing custom setup values are preserved in the custom setup input.');
+
+  // Cleanup: the free-text "Setup Description" / custom setup input is
+  // fully removed from the Setup dropdown's own markup. Legacy non-Play-Book
+  // setup values are preserved as their own selectable option instead (see
+  // setup-name-migration.test.mjs for the dedicated coverage). Note:
+  // getSetupFormValue() still legitimately reads formData.get('setupCustom')
+  // — that's shared, tested logic left untouched, just unreachable from the
+  // real form now — so this check is scoped to renderPlayBookSetupSelect
+  // only, not the whole file.
+  const setupSelectStart = source.indexOf('function renderPlayBookSetupSelect(trade)');
+  const setupSelectEnd = source.indexOf('\nfunction ', setupSelectStart + 1);
+  const setupSelectBody = source.slice(setupSelectStart, setupSelectEnd);
+  assert.equal(setupSelectBody.includes('setupCustom'), false, 'The Setup dropdown should no longer render a free-text custom setup input.');
+  assert.equal(setupSelectBody.includes('data-custom-setup'), false, 'The custom setup input hook should be fully removed.');
+
+  // Cleanup: Tags is fully removed from the edit form (still present on
+  // the manual "Add Trade" panel, which is a different form).
+  assert.equal(source.includes("${field('Tags', `<input name=\"tags\""), false, 'The edit form should no longer render a Tags field.');
+
   assert.ok(!source.includes("${field('Emotion'"), 'The edit form does not render an emotion field.');
-  assertIncludes(source, "${field('Loss Reason', renderLossReasonSelect(trade))}", 'The edit form allows an optional loss reason selection.');
-  assertIncludes(source, "${field('Close Reason', renderCloseReasonSelect(trade))}", 'The edit form allows an optional close reason selection.');
-  assertIncludes(source, "${field('Tags', `<input name=\"tags\"", 'The edit form allows tag changes.');
   assertIncludes(source, "${field('Notes', `<textarea name=\"notes\"", 'The edit form allows notes changes.');
   assertIncludes(source, "form.addEventListener('submit', submitTradeEdit);", 'Edit forms are wired to the save handler.');
+
+  // Reorganized into four labeled sections: Trade Plan, Setup, Trade
+  // Review, Journal — verify both the headings and their relative order.
+  const editFormStart = source.indexOf('function editTradeForm(trade)');
+  const editFormEnd = source.indexOf('\nfunction ', editFormStart + 1);
+  const editFormBody = source.slice(editFormStart, editFormEnd);
+  ['Trade Plan', 'Setup', 'Trade Review', 'Journal'].forEach((label) => {
+    assertIncludes(editFormBody, `<h4 class="edit-form-section-label">${label}</h4>`, `The edit form should have a "${label}" section heading.`);
+  });
+  const tradePlanIndex = editFormBody.indexOf('<h4 class="edit-form-section-label">Trade Plan</h4>');
+  const setupIndex = editFormBody.indexOf('<h4 class="edit-form-section-label">Setup</h4>');
+  const reviewIndex = editFormBody.indexOf('<h4 class="edit-form-section-label">Trade Review</h4>');
+  const journalIndex = editFormBody.indexOf('<h4 class="edit-form-section-label">Journal</h4>');
+  assert.ok(
+    tradePlanIndex < setupIndex && setupIndex < reviewIndex && reviewIndex < journalIndex,
+    'Edit form sections should render in order: Trade Plan, Setup, Trade Review, Journal.',
+  );
+
+  // Trade Plan: Entry/Exit/Initial SL/Final SL/Initial TP/Final TP, values
+  // unchanged from before this reorganization.
+  const tradePlanBody = editFormBody.slice(tradePlanIndex, setupIndex);
+  assertIncludes(tradePlanBody, `<input name="entry" type="number" value="\${escapeHtml(trade.entry)}" readonly />`, 'Entry Price stays auto-populated and read-only.');
+  assertIncludes(tradePlanBody, `<input name="exit" type="number" value="\${escapeHtml(trade.exit)}" readonly />`, 'Exit Price stays auto-populated and read-only.');
+  assertIncludes(tradePlanBody, `<input name="stopLoss" type="number" value="\${escapeHtml(trade.stopLoss ?? '')}" readonly />`, 'Initial Stop Loss stays auto-populated and read-only.');
+  assertIncludes(tradePlanBody, `<input name="adjustedStopLoss" type="number" min="0" step="0.01" value="\${escapeHtml(trade.adjustedStopLoss ?? '')}" placeholder="Optional" />`, 'Final Stop Loss stays auto-populated.');
+  assertIncludes(tradePlanBody, `<input name="takeProfit" type="number" min="0" step="0.01" value="\${escapeHtml(trade.takeProfit ?? '')}" placeholder="Optional" />`, 'Initial Take Profit stays auto-populated.');
+  assertIncludes(tradePlanBody, `<input name="adjustedTakeProfit" type="number" min="0" step="0.01" value="\${escapeHtml(trade.adjustedTakeProfit ?? '')}" placeholder="Optional" />`, 'Final Take Profit stays auto-populated.');
+
+  // Setup section: Setup, Position, State, Timeframe — keeping the exact
+  // "Position" and "State" names (not renamed).
+  const setupBody = editFormBody.slice(setupIndex, reviewIndex);
+  assertIncludes(setupBody, "${field('Position', renderPositionTypeSelect(trade))}", 'Position keeps its name.');
+  assertIncludes(setupBody, "${field('State', renderMarketStateSelect(trade))}", 'State keeps its name.');
+  assertIncludes(setupBody, "${field('Timeframe', renderTimeframeSelect(trade))}", 'Timeframe is in the Setup section.');
+
+  // Trade Review section: Trade Management, Protected, Exit Reason, Grade,
+  // and Loss Reason (present in the DOM but hidden unless the trade is a
+  // Loss, so its value still round-trips through the save handler).
+  const reviewBody = editFormBody.slice(reviewIndex, journalIndex);
+  assertIncludes(reviewBody, "${field('Trade Management', renderTradeManagementSelect(trade))}", 'Trade Management is in Trade Review.');
+  assertIncludes(reviewBody, "${field('Protected', renderProtectedSelect(trade))}", 'Protected is in Trade Review.');
+  assertIncludes(reviewBody, "${field('Exit Reason', renderCloseReasonSelect(trade))}", 'Exit Reason is in Trade Review.');
+  assertIncludes(reviewBody, "${field('Grade', renderGradeSelect(trade))}", 'Grade is in Trade Review.');
+  assertIncludes(reviewBody, "${field('Loss Reason', renderLossReasonSelect(trade))}", 'Loss Reason is in Trade Review.');
+  assertIncludes(reviewBody, "class=\"edit-loss-reason-field\"${isLossOutcome ? '' : ' hidden'}", 'Loss Reason is only visible when the trade outcome is a Loss.');
+  assertIncludes(editFormBody, "const isLossOutcome = classifyTradeOutcome(calculatePnl(trade)) === 'loss';", 'Loss outcome uses the shared classifier, matching the trade card\'s own Win/Loss/Breakeven label.');
+
+  // Journal section: Notes and Screenshot only (Tags removed).
+  const journalBody = editFormBody.slice(journalIndex);
+  assertIncludes(journalBody, "${field('Notes',", 'Notes is in the Journal section.');
+  assertIncludes(journalBody, 'Screenshot Attachment', 'Screenshot is in the Journal section.');
 });
 
 
@@ -188,7 +252,6 @@ test('trade edit form changes stay local until the user saves', () => {
   assertIncludes(source, 'function removeEditScreenshot(event)', 'Screenshot removal has a dedicated edit-session handler.');
   assertIncludes(source, 'updateEditScreenshotFieldPreview(tradeId);', 'Screenshot removal updates only the preview area, preserving scroll and cursor position.');
   assert.ok(!source.includes('data-remove-edit-screenshot]') || !source.includes('removeEditScreenshot;\n      });\n      render();'), 'Removing a screenshot during edit does not call render.');
-  assertIncludes(source, 'customSetupInput.hidden = event.currentTarget.value !== CUSTOM_SETUP_OPTION;', 'Setup dropdown changes only reveal or hide the custom setup input locally.');
   assertIncludes(source, 'persistTrades(trades.map((trade) => (', 'Trade edit values are persisted only by the explicit save submit handler.');
 });
 
@@ -215,8 +278,21 @@ test('saving trade edits only updates journaling fields and preserves imported e
   assert.ok(!source.includes("formData.get('emotion')"), 'Saving edits does not update emotion.');
   assertIncludes(source, "lossReason: String(formData.get('lossReason')).trim()", 'Saving edits stores the selected loss reason.');
   assertIncludes(source, "const closeReason = String(formData.get('closeReason')).trim();", 'Saving edits stores the selected close reason.');
-  assertIncludes(source, "tags: String(formData.get('tags')).trim()", 'Saving edits updates tags.');
   assertIncludes(source, "notes: String(formData.get('notes')).trim()", 'Saving edits updates notes.');
+
+  // Tags was removed from the edit form. journalingUpdates (scoped to just
+  // the object literal, not the whole file — the separate manual "Add
+  // Trade" form still legitimately reads formData.get('tags')) must not
+  // read a tags field at all: with no such field in the edit form, that
+  // would return null, and String(null).trim() would save the literal
+  // string "null" over the trade's existing tags on every edit.
+  const journalingUpdatesStart = source.indexOf('const journalingUpdates = {');
+  const journalingUpdatesEnd = source.indexOf('\n  };', journalingUpdatesStart);
+  const journalingUpdatesBody = source.slice(journalingUpdatesStart, journalingUpdatesEnd);
+  // "tags:" (the property key, with colon) rather than bare "tags" — the
+  // surrounding explanatory comment mentions "tags" in prose and would
+  // otherwise false-positive this check.
+  assert.equal(journalingUpdatesBody.includes('tags:'), false, 'Saving edits should no longer read or set a tags field.');
   assertIncludes(source, '? { ...trade, ...journalingUpdates }', 'Saving edits spreads the existing trade first, preserving cTrader fields not in the journaling update.');
   assertIncludes(source, 'persistTrades(trades.map((trade) => (', 'Saving edits persists the updated journal to localStorage through the existing storage path.');
   assertIncludes(source, 'Imported cTrader execution fields are read-only and will be preserved when journaling edits are saved.', 'The edit UI tells users imported cTrader execution fields remain read-only.');

@@ -2812,16 +2812,19 @@ function isPlayBookSetup(setup) {
 
 function renderPlayBookSetupSelect(trade) {
   const currentSetup = String(trade.setup || '').trim();
-  const selectedSetup = !currentSetup ? '' : (isPlayBookSetup(currentSetup) ? currentSetup : CUSTOM_SETUP_OPTION);
-  const customValue = selectedSetup === CUSTOM_SETUP_OPTION ? currentSetup : '';
-  const customHidden = selectedSetup === CUSTOM_SETUP_OPTION ? '' : ' hidden';
+  // Trades saved with a legacy/custom setup name (not one of the fixed Play
+  // Book options) keep that exact value as its own selectable option, so
+  // opening and saving the edit form can never silently overwrite it —
+  // there is no free-text "Setup Description" field to re-enter it in.
+  const legacySetupOption = currentSetup && !isPlayBookSetup(currentSetup)
+    ? renderSetupOption(currentSetup, currentSetup)
+    : '';
   return `
-    <select name="setupChoice" data-setup-choice="${escapeHtml(trade.id)}" aria-label="Play Book setup">
-      <option value=""${selectedSetup === '' ? ' selected' : ''} hidden disabled></option>
-      ${PLAY_BOOK_SETUP_OPTIONS.map((option) => renderSetupOption(option, selectedSetup)).join('')}
-      ${renderSetupOption(CUSTOM_SETUP_OPTION, selectedSetup)}
+    <select name="setupChoice" aria-label="Play Book setup">
+      <option value=""${currentSetup === '' ? ' selected' : ''} hidden disabled></option>
+      ${PLAY_BOOK_SETUP_OPTIONS.map((option) => renderSetupOption(option, currentSetup)).join('')}
+      ${legacySetupOption}
     </select>
-    <input name="setupCustom" value="${escapeHtml(customValue)}" placeholder="Custom setup name" data-custom-setup="${escapeHtml(trade.id)}"${customHidden} />
   `;
 }
 
@@ -2928,59 +2931,71 @@ function editTradeForm(trade) {
   const removeButton = currentScreenshot
     ? `<button class="secondary-button" type="button" data-remove-edit-screenshot="${escapeHtml(trade.id)}">${icon('trash')} Remove screenshot</button>`
     : '';
+  // Loss Reason only applies to trades that actually closed as a Loss —
+  // reuses the same shared classifier as everywhere else Win/Loss/Breakeven
+  // is decided, so it can never disagree with the trade card's own outcome.
+  const isLossOutcome = classifyTradeOutcome(calculatePnl(trade)) === 'loss';
   return `
       <form class="edit-trade-form" data-edit-trade-form="${escapeHtml(trade.id)}">
         <div class="edit-mode-banner" aria-label="Edit mode active">
           ✏️ EDIT MODE
         </div>
-        <div class="edit-form-row edit-price-row" aria-label="Trade prices">
-          ${field('Entry Price', `<input name="entry" type="number" value="${escapeHtml(trade.entry)}" readonly />`)}
-          ${field('Exit Price', `<input name="exit" type="number" value="${escapeHtml(trade.exit)}" readonly />`)}
-          ${field('Initial Stop Loss', `<input name="stopLoss" type="number" value="${escapeHtml(trade.stopLoss ?? '')}" readonly />`)}
-          ${field('Final Stop Loss', `<input name="adjustedStopLoss" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedStopLoss ?? '')}" placeholder="Optional" />`)}
-        </div>
-        <div class="edit-form-row edit-take-profit-row" aria-label="Trade take profits">
-          ${field('Initial Take Profit', `<input name="takeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.takeProfit ?? '')}" placeholder="Optional" />`)}
-          ${field('Final Take Profit', `<input name="adjustedTakeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedTakeProfit ?? '')}" placeholder="Optional" />`)}
-        </div>
-        <div class="edit-form-row edit-journal-row" aria-label="Journal context">
-          ${field('Setup', renderPlayBookSetupSelect(trade))}
-          ${field('Position', renderPositionTypeSelect(trade))}
-          ${field('State', renderMarketStateSelect(trade))}
-          ${field('Timeframe', renderTimeframeSelect(trade))}
-        </div>
-        <div class="edit-form-row edit-management-row" aria-label="Trade management and grade">
-          ${field('Trade Management', renderTradeManagementSelect(trade))}
-          ${field('Grade', renderGradeSelect(trade))}
-          ${field('Protected', renderProtectedSelect(trade))}
-        </div>
-        <div class="edit-form-row edit-classification-row" aria-label="Trade classification">
-          ${field('Exit Reason', renderCloseReasonSelect(trade))}
-          ${field('Loss Reason', renderLossReasonSelect(trade))}
-        </div>
-        <details class="edit-collapsible">
-          <summary>${icon('book')} Notes</summary>
-          ${field('Notes', `<textarea name="notes" rows="5" placeholder="What was the plan? What happened? What will you repeat or avoid?">${escapeHtml(trade.notes)}</textarea>`)}
-        </details>
-        <details class="edit-collapsible">
-          <summary>${icon('tag')} Tags</summary>
-          ${field('Tags', `<input name="tags" value="${escapeHtml(trade.tags)}" placeholder="gap, reversal, A+" />`)}
-        </details>
-        <details class="edit-collapsible">
-          <summary>${icon('image')} Screenshot Attachment</summary>
-          <div class="screenshot-upload-field">
-            <label class="screenshot-upload">
-              <span>${icon('image')} Trade screenshot</span>
-              <input name="editScreenshot" type="file" accept="image/*" data-edit-screenshot-input="${escapeHtml(trade.id)}" />
-              <small>Optional. Upload or paste an image to attach it to this imported trade.</small>
-              <small>Tip: Paste a screenshot with Ctrl+V / Cmd+V</small>
-            </label>
-            <div class="screenshot-field-preview" data-edit-screenshot-preview="${escapeHtml(trade.id)}" aria-live="polite">
-              ${currentScreenshot ? screenshotLink(currentScreenshot, `${getTradeDisplaySymbol(trade)} trade screenshot`) : ''}
-            </div>
-            ${removeButton}
+        <div class="edit-form-section">
+          <h4 class="edit-form-section-label">Trade Plan</h4>
+          <div class="edit-form-row edit-price-row" aria-label="Trade prices">
+            ${field('Entry Price', `<input name="entry" type="number" value="${escapeHtml(trade.entry)}" readonly />`)}
+            ${field('Exit Price', `<input name="exit" type="number" value="${escapeHtml(trade.exit)}" readonly />`)}
+            ${field('Initial Stop Loss', `<input name="stopLoss" type="number" value="${escapeHtml(trade.stopLoss ?? '')}" readonly />`)}
+            ${field('Final Stop Loss', `<input name="adjustedStopLoss" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedStopLoss ?? '')}" placeholder="Optional" />`)}
           </div>
-        </details>
+          <div class="edit-form-row edit-take-profit-row" aria-label="Trade take profits">
+            ${field('Initial Take Profit', `<input name="takeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.takeProfit ?? '')}" placeholder="Optional" />`)}
+            ${field('Final Take Profit', `<input name="adjustedTakeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedTakeProfit ?? '')}" placeholder="Optional" />`)}
+          </div>
+        </div>
+        <div class="edit-form-section">
+          <h4 class="edit-form-section-label">Setup</h4>
+          <div class="edit-form-row edit-journal-row" aria-label="Setup context">
+            ${field('Setup', renderPlayBookSetupSelect(trade))}
+            ${field('Position', renderPositionTypeSelect(trade))}
+            ${field('State', renderMarketStateSelect(trade))}
+            ${field('Timeframe', renderTimeframeSelect(trade))}
+          </div>
+        </div>
+        <div class="edit-form-section">
+          <h4 class="edit-form-section-label">Trade Review</h4>
+          <div class="edit-form-row edit-review-row" aria-label="Trade review">
+            ${field('Trade Management', renderTradeManagementSelect(trade))}
+            ${field('Protected', renderProtectedSelect(trade))}
+            ${field('Exit Reason', renderCloseReasonSelect(trade))}
+            ${field('Grade', renderGradeSelect(trade))}
+          </div>
+          <div class="edit-loss-reason-field"${isLossOutcome ? '' : ' hidden'}>
+            ${field('Loss Reason', renderLossReasonSelect(trade))}
+          </div>
+        </div>
+        <div class="edit-form-section">
+          <h4 class="edit-form-section-label">Journal</h4>
+          <details class="edit-collapsible">
+            <summary>${icon('book')} Notes</summary>
+            ${field('Notes', `<textarea name="notes" rows="5" placeholder="What was the plan? What happened? What will you repeat or avoid?">${escapeHtml(trade.notes)}</textarea>`)}
+          </details>
+          <details class="edit-collapsible">
+            <summary>${icon('image')} Screenshot Attachment</summary>
+            <div class="screenshot-upload-field">
+              <label class="screenshot-upload">
+                <span>${icon('image')} Trade screenshot</span>
+                <input name="editScreenshot" type="file" accept="image/*" data-edit-screenshot-input="${escapeHtml(trade.id)}" />
+                <small>Optional. Upload or paste an image to attach it to this imported trade.</small>
+                <small>Tip: Paste a screenshot with Ctrl+V / Cmd+V</small>
+              </label>
+              <div class="screenshot-field-preview" data-edit-screenshot-preview="${escapeHtml(trade.id)}" aria-live="polite">
+                ${currentScreenshot ? screenshotLink(currentScreenshot, `${getTradeDisplaySymbol(trade)} trade screenshot`) : ''}
+              </div>
+              ${removeButton}
+            </div>
+          </details>
+        </div>
         <p class="edit-import-note">Imported cTrader execution fields are read-only and will be preserved when journaling edits are saved.</p>
         <div class="edit-form-actions">
           <button class="icon-button" type="button" data-delete-trade="${escapeHtml(trade.id)}" aria-label="Delete ${escapeHtml(trade.symbol)} trade">
@@ -3512,10 +3527,6 @@ function bindTradeCardEvents(tradeCardElement) {
     form.addEventListener('submit', submitTradeEdit);
   });
 
-  tradeCardElement.querySelectorAll('[data-setup-choice]').forEach((select) => {
-    select.addEventListener('change', changeEditSetupChoice);
-  });
-
   tradeCardElement.querySelectorAll('[data-edit-screenshot-input]').forEach((input) => {
     input.addEventListener('change', changeEditScreenshot);
   });
@@ -3548,18 +3559,6 @@ function removeEditScreenshot(event) {
     },
   };
   updateEditScreenshotFieldPreview(tradeId);
-}
-
-function changeEditSetupChoice(event) {
-  const customSetupInput = event.currentTarget.closest('form')?.querySelector('[data-custom-setup]');
-  if (!customSetupInput) {
-    return;
-  }
-
-  customSetupInput.hidden = event.currentTarget.value !== CUSTOM_SETUP_OPTION;
-  if (!customSetupInput.hidden) {
-    customSetupInput.focus();
-  }
 }
 
 function toggleManualTradeForm() {
@@ -3647,7 +3646,10 @@ async function submitTradeEdit(event) {
     protected: String(formData.get('protected')).trim(),
     tradeManagement: String(formData.get('tradeManagement')).trim(),
     grade: String(formData.get('grade')).trim(),
-    tags: String(formData.get('tags')).trim(),
+    // Tags is no longer editable from the edit form (removed per cleanup) —
+    // omitted here entirely so the trade's existing tags value is preserved
+    // unchanged by the { ...trade, ...journalingUpdates } spread below,
+    // instead of being overwritten with the literal string "null".
     notes: String(formData.get('notes')).trim(),
     adjustedStopLoss,
     stopLoss: toOptionalNumber(formData.get('stopLoss')),
