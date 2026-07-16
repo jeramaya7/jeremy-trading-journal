@@ -10,6 +10,8 @@ const MONTHLY_CALENDAR_DISPLAY_MODE_STORAGE_KEY = 'jeremy-trading-journal:monthl
 const DNA_TIMEFRAME_STORAGE_KEY = 'jeremy-trading-journal:dna-timeframe:v1';
 const PAGE_MODE_STORAGE_KEY = 'jeremy-trading-journal:page-mode:v1';
 const SESSION_NOTES_STORAGE_KEY = 'jeremy-trading-journal:session-notes-by-day:v1';
+const STARTING_ACCOUNT_BALANCE_STORAGE_KEY = 'jeremy-trading-journal:starting-account-balance:v1';
+const DEFAULT_STARTING_ACCOUNT_BALANCE = 5600;
 const PAGE_MODES = {
   dashboard: 'dashboard',
   trading: 'trading',
@@ -143,6 +145,7 @@ let selectedCalendarDateKey = '';
 let calendarReviewDateKey = '';
 let monthlyCalendarDisplayMode = loadMonthlyCalendarDisplayMode();
 let dnaResultsTimeframe = loadDnaResultsTimeframe();
+let startingAccountBalance = loadStartingAccountBalance();
 let pageMode = loadPageMode();
 let sessionNotesByDay = loadSessionNotesByDay();
 let isSessionNotesModalOpen = false;
@@ -2187,6 +2190,24 @@ function loadDnaResultsTimeframe() {
   return isValidDnaTimeframe(storedTimeframe) ? storedTimeframe : 'all';
 }
 
+function loadStartingAccountBalance() {
+  const stored = toOptionalNumber(window.localStorage.getItem(STARTING_ACCOUNT_BALANCE_STORAGE_KEY));
+  return stored !== null && stored > 0 ? stored : DEFAULT_STARTING_ACCOUNT_BALANCE;
+}
+
+function setStartingAccountBalance(rawValue) {
+  const parsed = toOptionalNumber(rawValue);
+  startingAccountBalance = parsed !== null && parsed > 0 ? parsed : DEFAULT_STARTING_ACCOUNT_BALANCE;
+  window.localStorage.setItem(STARTING_ACCOUNT_BALANCE_STORAGE_KEY, String(startingAccountBalance));
+}
+
+// ROI % = Net P/L ÷ Starting Account Balance × 100. Recalculated on every
+// render from the current stats.totalPnl, so it always reflects the latest
+// Net P/L automatically — never stored or cached separately.
+function calculateRoiPercent(totalPnl, accountBalance) {
+  return accountBalance > 0 ? (totalPnl / accountBalance) * 100 : null;
+}
+
 function setDnaResultsTimeframe(timeframe) {
   dnaResultsTimeframe = isValidDnaTimeframe(timeframe) ? timeframe : 'all';
   window.localStorage.setItem(DNA_TIMEFRAME_STORAGE_KEY, dnaResultsTimeframe);
@@ -2367,6 +2388,21 @@ function statCard(iconName, label, value, tone = '', options = {}) {
   `;
 }
 
+function renderRoiCard(roiPercent, accountBalance) {
+  const valueClass = getPerformanceTone(roiPercent);
+  return `
+    <article class="stat-card roi-stat-card">
+      <div class="stat-icon">${icon('target')}</div>
+      <span>ROI %</span>
+      <strong class="${valueClass}">${formatPercent(roiPercent)}</strong>
+      <label class="roi-starting-balance-edit">
+        <span>Starting Balance</span>
+        <input type="number" min="0" step="0.01" value="${escapeHtml(String(accountBalance))}" data-starting-account-balance aria-label="Starting Account Balance" />
+      </label>
+    </article>
+  `;
+}
+
 function signedCurrency(value) {
   const amount = Number(value) || 0;
   return `${amount > 0 ? '+' : ''}${currency(amount)}`;
@@ -2390,16 +2426,16 @@ function renderTodayKpiStrip(todayTrades, todayStats) {
           ${statCard('trend', 'Today %', formatPercent(getTodayPnlPercent(todayTrades, todayPnl)))}
           ${statCard('target', 'Win Rate', formatPercent(todayStats.winRate))}
           ${statCard('chart', 'Trades', todayStats.tradeCount)}
-          ${statCard('trend', 'Expectancy', formatRMultiple(todayStats.averageR))}
+          ${statCard('chart', 'Protected %', formatPercent(todayStats.protectedPercent))}
         </section>`;
 }
 
 function renderHeroStatsRow(stats) {
   return `
         <section class="stats-grid hero-stats-row" aria-label="DNA trading statistics">
-          ${statCard('trend', 'Net Profit', currency(stats.totalPnl), getMoneyTone(stats.totalPnl))}
+          ${statCard('trend', 'Net P/L', currency(stats.totalPnl), getMoneyTone(stats.totalPnl))}
+          ${statCard('chart', 'Trades', stats.tradeCount)}
           ${statCard('target', 'Win Rate', formatPercent(stats.winRate))}
-          ${statCard('line', 'Profit Factor', formatProfitFactor(stats.profitFactor), getProfitFactorTone(stats.profitFactor))}
           ${statCard('chart', 'Protected %', formatPercent(stats.protectedPercent))}
         </section>`;
 }
@@ -2959,13 +2995,15 @@ function render(options = {}) {
   const stats = getStats(dnaResultsTrades);
   const pnlReports = getPnlReports(dnaReferenceDate, trades);
   const [dailyPnl, weeklyPnl, monthlyPnl, yearlyPnl] = pnlReports;
+  const roiPercent = calculateRoiPercent(stats.totalPnl, startingAccountBalance);
   const dashboardCardRows = [
     {
       label: 'R Metrics',
       cards: [
+        renderRoiCard(roiPercent, startingAccountBalance),
         statCard('trend', 'Biggest Winner', stats.biggestWinner === null ? '—' : currency(stats.biggestWinner)),
         statCard('trend', 'Biggest Loser', stats.biggestLoser === null ? '—' : currency(stats.biggestLoser), getMoneyTone(stats.biggestLoser)),
-        statCard('line', 'Biggest Risk', stats.biggestRisk === null ? '—' : currency(stats.biggestRisk)),
+        statCard('line', 'Profit Factor', formatProfitFactor(stats.profitFactor), getProfitFactorTone(stats.profitFactor)),
       ],
     },
     {
@@ -2975,6 +3013,7 @@ function render(options = {}) {
         statCard('trend', 'Average Loser', currency(stats.averageLoss), getMoneyTone(stats.averageLoss)),
         statCard('target', 'Average Risk $', stats.averageRiskDollars === null ? '—' : currency(stats.averageRiskDollars)),
         statCard('target', 'Average Risk %', formatRiskPercent(stats.averageRiskPercent)),
+        statCard('line', 'Biggest Risk', stats.biggestRisk === null ? '—' : currency(stats.biggestRisk)),
       ],
     },
     {
@@ -3098,7 +3137,7 @@ function renderDashboardSnapshot(dashboardCardRows) {
         </div>
         <section class="dashboard-card-groups" aria-label="Trading performance summary">
           ${dashboardCardRows.map((row) => `
-            <section class="stats-grid dashboard-card-row" aria-label="${row.label}">
+            <section class="stats-grid dashboard-card-row${row.cards.length === 5 ? ' dashboard-card-row--five' : ''}" aria-label="${row.label}">
               ${row.cards.join('')}
             </section>`).join('')}
         </section>
@@ -3376,6 +3415,10 @@ function bindEvents() {
       render();
     });
   });
+  document.querySelector('[data-starting-account-balance]')?.addEventListener('change', (event) => {
+    setStartingAccountBalance(event.target.value);
+    render();
+  }, { signal });
   updateScreenshotFieldPreview();
   if (tradeForm) {
     updateRiskPercentField({ currentTarget: tradeForm });

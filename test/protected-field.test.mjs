@@ -170,7 +170,7 @@ test('Protected % formula behaves correctly across edge cases (mirrors the shipp
   );
 });
 
-test('Protected % renders on the dashboard top KPI row, fourth, after Net Profit / Win Rate / Profit Factor', () => {
+test('Protected % renders on the dashboard top KPI row, fourth, after Net P/L / Trades / Win Rate', () => {
   assert.ok(
     source.includes("statCard('chart', 'Protected %', formatPercent(stats.protectedPercent))"),
     'Protected % should render using the shared formatPercent() helper (one decimal place, em dash when null).',

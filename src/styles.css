@@ -532,6 +532,10 @@ h2 {
     gap: clamp(0.65rem, 1vw, 0.9rem);
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
+
+  .dashboard-card-row--five {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
 }
 
 .stat-card,
@@ -1955,6 +1959,38 @@ h2,
   font-size: clamp(1.75rem, 3.1vw, 3.2rem);
   letter-spacing: -0.055em;
   line-height: 0.98;
+}
+
+.roi-stat-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.roi-starting-balance-edit {
+  align-items: center;
+  color: #768397;
+  display: flex;
+  font-size: 0.7rem;
+  gap: 0.4rem;
+  justify-content: space-between;
+  margin-top: 0.6rem;
+}
+
+.roi-starting-balance-edit span {
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+  margin: 0;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.roi-starting-balance-edit input {
+  border: 1px solid rgba(16, 26, 46, 0.14);
+  border-radius: 8px;
+  font-size: 0.75rem;
+  min-width: 0;
+  padding: 0.2rem 0.4rem;
+  width: 5.5rem;
 }
 
 .workspace-grid {

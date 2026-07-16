@@ -23,9 +23,25 @@ test('Trading Mode renders a focused workbench without dashboard analytics secti
   assertIncludes(source, "statCard('calendar', 'Today P/L'", 'Today KPI strip shows Today P/L.');
   assertIncludes(source, "statCard('trend', 'Today %'", 'Today KPI strip shows Today %.');
   assertIncludes(source, "statCard('target', 'Win Rate'", 'Today KPI strip shows Win Rate.');
-  assertIncludes(source, "statCard('trend', 'Expectancy', formatRMultiple(todayStats.averageR))", 'Today KPI strip shows Expectancy.');
-  assertIncludes(source, "statCard('chart', 'Trades'", 'Today KPI strip shows Trades.');
+  assertIncludes(source, "statCard('chart', 'Trades', todayStats.tradeCount)", 'Today KPI strip shows Trades.');
+  assertIncludes(source, "statCard('chart', 'Protected %', formatPercent(todayStats.protectedPercent))", 'Today KPI strip shows Protected % in place of Expectancy.');
+  assert.equal(source.includes("statCard('trend', 'Expectancy', formatRMultiple(todayStats.averageR))"), false, 'Expectancy should no longer render in the Today KPI strip.');
   assertIncludes(source, "const tradingModeSections = `${renderTodayKpiStrip(todayTrades, getStats(todayTrades))}${renderJournalWorkspace(filteredTrades, today, { showManualTradePanel: false })}`;", 'Trading Mode includes only the Today KPI strip and journal workspace without the manual trade panel.');
   assertIncludes(source, '? tradingModeSections', 'Trading Mode uses the focused workbench sections.');
   assertIncludes(source, ': `${dashboardSections}${journalWorkspaceSection}`;', 'Dashboard Mode keeps the dashboard-first layout.');
+
+  // Today KPI strip order must stay: Today P/L, Today %, Win Rate, Trades,
+  // Protected % (Expectancy replaced in place, same position).
+  const todayPnlIndex = source.indexOf("statCard('calendar', 'Today P/L'");
+  const todayPercentIndex = source.indexOf("statCard('trend', 'Today %'");
+  const todayWinRateIndex = source.indexOf("statCard('target', 'Win Rate', formatPercent(todayStats.winRate))");
+  const todayTradesIndex = source.indexOf("statCard('chart', 'Trades', todayStats.tradeCount)");
+  const todayProtectedIndex = source.indexOf("statCard('chart', 'Protected %', formatPercent(todayStats.protectedPercent))");
+  assert.ok(
+    todayPnlIndex !== -1 && todayPnlIndex < todayPercentIndex
+      && todayPercentIndex < todayWinRateIndex
+      && todayWinRateIndex < todayTradesIndex
+      && todayTradesIndex < todayProtectedIndex,
+    'Today KPI strip should render in order: Today P/L, Today %, Win Rate, Trades, Protected %.',
+  );
 });
