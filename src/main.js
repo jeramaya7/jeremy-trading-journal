@@ -45,7 +45,7 @@ const AUTO_SYNC_INTERVAL_MS = 60 * 1000;
 
 // Fields the backend persists to Supabase for cross-device annotation sync.
 // Must match JOURNAL_ANNOTATION_FIELDS in src/server.js.
-const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'position', 'timeframe', 'tradeManagement', 'grade', 'closeReason', 'lossReason', 'tags', 'notes', 'adjustedStopLoss', 'adjustedTakeProfit', 'takeProfit', 'stopLoss'];
+const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'position', 'timeframe', 'protected', 'tradeManagement', 'grade', 'closeReason', 'lossReason', 'tags', 'notes', 'adjustedStopLoss', 'adjustedTakeProfit', 'takeProfit', 'stopLoss'];
 
 const starterTrades = [
   {
@@ -215,6 +215,10 @@ const TRADE_TIMEFRAME_OPTIONS = [
   '1H',
   '4H',
   'Daily',
+];
+const TRADE_PROTECTED_OPTIONS = [
+  'Yes',
+  'No',
 ];
 const POSITION_TYPE_OPTIONS = [
   'Position 0',
@@ -2236,6 +2240,11 @@ function getStats(tradeList = trades) {
   const biggestWinner = calculateBiggestWinner(tradeList);
   const biggestLoser = calculateBiggestLoser(tradeList);
   const biggestRisk = riskDollarValues.length ? Math.max(...riskDollarValues) : null;
+  // Protected % = Protected trades marked Yes ÷ all completed trades × 100.
+  // Every trade passed into getStats() is a completed (closed) trade — there
+  // is no open-position concept yet — so tradeList.length is the denominator.
+  const protectedYesCount = tradeList.filter((trade) => String(trade.protected || '').trim() === 'Yes').length;
+  const protectedPercent = tradeList.length ? (protectedYesCount / tradeList.length) * 100 : null;
 
   return {
     totalPnl,
@@ -2247,6 +2256,7 @@ function getStats(tradeList = trades) {
     totalRiskUsed: totalRiskUsed > 0 ? totalRiskUsed : null,
     averageR: performanceR,
     profitFactor,
+    protectedPercent,
     averageRiskDollars,
     averageRiskPercent,
     biggestWinner,
@@ -2387,10 +2397,10 @@ function renderTodayKpiStrip(todayTrades, todayStats) {
 function renderHeroStatsRow(stats) {
   return `
         <section class="stats-grid hero-stats-row" aria-label="DNA trading statistics">
-          ${statCard('trend', 'Net P/L', currency(stats.totalPnl), getMoneyTone(stats.totalPnl))}
-          ${statCard('chart', 'Trades Analyzed', stats.tradeCount)}
+          ${statCard('trend', 'Net Profit', currency(stats.totalPnl), getMoneyTone(stats.totalPnl))}
           ${statCard('target', 'Win Rate', formatPercent(stats.winRate))}
-          ${statCard('trend', 'Expectancy', formatRMultiple(stats.averageR))}
+          ${statCard('line', 'Profit Factor', formatProfitFactor(stats.profitFactor), getProfitFactorTone(stats.profitFactor))}
+          ${statCard('chart', 'Protected %', formatPercent(stats.protectedPercent))}
         </section>`;
 }
 
@@ -2561,6 +2571,7 @@ function tradeCard(trade) {
     tradeMetric('Setup', trade.setup),
     tradeMetric('State', trade.state),
     tradeMetric('Position', trade.position),
+    tradeMetric('Protected', trade.protected),
     tradeMetric('Exit Reason', trade.closeReason),
     tradeMetric('Loss Reason', trade.lossReason),
     tradeMetric('Tags', trade.tags),
@@ -2792,6 +2803,16 @@ function renderTimeframeSelect(trade) {
   `;
 }
 
+function renderProtectedSelect(trade) {
+  const current = String(trade.protected || '').trim();
+  return `
+    <select name="protected" aria-label="Protected">
+      <option value="">None</option>
+      ${TRADE_PROTECTED_OPTIONS.map((option) => renderSelectOption(option, current)).join('')}
+    </select>
+  `;
+}
+
 function renderGradeSelect(trade) {
   const current = String(trade.grade || '').trim();
   return `
@@ -2850,6 +2871,7 @@ function editTradeForm(trade) {
         <div class="edit-form-row edit-management-row" aria-label="Trade management and grade">
           ${field('Trade Management', renderTradeManagementSelect(trade))}
           ${field('Grade', renderGradeSelect(trade))}
+          ${field('Protected', renderProtectedSelect(trade))}
         </div>
         <div class="edit-form-row edit-classification-row" aria-label="Trade classification">
           ${field('Exit Reason', renderCloseReasonSelect(trade))}
@@ -2941,7 +2963,6 @@ function render(options = {}) {
     {
       label: 'R Metrics',
       cards: [
-        statCard('target', 'Average R', formatRMultiple(stats.averageR)),
         statCard('trend', 'Biggest Winner', stats.biggestWinner === null ? '—' : currency(stats.biggestWinner)),
         statCard('trend', 'Biggest Loser', stats.biggestLoser === null ? '—' : currency(stats.biggestLoser), getMoneyTone(stats.biggestLoser)),
         statCard('line', 'Biggest Risk', stats.biggestRisk === null ? '—' : currency(stats.biggestRisk)),
@@ -3523,6 +3544,7 @@ async function submitTradeEdit(event) {
     state: String(formData.get('state')).trim(),
     position: String(formData.get('position')).trim(),
     timeframe: String(formData.get('timeframe')).trim(),
+    protected: String(formData.get('protected')).trim(),
     tradeManagement: String(formData.get('tradeManagement')).trim(),
     grade: String(formData.get('grade')).trim(),
     tags: String(formData.get('tags')).trim(),

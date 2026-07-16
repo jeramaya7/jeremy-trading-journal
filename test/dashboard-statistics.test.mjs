@@ -20,14 +20,27 @@ test('dashboard renders top KPI row above the DNA Results with requested perform
   assert.ok(dashboardStats.includes('dashboardCardRows.map'), 'Dashboard card rows should render as a balanced grouped grid.');
   assert.ok(source.includes('function renderHeroStatsRow(stats)'), 'Hero stats row should render below the equity curve.');
   assert.ok(source.indexOf('${renderHeroStatsRow(stats)}') < source.indexOf('<section class="dashboard-snapshot"'), 'The top KPI row should render before DNA Results.');
-  assert.ok(source.includes("statCard('trend', 'Net P/L', currency(stats.totalPnl), getMoneyTone(stats.totalPnl))"), 'Net P/L should render first in the top KPI row.');
-  assert.ok(source.includes("statCard('chart', 'Trades Analyzed', stats.tradeCount)"), 'Trades Analyzed should render in the top KPI row.');
+  assert.ok(source.includes("statCard('trend', 'Net Profit', currency(stats.totalPnl), getMoneyTone(stats.totalPnl))"), 'Net Profit should render first in the top KPI row.');
   assert.equal(source.includes("statCard('line', 'Total R', formatRMultiple(stats.totalR)"), false, 'Total R should not render as a KPI card.');
   assert.ok(source.includes("statCard('target', 'Win Rate'"), 'Win Rate should render in the hero stats row.');
-  assert.ok(source.includes("statCard('trend', 'Expectancy', formatRMultiple(stats.averageR))"), 'Expectancy should render in the top KPI row from average R without a positive color tone.');
-  assert.ok(source.includes("statCard('target', 'Average R'"), 'Average R should render as the first DNA Results card.');
+  assert.ok(source.includes("statCard('line', 'Profit Factor', formatProfitFactor(stats.profitFactor), getProfitFactorTone(stats.profitFactor))"), 'Profit Factor should render in the top KPI row.');
+  assert.ok(source.includes("statCard('chart', 'Protected %', formatPercent(stats.protectedPercent))"), 'Protected % should render as the fourth card in the top KPI row.');
+  assert.equal(source.includes("statCard('chart', 'Trades Analyzed', stats.tradeCount)"), false, 'Trades Analyzed should no longer render in the top KPI row.');
+  assert.equal(source.includes("statCard('trend', 'Expectancy', formatRMultiple(stats.averageR))"), false, 'Expectancy (Average R) should no longer render in the top KPI row.');
+  assert.equal(source.includes("statCard('target', 'Average R', formatRMultiple(stats.averageR))"), false, 'Average R should no longer render as a DNA Results dashboard card.');
   assert.ok(source.includes("statCard('target', 'Average Risk $'"), 'Average Risk $ should render as a dashboard card.');
   assert.ok(source.includes("statCard('target', 'Average Risk %'"), 'Average Risk % should render as a dashboard card.');
+
+  const netProfitIndex = source.indexOf("statCard('trend', 'Net Profit', currency(stats.totalPnl), getMoneyTone(stats.totalPnl))");
+  const winRateIndex = source.indexOf("statCard('target', 'Win Rate', formatPercent(stats.winRate))");
+  const profitFactorIndex = source.indexOf("statCard('line', 'Profit Factor', formatProfitFactor(stats.profitFactor), getProfitFactorTone(stats.profitFactor))");
+  const protectedPercentIndex = source.indexOf("statCard('chart', 'Protected %', formatPercent(stats.protectedPercent))");
+  assert.ok(
+    netProfitIndex !== -1 && netProfitIndex < winRateIndex
+      && winRateIndex < profitFactorIndex
+      && profitFactorIndex < protectedPercentIndex,
+    'The top KPI row should render in order: Net Profit, Win Rate, Profit Factor, Protected %.',
+  );
 });
 
 test('dashboard renders one shared DNA timeframe toggle that drives dashboard sections', () => {
@@ -76,9 +89,9 @@ test('R and risk percent display with one decimal place without changing calcula
 });
 
 
-test('dashboard renders twelve cards in three balanced 4-column rows', () => {
+test('dashboard renders eleven cards across three grouped rows', () => {
   assert.ok(source.includes('const dashboardCardRows = ['), 'Dashboard cards should be assembled in grouped rows.');
-  assert.equal((source.match(/statCard\('/g) ?? []).length >= 12, true, 'Dashboard should define at least twelve stat cards.');
+  assert.equal((source.match(/statCard\('/g) ?? []).length >= 11, true, 'Dashboard should define at least eleven stat cards.');
   assert.ok(source.includes("statCard('trend', 'Biggest Winner'"), 'Biggest Winner should render as a dashboard card.');
   assert.ok(source.includes("statCard('calendar', 'Yearly P/L'"), 'Yearly P/L should render as a dashboard card.');
 });

@@ -239,6 +239,29 @@ test('PUT /api/journal/annotations/:tradeId saves and syncs Timeframe like the o
   }, { fetchImpl });
 });
 
+test('PUT /api/journal/annotations/:tradeId saves and syncs Protected like the other journal fields', async () => {
+  // New field: protected (Yes/No) must round-trip through PUT and GET
+  // exactly like setup/state/position/timeframe, so it saves, reloads, and
+  // syncs across devices.
+  const { fetchImpl } = createFakeSupabase();
+  await withServer(async ({ port }) => {
+    const putResponse = await fetch(`http://127.0.0.1:${port}/api/journal/annotations/trade-1`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ protected: 'Yes' }),
+    });
+    const putBody = await putResponse.json();
+
+    assert.equal(putResponse.status, 200);
+    assert.deepEqual(putBody, { tradeId: 'trade-1', protected: 'Yes' });
+
+    const getResponse = await fetch(`http://127.0.0.1:${port}/api/journal/annotations`);
+    const getBody = await getResponse.json();
+
+    assert.deepEqual(getBody, { 'trade-1': { protected: 'Yes' } });
+  }, { fetchImpl });
+});
+
 test('PUT /api/journal/annotations/:tradeId returns 400 for malformed JSON and does not crash the server', async () => {
   const { fetchImpl } = createFakeSupabase();
   await withServer(async ({ port }) => {

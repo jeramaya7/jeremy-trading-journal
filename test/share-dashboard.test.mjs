@@ -13,13 +13,13 @@ test('dashboard snapshot has a share button and captures required dashboard cont
   assertIncludes(source, 'id="shareDashboard"', 'The dashboard renders a Share Dashboard button.');
   assertIncludes(source, 'pageMode === PAGE_MODES.dashboard ? `<button class="share-dashboard-button" type="button" id="shareDashboard">${icon(\'share\')} Share Dashboard</button>` : \'\'', 'The hero action Share Dashboard button is rendered in Dashboard Mode.');
   assertIncludes(source, 'id="dashboardSnapshot"', 'The dashboard has a dedicated snapshot area.');
-  assertIncludes(source, "statCard('trend', 'Net P/L'", 'Top KPI row includes Net P/L.');
+  assertIncludes(source, "statCard('trend', 'Net Profit'", 'Top KPI row includes Net Profit.');
   assertIncludes(source, "statCard('target', 'Win Rate'", 'Top KPI row includes Win Rate.');
-  assertIncludes(source, "statCard('chart', 'Trades Analyzed'", 'Top KPI row includes Trades Analyzed.');
+  assertIncludes(source, "statCard('line', 'Profit Factor'", 'Top KPI row includes Profit Factor.');
+  assertIncludes(source, "statCard('chart', 'Protected %'", 'Top KPI row includes Protected %.');
   assertIncludes(source, "statCard('trend', 'Biggest Winner'", 'Snapshot includes Biggest Winner.');
   assertIncludes(source, "statCard('trend', 'Average Winner'", 'Snapshot includes Average Winner.');
   assertIncludes(source, "statCard('trend', 'Average Loser'", 'Snapshot includes Average Loser.');
-  assertIncludes(source, "statCard('target', 'Average R'", 'Snapshot includes Average R.');
   assertIncludes(source, "statCard('target', 'Average Risk $'", 'Snapshot includes Average Risk $.');
   assertIncludes(source, "statCard('target', 'Average Risk %'", 'Snapshot includes Average Risk %.');
   assertIncludes(source, "statCard('calendar', 'Daily P/L'", 'Snapshot includes Daily P/L.');
