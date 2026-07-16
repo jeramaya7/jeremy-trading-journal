@@ -51,10 +51,10 @@ test('dashboard renders top KPI row above the DNA Results with requested perform
 
   // Profit Factor must render under DNA Results as the fourth card in the
   // first row, alongside ROI %, Biggest Winner, Biggest Loser.
-  assert.ok(source.includes("renderRoiCard(roiPercent, startingAccountBalance),"), 'ROI % should render as the first DNA Results card.');
+  assert.ok(source.includes("renderRoiCard(roiPercent),"), 'ROI % should render as the first DNA Results card.');
   assert.ok(source.includes("statCard('trend', 'Biggest Winner'"), 'Biggest Winner should render as a DNA Results card.');
   assert.ok(source.includes("statCard('trend', 'Biggest Loser'"), 'Biggest Loser should render as a DNA Results card.');
-  const roiIndex = source.indexOf('renderRoiCard(roiPercent, startingAccountBalance),');
+  const roiIndex = source.indexOf('renderRoiCard(roiPercent),');
   const biggestWinnerIndex = source.indexOf("statCard('trend', 'Biggest Winner'");
   const biggestLoserIndex = source.indexOf("statCard('trend', 'Biggest Loser'");
   const dnaProfitFactorIndex = source.indexOf("statCard('line', 'Profit Factor', formatProfitFactor(stats.profitFactor), getProfitFactorTone(stats.profitFactor))");

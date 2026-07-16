@@ -17,7 +17,7 @@ test('dashboard snapshot has a share button and captures required dashboard cont
   assertIncludes(source, "statCard('chart', 'Trades'", 'Top KPI row includes Trades.');
   assertIncludes(source, "statCard('target', 'Win Rate'", 'Top KPI row includes Win Rate.');
   assertIncludes(source, "statCard('chart', 'Protected %'", 'Top KPI row includes Protected %.');
-  assertIncludes(source, "renderRoiCard(roiPercent, startingAccountBalance)", 'Snapshot includes ROI %.');
+  assertIncludes(source, "renderRoiCard(roiPercent)", 'Snapshot includes ROI %.');
   assertIncludes(source, "statCard('line', 'Profit Factor'", 'Snapshot includes Profit Factor.');
   assertIncludes(source, "statCard('trend', 'Biggest Winner'", 'Snapshot includes Biggest Winner.');
   assertIncludes(source, "statCard('trend', 'Average Winner'", 'Snapshot includes Average Winner.');

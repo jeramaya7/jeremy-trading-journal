@@ -2224,11 +2224,36 @@ function setStartingAccountBalance(rawValue) {
   window.localStorage.setItem(STARTING_ACCOUNT_BALANCE_STORAGE_KEY, String(startingAccountBalance));
 }
 
-// ROI % = Net P/L ÷ Starting Account Balance × 100. Recalculated on every
-// render from the current stats.totalPnl, so it always reflects the latest
-// Net P/L automatically — never stored or cached separately.
+// ROI % = period P/L ÷ Account Balance at the start of that period × 100.
+// Recalculated on every render from the current stats.totalPnl, so it always
+// reflects the latest P/L automatically — never stored or cached separately.
 function calculateRoiPercent(totalPnl, accountBalance) {
   return accountBalance > 0 ? (totalPnl / accountBalance) * 100 : null;
+}
+
+// The ROI card follows the same DNA Results period selector as the rest of
+// the dashboard (Day / WTD / MTD / YTD / Beginning). Each period's ROI is
+// measured against the account balance as of the *start* of that period,
+// not the flat Starting Account Balance setting — except Beginning, which
+// by definition has no prior trades and uses the Starting Account Balance
+// itself.
+//
+// Balance at start of period = Starting Account Balance + the net P/L of
+// every trade that closed strictly before that period began. This is a
+// pure derivation from existing data (never stored), so it can't drift out
+// of sync with the trade list.
+function calculateAccountBalanceAtPeriodStart(period, referenceDate, allTrades, startingBalance) {
+  if (period === 'all') {
+    return startingBalance;
+  }
+
+  const periodStart = getReportPeriodStart(referenceDate, period);
+  const priorPnl = allTrades.reduce((sum, trade) => {
+    const tradeDate = getTradeReportDate(trade);
+    return tradeDate && tradeDate < periodStart ? sum + calculatePnl(trade) : sum;
+  }, 0);
+
+  return startingBalance + priorPnl;
 }
 
 function setDnaResultsTimeframe(timeframe) {
@@ -2412,15 +2437,13 @@ function statCard(iconName, label, value, tone = '', options = {}) {
   `;
 }
 
-function renderRoiCard(roiPercent, accountBalance) {
+function renderRoiCard(roiPercent) {
   const valueClass = getPerformanceTone(roiPercent);
-  const balanceLabel = Number(accountBalance).toLocaleString('en-US', { maximumFractionDigits: 2 });
   return `
     <article class="stat-card roi-stat-card">
       <div class="stat-icon">${icon('target')}</div>
       <span>ROI %</span>
       <strong class="${valueClass}">${formatPercent(roiPercent)}</strong>
-      <p class="roi-starting-balance-note">Based on $${balanceLabel} starting balance.</p>
     </article>
   `;
 }
@@ -3017,12 +3040,13 @@ function render(options = {}) {
   const stats = getStats(dnaResultsTrades);
   const pnlReports = getPnlReports(dnaReferenceDate, trades);
   const [dailyPnl, weeklyPnl, monthlyPnl, yearlyPnl] = pnlReports;
-  const roiPercent = calculateRoiPercent(stats.totalPnl, startingAccountBalance);
+  const roiAccountBalance = calculateAccountBalanceAtPeriodStart(dnaResultsTimeframe, dnaReferenceDate, trades, startingAccountBalance);
+  const roiPercent = calculateRoiPercent(stats.totalPnl, roiAccountBalance);
   const dashboardCardRows = [
     {
       label: 'R Metrics',
       cards: [
-        renderRoiCard(roiPercent, startingAccountBalance),
+        renderRoiCard(roiPercent),
         statCard('trend', 'Biggest Winner', stats.biggestWinner === null ? '—' : currency(stats.biggestWinner)),
         statCard('trend', 'Biggest Loser', stats.biggestLoser === null ? '—' : currency(stats.biggestLoser), getMoneyTone(stats.biggestLoser)),
         statCard('line', 'Profit Factor', formatProfitFactor(stats.profitFactor), getProfitFactorTone(stats.profitFactor)),
