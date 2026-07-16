@@ -1957,11 +1957,6 @@ h2,
   line-height: 0.98;
 }
 
-.roi-stat-card {
-  display: flex;
-  flex-direction: column;
-}
-
 .workspace-grid {
   gap: clamp(1.5rem, 2.6vw, 2.25rem);
 }
