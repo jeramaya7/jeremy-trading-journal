@@ -5,10 +5,12 @@ import vm from 'node:vm';
 
 // Guards the ROI % dashboard metric and its Starting Account Balance setting
 // (src/main.js): ROI % = Net P/L ÷ Starting Account Balance × 100, a global
-// setting (default $5,600) editable inline on the ROI % card, and the
-// DNA Results first-row reorder (ROI %, Biggest Winner, Biggest Loser,
-// Profit Factor) that moved Biggest Risk into the Risk Metrics row and
-// removed Profit Factor from the top KPI row.
+// setting (default $5,600) editable from the Settings modal (not the ROI
+// card itself), and the DNA Results 4x3 grid (ROI %, Biggest Winner,
+// Biggest Loser, Profit Factor / Average Winner, Average Loser, Average
+// Risk $, Average Risk % / Daily P/L, Weekly P/L, Monthly P/L, Yearly P/L)
+// with Biggest Risk removed entirely and Profit Factor moved out of the top
+// KPI row.
 
 const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
 
@@ -79,22 +81,55 @@ test('ROI % = Net P/L ÷ Starting Account Balance × 100, and recalculates from 
   );
 });
 
-test('the Starting Account Balance is editable inline on the ROI % card', () => {
+test('the ROI % card displays only the label, value, and a starting-balance note — no editable input', () => {
   assert.ok(
     source.includes('function renderRoiCard(roiPercent, accountBalance)'),
     'A dedicated ROI % card renderer should exist.',
   );
   assert.ok(
-    source.includes('data-starting-account-balance'),
-    'The ROI % card should render an editable Starting Account Balance input.',
+    source.includes("<span>ROI %</span>"),
+    'The ROI % card should show the ROI % label.',
   );
   assert.ok(
-    source.includes("document.querySelector('[data-starting-account-balance]')?.addEventListener('change'"),
-    'Editing the Starting Account Balance input should be wired to a change handler.',
+    source.includes('roi-starting-balance-note'),
+    'The ROI % card should show a small starting-balance note.',
   );
   assert.ok(
-    source.includes('setStartingAccountBalance(event.target.value);') && source.includes('render();'),
-    'Changing the Starting Account Balance should save it and trigger a re-render, so ROI % recalculates immediately.',
+    source.includes("Based on $${balanceLabel} starting balance."),
+    'The note should read "Based on $X starting balance." using the configured starting balance.',
+  );
+  assert.equal(source.includes('data-starting-account-balance'), false, 'The ROI % card should no longer render an editable Starting Account Balance input.');
+  assert.equal(source.includes('roi-starting-balance-edit'), false, 'The old inline-edit markup/styling should be fully removed.');
+});
+
+test('Starting Account Balance is editable from the Settings modal, not the dashboard card', () => {
+  assert.ok(
+    source.includes('function renderSettingsModal()'),
+    'A dedicated Settings modal renderer should exist.',
+  );
+  assert.ok(
+    source.includes('isSettingsModalOpen'),
+    'Settings modal visibility should be tracked in state, like the Session Notes modal.',
+  );
+  assert.ok(
+    source.includes('data-settings-open'),
+    'A Settings button should open the modal.',
+  );
+  assert.ok(
+    source.includes('name="startingAccountBalance"'),
+    'The Settings modal should contain the Starting Account Balance field.',
+  );
+  assert.ok(
+    source.includes("document.querySelector('#settingsForm')?.addEventListener('submit'"),
+    'Saving the Settings form should be wired to a submit handler.',
+  );
+  assert.ok(
+    source.includes("setStartingAccountBalance(new FormData(event.currentTarget).get('startingAccountBalance'));"),
+    'Saving Settings should persist the new Starting Account Balance.',
+  );
+  assert.ok(
+    source.includes('data-settings-cancel'),
+    'The Settings modal should be cancelable without saving.',
   );
 });
 
@@ -120,20 +155,44 @@ test('Profit Factor no longer renders in the top KPI row (it now lives under DNA
   assert.equal(heroRowBody.includes('Profit Factor'), false, 'Profit Factor should not appear in renderHeroStatsRow.');
 });
 
-test('Biggest Risk moved into the Risk Metrics row, alongside Average Winner/Loser/Risk $/Risk %', () => {
-  const riskMetricsLabelIndex = source.indexOf("label: 'Risk Metrics'");
-  assert.notEqual(riskMetricsLabelIndex, -1, 'Risk Metrics row should exist.');
+test('Biggest Risk is removed from the dashboard entirely (display only — the calculation itself is untouched)', () => {
+  const dashboardCardRowsStart = source.indexOf('const dashboardCardRows = [');
+  const dashboardCardRowsEnd = source.indexOf('\n  ];', dashboardCardRowsStart) + '\n  ];'.length;
+  const dashboardCardRowsBody = source.slice(dashboardCardRowsStart, dashboardCardRowsEnd);
 
-  const nextRowLabelIndex = source.indexOf("label: 'Time Performance'", riskMetricsLabelIndex);
-  assert.notEqual(nextRowLabelIndex, -1, 'Time Performance row should follow Risk Metrics.');
+  assert.equal(dashboardCardRowsBody.includes('Biggest Risk'), false, 'Biggest Risk should not render as a dashboard card anywhere.');
 
-  const riskMetricsBody = source.slice(riskMetricsLabelIndex, nextRowLabelIndex);
-  assert.ok(
-    riskMetricsBody.includes("statCard('line', 'Biggest Risk'"),
-    'Biggest Risk should render inside the Risk Metrics row.',
-  );
-  assert.ok(
-    riskMetricsBody.includes("statCard('target', 'Average Risk %'"),
-    'Risk Metrics row should still include Average Risk %.',
-  );
+  // The underlying calculation must remain untouched — only the display
+  // changed, per "do not change any calculations except the display".
+  assert.ok(source.includes('biggestRisk'), 'stats.biggestRisk should still be computed in getStats() even though it is no longer displayed.');
+  assert.ok(source.includes('const biggestRisk = riskDollarValues.length ? Math.max(...riskDollarValues) : null;'), 'The Biggest Risk calculation itself should be unchanged.');
+});
+
+test('DNA Results is a consistent 4x3 grid — every row has exactly four cards', () => {
+  const dashboardCardRowsStart = source.indexOf('const dashboardCardRows = [');
+  const dashboardCardRowsEnd = source.indexOf('\n  ];', dashboardCardRowsStart) + '\n  ];'.length;
+  const dashboardCardRowsBody = source.slice(dashboardCardRowsStart, dashboardCardRowsEnd);
+
+  const rowLabels = ['R Metrics', 'Risk Metrics', 'Time Performance'];
+  const rowBoundaries = rowLabels.map((label) => dashboardCardRowsBody.indexOf(`label: '${label}'`));
+  rowBoundaries.forEach((index, i) => assert.notEqual(index, -1, `${rowLabels[i]} row should exist.`));
+
+  const rowBodies = rowBoundaries.map((start, i) => {
+    const end = i + 1 < rowBoundaries.length ? rowBoundaries[i + 1] : dashboardCardRowsBody.length;
+    return dashboardCardRowsBody.slice(start, end);
+  });
+
+  // Each row's card list is a `cards: [ ... ]` array — count top-level
+  // entries by counting statCard(/renderRoiCard( calls between its `cards: [`
+  // and the matching closing `],`.
+  rowBodies.forEach((rowBody, i) => {
+    const cardsStart = rowBody.indexOf('cards: [');
+    const cardsEnd = rowBody.indexOf('\n      ],', cardsStart);
+    const cardsBody = rowBody.slice(cardsStart, cardsEnd);
+    const cardCount = (cardsBody.match(/(?:statCard|renderRoiCard)\(/g) ?? []).length;
+    assert.equal(cardCount, 4, `${rowLabels[i]} row should have exactly 4 cards, found ${cardCount}.`);
+  });
+
+  // No row-level five-card modifier should remain now that every row is 4.
+  assert.equal(source.includes('dashboard-card-row--five'), false, 'The five-card grid modifier should be removed now that every DNA Results row has exactly 4 cards.');
 });

@@ -149,6 +149,7 @@ let startingAccountBalance = loadStartingAccountBalance();
 let pageMode = loadPageMode();
 let sessionNotesByDay = loadSessionNotesByDay();
 let isSessionNotesModalOpen = false;
+let isSettingsModalOpen = false;
 let dnaDoctorState = { status: 'idle', report: null, error: null, dismissError: false }; // idle | loading | done | error
 
 const FRIENDLY_ASSET_NAMES = {
@@ -2185,6 +2186,28 @@ function renderSessionNotesModal() {
       </div>`;
 }
 
+function renderSettingsModal() {
+  if (!isSettingsModalOpen) {
+    return '';
+  }
+
+  return `
+      <div class="settings-modal-backdrop" role="presentation">
+        <form class="settings-modal" id="settingsForm" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+          <h2 id="settingsTitle">Settings</h2>
+          <label class="field">
+            <span>Starting Account Balance</span>
+            <input name="startingAccountBalance" type="number" min="0" step="0.01" value="${escapeHtml(String(startingAccountBalance))}" aria-label="Starting Account Balance" autofocus />
+          </label>
+          <p class="settings-field-helper">Used to calculate ROI % on the DNA Results dashboard.</p>
+          <div class="settings-modal-actions">
+            <button class="secondary-button" type="button" data-settings-cancel>Cancel</button>
+            <button class="primary-button" type="submit">Save</button>
+          </div>
+        </form>
+      </div>`;
+}
+
 function loadDnaResultsTimeframe() {
   const storedTimeframe = window.localStorage.getItem(DNA_TIMEFRAME_STORAGE_KEY);
   return isValidDnaTimeframe(storedTimeframe) ? storedTimeframe : 'all';
@@ -2360,6 +2383,7 @@ function icon(name) {
     save: '<svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>',
     share: '<svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98"/><path d="M15.41 6.51L8.59 10.49"/></svg>',
     tag: '<svg viewBox="0 0 24 24"><path d="M20.59 13.41L11 3.83A2 2 0 0 0 9.5 3H4a1 1 0 0 0-1 1v5.5a2 2 0 0 0 .59 1.41l9.58 9.58a2 2 0 0 0 2.83 0l4.59-4.59a2 2 0 0 0 0-2.83z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>',
+    settings: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
   };
   return icons[name] ?? '';
 }
@@ -2390,15 +2414,13 @@ function statCard(iconName, label, value, tone = '', options = {}) {
 
 function renderRoiCard(roiPercent, accountBalance) {
   const valueClass = getPerformanceTone(roiPercent);
+  const balanceLabel = Number(accountBalance).toLocaleString('en-US', { maximumFractionDigits: 2 });
   return `
     <article class="stat-card roi-stat-card">
       <div class="stat-icon">${icon('target')}</div>
       <span>ROI %</span>
       <strong class="${valueClass}">${formatPercent(roiPercent)}</strong>
-      <label class="roi-starting-balance-edit">
-        <span>Starting Balance</span>
-        <input type="number" min="0" step="0.01" value="${escapeHtml(String(accountBalance))}" data-starting-account-balance aria-label="Starting Account Balance" />
-      </label>
+      <p class="roi-starting-balance-note">Based on $${balanceLabel} starting balance.</p>
     </article>
   `;
 }
@@ -3013,7 +3035,6 @@ function render(options = {}) {
         statCard('trend', 'Average Loser', currency(stats.averageLoss), getMoneyTone(stats.averageLoss)),
         statCard('target', 'Average Risk $', stats.averageRiskDollars === null ? '—' : currency(stats.averageRiskDollars)),
         statCard('target', 'Average Risk %', formatRiskPercent(stats.averageRiskPercent)),
-        statCard('line', 'Biggest Risk', stats.biggestRisk === null ? '—' : currency(stats.biggestRisk)),
       ],
     },
     {
@@ -3104,6 +3125,7 @@ function render(options = {}) {
         </div>
         <div class="hero-actions">
           ${pageMode === PAGE_MODES.dashboard ? `<button class="share-dashboard-button" type="button" id="shareDashboard">${icon('download')} Download PNG</button>` : ''}
+          <button class="secondary-button settings-button" type="button" data-settings-open title="Settings" aria-label="Settings">${icon('settings')} Settings</button>
           ${renderCTraderConnectionCard()}
         </div>
       </section>
@@ -3118,6 +3140,7 @@ function render(options = {}) {
 
       ${pageSections}
       ${renderSessionNotesModal()}
+      ${renderSettingsModal()}
     </main>
   `;
 
@@ -3137,7 +3160,7 @@ function renderDashboardSnapshot(dashboardCardRows) {
         </div>
         <section class="dashboard-card-groups" aria-label="Trading performance summary">
           ${dashboardCardRows.map((row) => `
-            <section class="stats-grid dashboard-card-row${row.cards.length === 5 ? ' dashboard-card-row--five' : ''}" aria-label="${row.label}">
+            <section class="stats-grid dashboard-card-row" aria-label="${row.label}">
               ${row.cards.join('')}
             </section>`).join('')}
         </section>
@@ -3336,6 +3359,20 @@ function bindEvents() {
     isSessionNotesModalOpen = false;
     render();
   });
+  document.querySelector('[data-settings-open]')?.addEventListener('click', () => {
+    isSettingsModalOpen = true;
+    render();
+  });
+  document.querySelector('[data-settings-cancel]')?.addEventListener('click', () => {
+    isSettingsModalOpen = false;
+    render();
+  });
+  document.querySelector('#settingsForm')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    setStartingAccountBalance(new FormData(event.currentTarget).get('startingAccountBalance'));
+    isSettingsModalOpen = false;
+    render();
+  });
   document.querySelectorAll('[data-page-mode]').forEach((button) => {
     button.addEventListener('click', () => {
       setPageMode(button.dataset.pageMode);
@@ -3415,10 +3452,6 @@ function bindEvents() {
       render();
     });
   });
-  document.querySelector('[data-starting-account-balance]')?.addEventListener('change', (event) => {
-    setStartingAccountBalance(event.target.value);
-    render();
-  }, { signal });
   updateScreenshotFieldPreview();
   if (tradeForm) {
     updateRiskPercentField({ currentTarget: tradeForm });
