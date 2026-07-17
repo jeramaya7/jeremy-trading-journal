@@ -88,12 +88,32 @@ test('cTrader Auto Sync runs on startup and exposes settings metadata', () => {
 });
 
 test('cTrader Auto Sync keeps syncing while the app is open', () => {
-  assertIncludes(source, 'const AUTO_SYNC_INTERVAL_MS = 60 * 1000;', 'Auto Sync polls within 60 seconds.');
+  assertIncludes(source, 'const AUTO_SYNC_INTERVAL_MS = 12 * 1000;', 'Auto Sync polls within 12 seconds.');
   assertIncludes(source, 'let cTraderAutoSyncTimer = null;', 'The app tracks the active Auto Sync timer.');
   assertIncludes(source, 'function scheduleCTraderAutoSync()', 'Auto Sync can schedule recurring sync checks.');
   assertIncludes(source, 'clearInterval(cTraderAutoSyncTimer);', 'Changing Auto Sync clears the previous timer to avoid duplicate polling.');
   assertIncludes(source, 'window.setInterval(() => {', 'Auto Sync repeats without requiring the user to press Sync.');
   assertIncludes(source, 'scheduleCTraderAutoSync();', 'The app schedules Auto Sync during startup and preference changes.');
+
+  // Lowering the interval from 60s to 12s is only safe because overlapping
+  // requests were already prevented and still are: both entry points bail
+  // out immediately if a sync is already in flight, so a tick that fires
+  // mid-sync is skipped rather than starting a second request.
+  const syncCTraderStart = source.indexOf('async function syncCTrader(options = {}) {');
+  const syncCTraderEnd = source.indexOf('\nfunction buildCTraderSyncRequestPath(');
+  assert.notEqual(syncCTraderStart, -1, 'syncCTrader should exist.');
+  const syncCTraderBody = source.slice(syncCTraderStart, syncCTraderEnd);
+  assertIncludes(syncCTraderBody, 'if (isSyncingCTrader) {\n    return;\n  }', 'syncCTrader() bails out immediately if a sync is already running, preventing overlapping requests.');
+
+  const syncOnStartupStart = source.indexOf('async function syncCTraderOnStartup() {');
+  const syncOnStartupEnd = source.indexOf('\nfunction exportTrades(');
+  assert.notEqual(syncOnStartupStart, -1, 'syncCTraderOnStartup should exist.');
+  const syncOnStartupBody = source.slice(syncOnStartupStart, syncOnStartupEnd);
+  assertIncludes(syncOnStartupBody, 'if (isSyncingCTrader || isCheckingCTraderConnection) {\n    return;\n  }', 'The Auto Sync timer tick also bails out immediately if a sync is already running or a connection check is in progress.');
+
+  // Duplicate-trade prevention (source-key dedup) is independent of the
+  // polling interval and unaffected by this change.
+  assertIncludes(source, 'const syncPlan = buildCTraderSyncPlan(previewTrades, trades, {', 'Every sync (whether every 12s or 60s) still runs preview trades through the same dedup-by-source-key plan before importing anything.');
 });
 
 test('cTrader production UI shows a user-facing connection summary instead of backend diagnostics', () => {
@@ -125,8 +145,14 @@ test('cTrader deleted source keys are persisted and used during sync', () => {
   assertIncludes(source, 'function loadDeletedCTraderSourceKeys()', 'Deleted cTrader source keys can be loaded before syncing.');
   assertIncludes(source, 'function clearDeletedCTraderSourceKeys()', 'Bulk deletion can clear deleted cTrader source keys before the next sync.');
   assertIncludes(source, 'function rememberDeletedCTraderSourceKey(trade)', 'Single cTrader trade deletion persists its source key.');
-  assertIncludes(source, 'const deletedTrade = getTradeById(button.dataset.deleteTrade);', 'Delete handlers identify the removed trade before filtering it out.');
-  assertIncludes(source, 'rememberDeletedCTraderSourceKey(deletedTrade);', 'Delete handlers remember cTrader source keys before removing the trade.');
+  // Deleting is now a soft delete (Trash / Undo) — the click handler calls
+  // softDeleteTrade(), which itself looks the trade up and remembers its
+  // cTrader source key before marking it deleted, same as the old hard
+  // delete did before removing it outright.
+  assertIncludes(source, 'function softDeleteTrade(tradeId) {', 'A dedicated soft-delete function replaces the old inline hard-delete filter.');
+  assertIncludes(source, 'const trade = getTradeById(tradeId);', 'softDeleteTrade identifies the trade being removed before acting on it.');
+  assertIncludes(source, 'rememberDeletedCTraderSourceKey(trade);', 'softDeleteTrade remembers cTrader source keys before marking the trade deleted.');
+  assertIncludes(source, 'softDeleteTrade(button.dataset.deleteTrade);', 'The Delete button calls the soft-delete function.');
   assertIncludes(source, 'window.localStorage.setItem(DELETED_CTRADER_SOURCE_KEYS_STORAGE_KEY, JSON.stringify([...sourceKeys].sort()))', 'Deleted source keys are saved to localStorage.');
 });
 

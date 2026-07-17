@@ -43,7 +43,18 @@ const LEGACY_SETUP_NAME_MAP = {
   'Support & Resistance': 'Support/Resistance',
   'The General Forecast': 'General Forecast',
 };
-const AUTO_SYNC_INTERVAL_MS = 60 * 1000;
+// Was 60s. Nothing in this codebase enforces a longer delay — no server-side
+// rate limiter or cache sits in front of /api/ctrader/journal-preview (see
+// getCtraderJournalPreview in src/server.js), and the access-token cache
+// (STATE_TTL_MS/REFRESH_BUFFER_MS) only affects OAuth refresh timing, not
+// polling frequency. The only real guard was this client-side interval.
+// Lowered to 12s (within the requested 10-15s window). Overlapping requests
+// were already prevented before this change and remain prevented: both
+// syncCTrader() and syncCTraderOnStartup() no-op immediately if
+// isSyncingCTrader (or isCheckingCTraderConnection) is already true, so a
+// tick that fires while a sync is still in flight is simply skipped rather
+// than starting a second, overlapping request.
+const AUTO_SYNC_INTERVAL_MS = 12 * 1000;
 
 // Fields the backend persists to Supabase for cross-device annotation sync.
 // Must match JOURNAL_ANNOTATION_FIELDS in src/server.js.
@@ -134,6 +145,16 @@ let editingTradeId = null;
 // Quick Edit layout (DNA 23 handoff). Same trade data + save logic either way.
 let editingTradeMode = 'full';
 let isManualTradeFormOpen = false;
+// Trash / Undo Delete. Deleting a trade sets `deletedAt` on the trade object
+// instead of removing it from `trades` — see softDeleteTrade() and
+// getActiveTrades() below. `trades` itself (localStorage, export, sync
+// dedup) still holds every trade, deleted or not; getActiveTrades() is the
+// single place that excludes deleted ones, and every dashboard/journal read
+// path was switched to it so a deleted trade disappears everywhere at once.
+let isTrashOpen = false;
+let recentlyDeletedTrade = null; // { id, symbol, direction } while the Undo toast is showing
+let undoToastTimer = null;
+const UNDO_TOAST_DURATION_MS = 6000;
 // Cross-device annotation refresh: guards for the focus/visibility-triggered
 // re-fetch added below. See maybeRefreshCloudAnnotations().
 let isSyncingCloudAnnotations = false;
@@ -487,6 +508,22 @@ function getTradeById(tradeId) {
   return trades.find((trade) => String(trade.id) === String(tradeId)) || null;
 }
 
+// The one place "deleted" is excluded. `trades` (the module-level array,
+// localStorage, export/import, and cTrader sync dedup) always holds every
+// trade regardless of deletedAt — only reads that feed the journal list and
+// dashboard stats go through this filter.
+function getActiveTrades() {
+  return trades.filter((trade) => !trade.deletedAt);
+}
+
+function getDeletedTrades() {
+  return trades.filter((trade) => Boolean(trade.deletedAt));
+}
+
+function trashedTradeCount() {
+  return getDeletedTrades().length;
+}
+
 function renderTradeCardInPlace(tradeId) {
   const trade = getTradeById(tradeId);
   const currentTradeCard = getTradeCardElement(tradeId);
@@ -594,6 +631,23 @@ function rememberDeletedCTraderSourceKey(trade) {
 
 function clearDeletedCTraderSourceKeys() {
   window.localStorage.removeItem(DELETED_CTRADER_SOURCE_KEYS_STORAGE_KEY);
+}
+
+// Restoring a soft-deleted cTrader-imported trade un-blocks it from
+// rememberDeletedCTraderSourceKey() above, so it behaves exactly as if it
+// had never been deleted (Auto Sync won't skip it, and it won't get
+// re-added as a duplicate — its source key already matches the restored
+// trade still sitting in `trades`).
+function forgetDeletedCTraderSourceKey(trade) {
+  const sourceKey = getImportedTradeSourceKey(trade);
+  if (!sourceKey) {
+    return;
+  }
+
+  const deletedSourceKeys = loadDeletedCTraderSourceKeys();
+  if (deletedSourceKeys.delete(sourceKey)) {
+    persistDeletedCTraderSourceKeys(deletedSourceKeys);
+  }
 }
 
 function currency(value) {
@@ -1976,7 +2030,7 @@ function monthlyCalendarDayCell(calendarDay, todayKey = formatDateKey(new Date()
 }
 
 function getTradesForCalendarDate(dateKey) {
-  return trades.filter((trade) => {
+  return getActiveTrades().filter((trade) => {
     const tradeDate = getTradeReportDate(trade);
     return tradeDate && formatDateKey(tradeDate) === dateKey;
   });
@@ -2155,6 +2209,18 @@ function dismissStorageWarning() {
   if (banner) banner.remove();
 }
 
+function renderUndoDeleteToast() {
+  if (!recentlyDeletedTrade) {
+    return '';
+  }
+
+  return `
+    <div id="undo-delete-toast" class="undo-delete-toast" role="status">
+      <span>${icon('trash')} Deleted ${escapeHtml(recentlyDeletedTrade.symbol || 'trade')}.</span>
+      <button class="undo-delete-button" type="button" data-undo-delete>Undo</button>
+    </div>`;
+}
+
 function renderStorageWarning() {
   const usagePct = getStorageUsagePercent();
   if (usagePct < STORAGE_WARN_THRESHOLD) return '';
@@ -2294,7 +2360,7 @@ function getDnaResultsReferenceDate() {
 }
 
 function getDnaResultsTrades(referenceDate = getDnaResultsReferenceDate()) {
-  return filterTradesForPeriod(trades, dnaResultsTimeframe, referenceDate);
+  return filterTradesForPeriod(getActiveTrades(), dnaResultsTimeframe, referenceDate);
 }
 
 function renderDnaResultsTimeframeToggle() {
@@ -2360,7 +2426,7 @@ function getStats(tradeList = trades) {
 
 
 function hasTradesForDate(dateKey) {
-  return trades.some((trade) => {
+  return getActiveTrades().some((trade) => {
     const tradeDate = getTradeReportDate(trade);
     return tradeDate && formatDateKey(tradeDate) === dateKey;
   });
@@ -2391,7 +2457,7 @@ function getFilteredTrades() {
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const normalizedAssetFilter = selectedAssetFilter.trim().toLowerCase();
 
-  return trades.filter((trade) => {
+  return getActiveTrades().filter((trade) => {
     const tradeDate = getTradeReportDate(trade);
     const matchesCalendarDate = !selectedCalendarDateKey || (tradeDate && formatDateKey(tradeDate) === selectedCalendarDateKey);
     const matchesAsset = !normalizedAssetFilter || getTradeDisplaySymbol(trade).trim().toLowerCase() === normalizedAssetFilter;
@@ -3161,11 +3227,15 @@ function render(options = {}) {
   }
 
   const dnaReferenceDate = getDnaResultsReferenceDate();
+  // Deleted trades (Trash) are excluded from every dashboard/journal read
+  // below via this one list — `trades` itself still holds them (see
+  // getActiveTrades() above).
+  const activeTrades = getActiveTrades();
   const dnaResultsTrades = getDnaResultsTrades(dnaReferenceDate);
   const stats = getStats(dnaResultsTrades);
-  const pnlReports = getPnlReports(dnaReferenceDate, trades);
+  const pnlReports = getPnlReports(dnaReferenceDate, activeTrades);
   const [dailyPnl, weeklyPnl, monthlyPnl, yearlyPnl] = pnlReports;
-  const roiAccountBalance = calculateAccountBalanceAtPeriodStart(dnaResultsTimeframe, dnaReferenceDate, trades, startingAccountBalance);
+  const roiAccountBalance = calculateAccountBalanceAtPeriodStart(dnaResultsTimeframe, dnaReferenceDate, activeTrades, startingAccountBalance);
   const roiPercent = calculateRoiPercent(stats.totalPnl, roiAccountBalance);
   const dashboardCardRows = [
     {
@@ -3197,13 +3267,13 @@ function render(options = {}) {
     },
   ];
   const filteredTrades = getFilteredTrades();
-  const monthlyTradingCalendarSection = renderMonthlyTradingCalendar(monthlyCalendarDate, trades);
+  const monthlyTradingCalendarSection = renderMonthlyTradingCalendar(monthlyCalendarDate, activeTrades);
   const setupAnalyticsSection = renderSetupAnalytics(dnaResultsTrades);
   const assetAnalyticsSection = renderAssetAnalytics(dnaResultsTrades);
   const timeOfDayAnalyticsSection = renderTimeOfDayAnalytics(dnaResultsTrades);
   const dnaDoctorSection = renderDnaDoctor(dnaResultsTrades);
   const today = new Date().toISOString().slice(0, 10);
-  const todayTrades = filterTradesForPeriod(trades, 'day', dnaReferenceDate);
+  const todayTrades = filterTradesForPeriod(activeTrades, 'day', dnaReferenceDate);
   const tradingModeSections = `${renderTodayKpiStrip(todayTrades, getStats(todayTrades))}${renderJournalWorkspace(filteredTrades, today, { showManualTradePanel: false })}`;
   const journalWorkspaceSection = renderJournalWorkspace(filteredTrades, today);
   const dashboardSnapshot = renderDashboardSnapshot(dashboardCardRows);
@@ -3237,6 +3307,7 @@ function render(options = {}) {
 
   app.innerHTML = `
     <main class="app-shell">
+      ${renderUndoDeleteToast()}
       ${renderStorageWarning()}
       <section class="hero-card">
         <div class="hero-branding">
@@ -3319,19 +3390,34 @@ function renderDashboardSnapshot(dashboardCardRows) {
 function renderJournalWorkspace(filteredTrades, today, options = {}) {
   const showManualTradePanel = options.showManualTradePanel !== false;
   const journalPanelClass = showManualTradePanel ? 'panel journal-panel' : 'panel journal-panel trading-mode-journal-panel';
+  // Manual Trade panel moved to the top of the journal panel (was a
+  // separate section rendered after the entire trade list, which meant
+  // scrolling past every trade card to find "+ Add Manual Trade"). Same
+  // button id, same aria wiring, same renderManualTradeForm() — only its
+  // position changed, so bindEvents()'s existing #toggleManualTrade
+  // listener and the form's save logic are untouched.
   return `
       <section class="workspace-grid">
         <section class="${journalPanelClass}">
           <div class="journal-header">
             <div>
               <div class="section-title">${icon('calendar')}<h2>Journal entries</h2></div>
-              <p class="section-helper">Review, search, and edit imported cTrader trades first. Manual entries are available below when needed.</p>
+              <p class="section-helper">Review, search, and edit imported cTrader trades first.</p>
             </div>
             <div class="journal-header-actions">
               <input class="search-input" id="searchInput" placeholder="Search trades..." value="${escapeHtml(searchQuery)}" />
               <button class="secondary-button session-notes-button" type="button" data-session-notes-open title="Session Notes" aria-label="Session Notes">📝 Session Notes</button>
+              <button class="secondary-button trash-toggle-button" type="button" data-toggle-trash aria-expanded="${isTrashOpen ? 'true' : 'false'}" title="Trash" aria-label="Trash">${icon('trash')} Trash${trashedTradeCount() ? ` (${trashedTradeCount()})` : ''}</button>
             </div>
           </div>
+          ${showManualTradePanel ? `
+          <section class="manual-trade-panel">
+            <button class="secondary-button manual-trade-toggle" type="button" id="toggleManualTrade" aria-expanded="${isManualTradeFormOpen ? 'true' : 'false'}" aria-controls="tradeForm">
+              ${icon(isManualTradeFormOpen ? 'minus' : 'plus')} ${isManualTradeFormOpen ? 'Hide Manual Trade Form' : '+ Add Manual Trade'}
+            </button>
+            ${isManualTradeFormOpen ? renderManualTradeForm(manualTradeDateKey || today) : '<p class="manual-trade-helper">Use this only for trades that did not come from cTrader import.</p>'}
+          </section>` : ''}
+          ${isTrashOpen ? renderTrashPanel() : `
           <div class="trade-list">
             ${filteredTrades.length ? filteredTrades.map((trade) => {
               try {
@@ -3344,16 +3430,8 @@ function renderJournalWorkspace(filteredTrades, today, options = {}) {
                 </div>`;
               }
             }).join('') : '<p class="empty-state">No trades match your search yet.</p>'}
-          </div>
+          </div>`}
         </section>
-
-        ${showManualTradePanel ? `
-        <section class="manual-trade-panel">
-          <button class="secondary-button manual-trade-toggle" type="button" id="toggleManualTrade" aria-expanded="${isManualTradeFormOpen ? 'true' : 'false'}" aria-controls="tradeForm">
-            ${icon(isManualTradeFormOpen ? 'minus' : 'plus')} ${isManualTradeFormOpen ? 'Hide Manual Trade Form' : '+ Add Manual Trade'}
-          </button>
-          ${isManualTradeFormOpen ? renderManualTradeForm(manualTradeDateKey || today) : '<p class="manual-trade-helper">Use this only for trades that did not come from cTrader import.</p>'}
-        </section>` : ''}
       </section>`;
 }
 
@@ -3493,6 +3571,20 @@ function bindEvents() {
     dnaDoctorState = { ...dnaDoctorState, dismissError: true };
     document.querySelector('#dnaDoctorErrorBanner')?.remove();
   });
+
+  document.querySelectorAll('[data-toggle-trash]').forEach((button) => {
+    button.addEventListener('click', toggleTrash, { signal });
+  });
+  document.querySelectorAll('[data-restore-trade]').forEach((button) => {
+    button.addEventListener('click', () => restoreTrade(button.dataset.restoreTrade), { signal });
+  });
+  document.querySelectorAll('[data-permanent-delete-trade]').forEach((button) => {
+    button.addEventListener('click', () => permanentlyDeleteTrade(button.dataset.permanentDeleteTrade), { signal });
+  });
+  document.querySelector('[data-undo-delete]')?.addEventListener('click', () => {
+    undoLastDelete();
+    render({ force: true });
+  }, { signal });
 
   document.querySelector('[data-session-notes-open]')?.addEventListener('click', () => {
     isSessionNotesModalOpen = true;
@@ -3653,14 +3745,149 @@ function bindTradeCardEvents(tradeCardElement) {
 
   tradeCardElement.querySelectorAll('[data-delete-trade]').forEach((button) => {
     button.addEventListener('click', () => {
-      const deletedTrade = getTradeById(button.dataset.deleteTrade);
-      rememberDeletedCTraderSourceKey(deletedTrade);
       if (String(editingTradeId) === String(button.dataset.deleteTrade)) {
         editingTradeId = null;
       }
-      persistTrades(trades.filter((trade) => String(trade.id) !== String(button.dataset.deleteTrade)));
+      softDeleteTrade(button.dataset.deleteTrade);
     });
   });
+}
+
+// Soft delete: the trade stays in `trades` (and in localStorage) with a
+// deletedAt timestamp instead of being removed. getActiveTrades() (used by
+// every journal/dashboard read path — see its definition above) excludes
+// it, so it disappears from the journal and every stat immediately, exactly
+// like the old hard delete did. Unlike the old hard delete, nothing is
+// actually lost: it can be viewed in Trash and Restored, or Permanently
+// Deleted once the user is sure.
+function softDeleteTrade(tradeId) {
+  const trade = getTradeById(tradeId);
+  if (!trade || trade.deletedAt) {
+    return;
+  }
+
+  // Same as the old hard-delete behavior: a cTrader-imported trade is
+  // blocked from being re-imported by Auto Sync while it's deleted (Trash
+  // counts as deleted). restoreTrade() below un-blocks it.
+  rememberDeletedCTraderSourceKey(trade);
+
+  recentlyDeletedTrade = { id: trade.id, symbol: getTradeDisplaySymbol(trade), direction: trade.direction };
+  scheduleUndoToastDismiss();
+
+  persistTrades(trades.map((existingTrade) => (
+    String(existingTrade.id) === String(tradeId)
+      ? { ...existingTrade, deletedAt: new Date().toISOString() }
+      : existingTrade
+  )));
+}
+
+function restoreTrade(tradeId) {
+  const trade = getTradeById(tradeId);
+  if (!trade || !trade.deletedAt) {
+    return;
+  }
+
+  forgetDeletedCTraderSourceKey(trade);
+
+  if (recentlyDeletedTrade?.id === trade.id) {
+    dismissUndoToast();
+  }
+
+  persistTrades(trades.map((existingTrade) => (
+    String(existingTrade.id) === String(tradeId)
+      ? { ...existingTrade, deletedAt: null }
+      : existingTrade
+  )));
+}
+
+function permanentlyDeleteTrade(tradeId) {
+  const trade = getTradeById(tradeId);
+  if (!trade || !trade.deletedAt) {
+    return;
+  }
+
+  if (!window.confirm(`Permanently delete this ${getTradeDisplaySymbol(trade)} trade? This cannot be undone.`)) {
+    return;
+  }
+
+  if (recentlyDeletedTrade?.id === trade.id) {
+    dismissUndoToast();
+  }
+
+  persistTrades(trades.filter((existingTrade) => String(existingTrade.id) !== String(tradeId)));
+}
+
+function scheduleUndoToastDismiss() {
+  if (undoToastTimer !== null) {
+    clearTimeout(undoToastTimer);
+  }
+
+  undoToastTimer = window.setTimeout(() => {
+    undoToastTimer = null;
+    recentlyDeletedTrade = null;
+    render({ force: true });
+  }, UNDO_TOAST_DURATION_MS);
+}
+
+function dismissUndoToast() {
+  if (undoToastTimer !== null) {
+    clearTimeout(undoToastTimer);
+    undoToastTimer = null;
+  }
+  recentlyDeletedTrade = null;
+}
+
+function undoLastDelete() {
+  if (!recentlyDeletedTrade) {
+    return;
+  }
+
+  restoreTrade(recentlyDeletedTrade.id);
+}
+
+function toggleTrash() {
+  isTrashOpen = !isTrashOpen;
+  render({ force: true });
+}
+
+function renderTrashPanel() {
+  const deletedTrades = getDeletedTrades();
+  return `
+      <section class="trash-panel" aria-label="Deleted trades">
+        <div class="trash-panel-header">
+          <h3>Trash${deletedTrades.length ? ` (${deletedTrades.length})` : ''}</h3>
+          <button class="secondary-button" type="button" data-toggle-trash>← Back to Journal</button>
+        </div>
+        ${deletedTrades.length ? `
+        <div class="trade-list trash-trade-list">
+          ${deletedTrades.map(trashTradeRow).join('')}
+        </div>` : '<p class="empty-state">Trash is empty.</p>'}
+      </section>`;
+}
+
+function trashTradeRow(trade) {
+  const pnl = calculatePnl(trade);
+  const tone = getPerformanceTone(pnl);
+  const dirLabel = String(trade.direction || '');
+  const dirClass = dirLabel.toLowerCase();
+  const dirArrow = dirClass === 'short' ? '▼' : '▲';
+  return `
+    <article class="trade-card trash-trade-card" data-trash-trade-card="${escapeHtml(trade.id)}">
+      <div class="tc-hero">
+        <div class="tc-hero-left">
+          <span class="tc-direction ${dirClass}">${dirArrow} ${escapeHtml(dirLabel || 'Long')}</span>
+          <p class="trade-symbol">${escapeHtml(getTradeDisplaySymbol(trade))}</p>
+        </div>
+        <strong class="trade-pnl-badge ${tone}" aria-label="P&L ${currency(pnl)}">${currency(pnl)}</strong>
+      </div>
+      <p class="trash-deleted-at">Deleted ${formatTradeTimestamp(trade.deletedAt) || ''}</p>
+      <div class="trade-card-actions">
+        <button class="secondary-button" type="button" data-restore-trade="${escapeHtml(trade.id)}">${icon('refresh')} Restore</button>
+        <button class="icon-button" type="button" data-permanent-delete-trade="${escapeHtml(trade.id)}" aria-label="Permanently delete ${escapeHtml(getTradeDisplaySymbol(trade))} trade">
+          ${icon('trash')} Delete Permanently
+        </button>
+      </div>
+    </article>`;
 }
 
 function removeEditScreenshot(event) {

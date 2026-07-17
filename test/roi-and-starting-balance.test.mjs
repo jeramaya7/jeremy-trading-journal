@@ -244,8 +244,11 @@ test('the ROI % card follows the shared DNA Results period selector and shows on
   // ROI must be wired to the same dnaResultsTimeframe/dnaReferenceDate the
   // rest of DNA Results uses, so it updates automatically when the period
   // toggle changes.
+  // activeTrades = all non-deleted trades (Trash/Undo Delete added a
+  // soft-delete exclusion here; ROI still tracks dnaResultsTimeframe/
+  // dnaReferenceDate exactly as before).
   assert.ok(
-    source.includes('const roiAccountBalance = calculateAccountBalanceAtPeriodStart(dnaResultsTimeframe, dnaReferenceDate, trades, startingAccountBalance);'),
+    source.includes('const roiAccountBalance = calculateAccountBalanceAtPeriodStart(dnaResultsTimeframe, dnaReferenceDate, activeTrades, startingAccountBalance);'),
     'ROI\'s account balance should be derived from the current DNA Results period (dnaResultsTimeframe) and reference date.',
   );
   assert.ok(

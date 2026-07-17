@@ -3137,11 +3137,65 @@ h2,
   min-width: 0;
 }
 
-.session-notes-button {
+.session-notes-button,
+.trash-toggle-button {
   align-self: stretch;
   flex-shrink: 0;
   font-size: 0.82rem;
   white-space: nowrap;
+}
+
+/* ─── Trash / Undo Delete ────────────────────────────────── */
+
+.trash-panel {
+  display: grid;
+  gap: 0.9rem;
+  margin: 0.9rem 0;
+}
+
+.trash-panel-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.trash-panel-header h3 {
+  margin: 0;
+}
+
+.trash-deleted-at {
+  color: #64748b;
+  font-size: 0.82rem;
+  margin: 0.3rem 0 0;
+}
+
+.undo-delete-toast {
+  align-items: center;
+  background: #172033;
+  border-radius: 14px;
+  color: #f8fafc;
+  display: flex;
+  gap: 0.9rem;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+}
+
+.undo-delete-toast svg {
+  height: 16px;
+  vertical-align: -3px;
+  width: 16px;
+}
+
+.undo-delete-button {
+  background: var(--dna-gold);
+  border: 0;
+  border-radius: 10px;
+  color: #172033;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-weight: 800;
+  padding: 0.4rem 0.9rem;
 }
 
 /* ─── Page Mode Toggle ───────────────────────────────────── */
