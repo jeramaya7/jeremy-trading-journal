@@ -1338,6 +1338,57 @@ a:focus-visible {
   width: auto;
 }
 
+/* DNA 23 Quick Edit v1 — compact single-column layout for split-screen
+   journaling. Reuses .edit-trade-form / .field / .edit-form-section base
+   styles above; these rules only tighten spacing, force one column, and
+   enlarge dropdowns. Colors and typography are untouched. */
+.quick-edit-form {
+  gap: 0.55rem;
+  padding: 0.75rem;
+}
+
+.quick-edit-banner {
+  margin-bottom: 0.4rem;
+}
+
+.quick-edit-section {
+  gap: 0.4rem;
+}
+
+.quick-edit-section .field {
+  gap: 0.25rem;
+}
+
+.quick-edit-form select,
+.quick-edit-form input,
+.quick-edit-form textarea {
+  font-size: 1rem;
+  min-height: 52px;
+}
+
+.quick-edit-form select {
+  font-weight: 700;
+}
+
+.quick-edit-form textarea {
+  min-height: 72px;
+}
+
+.quick-edit-form .screenshot-upload-field {
+  gap: 0.4rem;
+}
+
+.quick-edit-actions {
+  background: #ffffff;
+  border-top: 1px solid #d8e1ee;
+  bottom: 0;
+  justify-content: flex-end;
+  margin: 0.25rem -0.75rem -0.75rem;
+  padding: 0.65rem 0.75rem;
+  position: sticky;
+  z-index: 2;
+}
+
 .journal-detail,
 .edit-import-note {
   color: #64748b;

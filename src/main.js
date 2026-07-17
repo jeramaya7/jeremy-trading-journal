@@ -130,6 +130,9 @@ let selectedCTraderAccountId = loadSelectedCTraderAccountId();
 let isLoadingCTraderAccounts = false;
 let hasHandledCTraderOAuthReturn = false;
 let editingTradeId = null;
+// 'full' renders the existing Review edit form; 'quick' renders the compact
+// Quick Edit layout (DNA 23 handoff). Same trade data + save logic either way.
+let editingTradeMode = 'full';
 let isManualTradeFormOpen = false;
 // Cross-device annotation refresh: guards for the focus/visibility-triggered
 // re-fetch added below. See maybeRefreshCloudAnnotations().
@@ -462,14 +465,16 @@ function isTradeEditLocked() {
   return editingTradeId !== null;
 }
 
-function openTradeEdit(tradeId) {
+function openTradeEdit(tradeId, mode = 'full') {
   editingTradeId = tradeId;
+  editingTradeMode = mode === 'quick' ? 'quick' : 'full';
   scheduleCTraderAutoSync();
   renderTradeCardInPlace(tradeId);
 }
 
 function closeTradeEdit() {
   editingTradeId = null;
+  editingTradeMode = 'full';
   scheduleCTraderAutoSync();
 }
 
@@ -2762,10 +2767,11 @@ function tradeCard(trade) {
           </div>
           ${tradeJournalDetails(trade)}
         </div>
-      </details>` : editTradeForm(trade)}
+      </details>` : (editingTradeMode === 'quick' ? editTradeFormQuickEdit(trade) : editTradeForm(trade))}
       ${!isEditing ? `
         <div class="trade-card-actions">
           <button class="edit-button" type="button" data-edit-trade="${escapeHtml(trade.id)}" aria-label="Edit journaling fields for ${escapeHtml(displaySymbol)} trade">${icon('edit')} Edit</button>
+          <button class="edit-button quick-edit-button" type="button" data-quick-edit-trade="${escapeHtml(trade.id)}" aria-label="Quick edit ${escapeHtml(displaySymbol)} trade">${icon('edit')} Quick Edit</button>
           <button class="icon-button" type="button" data-delete-trade="${escapeHtml(trade.id)}" aria-label="Delete ${escapeHtml(trade.symbol)} trade">
             ${icon('trash')} Delete
           </button>
@@ -3005,6 +3011,73 @@ function editTradeForm(trade) {
             <button class="secondary-button" type="button" data-cancel-edit-trade="${escapeHtml(trade.id)}">Cancel</button>
             <button class="primary-button" type="submit">${icon('save')} Save Changes</button>
           </div>
+        </div>
+      </form>`;
+}
+
+// DNA 23 Quick Edit v1 — compact single-column layout for split-screen
+// journaling while trading. Reuses the exact same field components, input
+// names, and submitTradeEdit save logic as editTradeForm() above: no new
+// database fields, no new validation, no new calculations. Loss Reason is
+// kept (hidden for non-loss trades, same as Review) purely so its form field
+// stays present — submitTradeEdit() reads formData.get('lossReason')
+// unconditionally, so omitting the field would overwrite saved data with the
+// literal string "null".
+function editTradeFormQuickEdit(trade) {
+  const currentScreenshot = getEditScreenshotPreview(trade);
+  const removeButton = currentScreenshot
+    ? `<button class="secondary-button" type="button" data-remove-edit-screenshot="${escapeHtml(trade.id)}">${icon('trash')} Remove screenshot</button>`
+    : '';
+  const isLossOutcome = classifyTradeOutcome(calculatePnl(trade)) === 'loss';
+  return `
+      <form class="edit-trade-form quick-edit-form" data-edit-trade-form="${escapeHtml(trade.id)}">
+        <div class="edit-mode-banner quick-edit-banner" aria-label="Quick Edit mode active">
+          ⚡ QUICK EDIT
+        </div>
+        <div class="edit-form-section quick-edit-section">
+          <h4 class="edit-form-section-label">Trade</h4>
+          ${field('Entry Price', `<input name="entry" type="number" value="${escapeHtml(trade.entry)}" readonly />`)}
+          ${field('Exit Price', `<input name="exit" type="number" value="${escapeHtml(trade.exit)}" readonly />`)}
+          ${field('Initial Stop Loss', `<input name="stopLoss" type="number" value="${escapeHtml(trade.stopLoss ?? '')}" readonly />`)}
+          ${field('Final Stop Loss', `<input name="adjustedStopLoss" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedStopLoss ?? '')}" placeholder="Optional" />`)}
+          ${field('Initial Take Profit', `<input name="takeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.takeProfit ?? '')}" placeholder="Optional" />`)}
+          ${field('Final Take Profit', `<input name="adjustedTakeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedTakeProfit ?? '')}" placeholder="Optional" />`)}
+        </div>
+        <div class="edit-form-section quick-edit-section">
+          <h4 class="edit-form-section-label">Setup</h4>
+          ${field('Setup', renderPlayBookSetupSelect(trade))}
+          ${field('Position', renderPositionTypeSelect(trade))}
+          ${field('State', renderMarketStateSelect(trade))}
+          ${field('Timeframe', renderTimeframeSelect(trade))}
+        </div>
+        <div class="edit-form-section quick-edit-section">
+          <h4 class="edit-form-section-label">Management</h4>
+          ${field('Trade Management', renderTradeManagementSelect(trade))}
+          ${field('Protected', renderProtectedSelect(trade))}
+          ${field('Exit Reason', renderCloseReasonSelect(trade))}
+          <div class="edit-loss-reason-field"${isLossOutcome ? '' : ' hidden'}>
+            ${field('Loss Reason', renderLossReasonSelect(trade))}
+          </div>
+        </div>
+        <div class="edit-form-section quick-edit-section">
+          <h4 class="edit-form-section-label">Journal</h4>
+          ${field('Grade', renderGradeSelect(trade))}
+          ${field('Notes', `<textarea name="notes" rows="3" placeholder="What was the plan? What happened?">${escapeHtml(trade.notes)}</textarea>`)}
+          <div class="screenshot-upload-field">
+            <label class="screenshot-upload">
+              <span>${icon('image')} Trade screenshot</span>
+              <input name="editScreenshot" type="file" accept="image/*" data-edit-screenshot-input="${escapeHtml(trade.id)}" />
+              <small>Tip: Paste a screenshot with Ctrl+V / Cmd+V</small>
+            </label>
+            <div class="screenshot-field-preview" data-edit-screenshot-preview="${escapeHtml(trade.id)}" aria-live="polite">
+              ${currentScreenshot ? screenshotLink(currentScreenshot, `${getTradeDisplaySymbol(trade)} trade screenshot`) : ''}
+            </div>
+            ${removeButton}
+          </div>
+        </div>
+        <div class="edit-form-actions quick-edit-actions">
+          <button class="secondary-button" type="button" data-cancel-edit-trade="${escapeHtml(trade.id)}">Cancel</button>
+          <button class="primary-button" type="submit">${icon('save')} Save</button>
         </div>
       </form>`;
 }
@@ -3510,6 +3583,12 @@ function bindTradeCardEvents(tradeCardElement) {
   tradeCardElement.querySelectorAll('[data-edit-trade]').forEach((button) => {
     button.addEventListener('click', () => {
       openTradeEdit(button.dataset.editTrade);
+    });
+  });
+
+  tradeCardElement.querySelectorAll('[data-quick-edit-trade]').forEach((button) => {
+    button.addEventListener('click', () => {
+      openTradeEdit(button.dataset.quickEditTrade, 'quick');
     });
   });
 

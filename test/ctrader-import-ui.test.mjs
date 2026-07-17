@@ -258,7 +258,7 @@ test('trade edit form changes stay local until the user saves', () => {
 
 test('trade edit mode locks rendering and Auto Sync until save or cancel', () => {
   assertIncludes(source, 'function isTradeEditLocked()', 'The frontend exposes a dedicated edit lock state.');
-  assertIncludes(source, 'function openTradeEdit(tradeId)', 'Opening edit mode goes through a dedicated edit-state transition.');
+  assertIncludes(source, "function openTradeEdit(tradeId, mode = 'full')", 'Opening edit mode goes through a dedicated edit-state transition (mode defaults to the Review layout; Quick Edit passes \'quick\').');
   assertIncludes(source, 'renderTradeCardInPlace(tradeId);', 'Opening edit mode updates only the selected trade card instead of remounting the journal.');
   assertIncludes(source, 'function renderTradeCardInPlace(tradeId)', 'Edit renders replace only the selected trade card to keep the selected entry visible.');
   assertIncludes(source, 'currentTradeCard.outerHTML = tradeCard(trade);', 'The selected trade card is swapped in place without re-sorting or remounting the journal list.');
