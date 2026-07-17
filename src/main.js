@@ -482,8 +482,29 @@ async function maybeRefreshCloudAnnotations() {
   }
 }
 
+// Root cause of the Manual Trade data-loss bug: this lock originally only
+// covered the trade-card edit form (editingTradeId). render() rebuilds the
+// entire DOM from scratch (app.innerHTML = ...) every time it runs, and the
+// Manual Trade form's Entry/Exit/Symbol/etc. fields are plain uncontrolled
+// <input> elements — their typed values live only in the DOM, not in any
+// JS state — so any render() while the form was open silently wiped
+// whatever the user had typed. This was never specific to the 12s cTrader
+// Auto Sync interval: syncCTrader() calls render() at the start and end of
+// every sync (and persistTrades()/loadCloudAnnotationsAndMerge() call
+// render() too), so the exact same data loss could already happen at the
+// old 60s interval, or from a cloud-annotation refresh, or the app was even
+// just sitting on a slow connection. Shortening the interval only raised
+// how often a render landed while someone was mid-form.
+//
+// Fix: the lock now also covers the Manual Trade form. Every render() call
+// already funnels through this one check (see `if (isTradeEditLocked() &&
+// !options.force)` in render()), and syncCTraderOnStartup()/
+// scheduleCTraderAutoSync() already skip syncing entirely while locked — so
+// this one change also stops Auto Sync from even attempting a background
+// sync while the form is open, regardless of whether it polls every 12s,
+// 60s, or anything else.
 function isTradeEditLocked() {
-  return editingTradeId !== null;
+  return editingTradeId !== null || isManualTradeFormOpen;
 }
 
 function openTradeEdit(tradeId, mode = 'full') {
@@ -2449,7 +2470,11 @@ function openJournalForCalendarDate(dateKey) {
   searchQuery = '';
   selectedAssetFilter = '';
   isManualTradeFormOpen = !hasTradesForDate(dateKey);
-  render();
+  scheduleCTraderAutoSync();
+  // force: true — this can set isManualTradeFormOpen itself, and
+  // isTradeEditLocked() now includes it, so a plain render() here would
+  // otherwise silently no-op and never show the calendar-filtered journal.
+  render({ force: true });
   document.querySelector('.journal-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -3274,7 +3299,11 @@ function render(options = {}) {
   const dnaDoctorSection = renderDnaDoctor(dnaResultsTrades);
   const today = new Date().toISOString().slice(0, 10);
   const todayTrades = filterTradesForPeriod(activeTrades, 'day', dnaReferenceDate);
-  const tradingModeSections = `${renderTodayKpiStrip(todayTrades, getStats(todayTrades))}${renderJournalWorkspace(filteredTrades, today, { showManualTradePanel: false })}`;
+  // Manual Trade panel is shown in Trading Mode too now — same button,
+  // same renderManualTradeForm(), same submitTrade() save logic. No second
+  // button is created; this is the one panel from renderJournalWorkspace().
+  // isTradingMode only keeps the existing compact header/spacing styling.
+  const tradingModeSections = `${renderTodayKpiStrip(todayTrades, getStats(todayTrades))}${renderJournalWorkspace(filteredTrades, today, { isTradingMode: true })}`;
   const journalWorkspaceSection = renderJournalWorkspace(filteredTrades, today);
   const dashboardSnapshot = renderDashboardSnapshot(dashboardCardRows);
   const dashboardSections = `
@@ -3388,14 +3417,21 @@ function renderDashboardSnapshot(dashboardCardRows) {
 }
 
 function renderJournalWorkspace(filteredTrades, today, options = {}) {
-  const showManualTradePanel = options.showManualTradePanel !== false;
-  const journalPanelClass = showManualTradePanel ? 'panel journal-panel' : 'panel journal-panel trading-mode-journal-panel';
+  // The Manual Trade panel now always shows (Trading Mode included — see
+  // tradingModeSections in render()). isTradingMode only controls the
+  // compact Trading Mode header/spacing class below; it's a separate
+  // concern from whether the panel renders, which the old
+  // showManualTradePanel flag used to conflate.
+  const isTradingMode = options.isTradingMode === true;
+  const journalPanelClass = isTradingMode ? 'panel journal-panel trading-mode-journal-panel' : 'panel journal-panel';
   // Manual Trade panel moved to the top of the journal panel (was a
   // separate section rendered after the entire trade list, which meant
-  // scrolling past every trade card to find "+ Add Manual Trade"). Same
+  // scrolling past every trade card to find "Add Manual Trade"). Same
   // button id, same aria wiring, same renderManualTradeForm() — only its
   // position changed, so bindEvents()'s existing #toggleManualTrade
-  // listener and the form's save logic are untouched.
+  // listener and the form's save logic are untouched. Rendered for both
+  // Dashboard and Trading Mode now (showManualTradePanel defaults to true;
+  // no separate button is created — Trading Mode reuses this exact one).
   return `
       <section class="workspace-grid">
         <section class="${journalPanelClass}">
@@ -3410,13 +3446,12 @@ function renderJournalWorkspace(filteredTrades, today, options = {}) {
               <button class="secondary-button trash-toggle-button" type="button" data-toggle-trash aria-expanded="${isTrashOpen ? 'true' : 'false'}" title="Trash" aria-label="Trash">${icon('trash')} Trash${trashedTradeCount() ? ` (${trashedTradeCount()})` : ''}</button>
             </div>
           </div>
-          ${showManualTradePanel ? `
           <section class="manual-trade-panel">
             <button class="secondary-button manual-trade-toggle" type="button" id="toggleManualTrade" aria-expanded="${isManualTradeFormOpen ? 'true' : 'false'}" aria-controls="tradeForm">
-              ${icon(isManualTradeFormOpen ? 'minus' : 'plus')} ${isManualTradeFormOpen ? 'Hide Manual Trade Form' : '+ Add Manual Trade'}
+              ${icon(isManualTradeFormOpen ? 'minus' : 'plus')} ${isManualTradeFormOpen ? 'Hide Manual Trade Form' : 'Add Manual Trade'}
             </button>
             ${isManualTradeFormOpen ? renderManualTradeForm(manualTradeDateKey || today) : '<p class="manual-trade-helper">Use this only for trades that did not come from cTrader import.</p>'}
-          </section>` : ''}
+          </section>
           ${isTrashOpen ? renderTrashPanel() : `
           <div class="trade-list">
             ${filteredTrades.length ? filteredTrades.map((trade) => {
@@ -3911,7 +3946,15 @@ function toggleManualTradeForm() {
     selectedScreenshot = null;
     pastedScreenshotFile = null;
   }
-  render();
+  // Same pattern as openTradeEdit()/closeTradeEdit(): actually clear the
+  // Auto Sync interval timer while the lock is on (not just skip each
+  // tick), and reschedule it the moment the lock releases.
+  scheduleCTraderAutoSync();
+  // force: true — isTradeEditLocked() now includes isManualTradeFormOpen,
+  // so opening the form would otherwise immediately lock out its own
+  // render() call and never appear on screen. Closing it (Cancel) also
+  // releases the lock, letting Auto Sync resume right away.
+  render({ force: true });
 }
 
 function deleteAllCTraderImports() {
@@ -3965,6 +4008,13 @@ async function submitTrade(event) {
 
   selectedScreenshot = null;
   pastedScreenshotFile = null;
+  // Release the Manual Trade edit lock before persisting: isTradeEditLocked()
+  // includes isManualTradeFormOpen, so persistTrades()'s internal render()
+  // call needs the lock already cleared here to actually redraw (showing
+  // the saved trade and clearing the form), and Auto Sync can resume
+  // immediately, satisfying "resume syncing right after Save."
+  isManualTradeFormOpen = false;
+  scheduleCTraderAutoSync();
   persistTrades([nextTrade, ...trades]);
 }
 

@@ -40,7 +40,16 @@ test('there is still exactly one Manual Trade toggle button, unchanged form and 
   assertIncludes(source, "tradeForm.addEventListener('submit', submitTrade", 'The manual trade form still saves through the existing submit handler.');
 });
 
-test('Trading Mode still hides the Manual Trade panel (unchanged gating, only position changed)', () => {
-  assertIncludes(source, 'const showManualTradePanel = options.showManualTradePanel !== false;', 'The showManualTradePanel gate is unchanged.');
-  assertIncludes(source, "renderJournalWorkspace(filteredTrades, today, { showManualTradePanel: false })", 'Trading Mode still opts out of the Manual Trade panel.');
+test('Trading Mode shows the same Manual Trade panel at the top too, not a second button', () => {
+  // Follow-up fix: Trading Mode used to opt out of the Manual Trade panel
+  // entirely (showManualTradePanel: false). It now always renders — same
+  // #toggleManualTrade button, same renderManualTradeForm(), same
+  // submitTrade() — just reusing the one panel from renderJournalWorkspace().
+  // isTradingMode is a separate flag that only controls the existing
+  // compact header/spacing styling, decoupled from panel visibility.
+  assertIncludes(source, 'const isTradingMode = options.isTradingMode === true;', 'A dedicated flag controls only the compact Trading Mode styling.');
+  assertIncludes(source, "renderJournalWorkspace(filteredTrades, today, { isTradingMode: true })", 'Trading Mode renders the journal workspace with the compact-styling flag, no panel-visibility override.');
+
+  const occurrences = (source.match(/id="toggleManualTrade"/g) ?? []).length;
+  assert.equal(occurrences, 1, 'Trading Mode must reuse the same button, not create a second one.');
 });

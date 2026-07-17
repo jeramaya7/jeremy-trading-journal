@@ -26,7 +26,10 @@ test('Trading Mode renders a focused workbench without dashboard analytics secti
   assertIncludes(source, "statCard('chart', 'Trades', todayStats.tradeCount)", 'Today KPI strip shows Trades.');
   assertIncludes(source, "statCard('chart', 'Protected %', formatPercent(todayStats.protectedPercent))", 'Today KPI strip shows Protected % in place of Expectancy.');
   assert.equal(source.includes("statCard('trend', 'Expectancy', formatRMultiple(todayStats.averageR))"), false, 'Expectancy should no longer render in the Today KPI strip.');
-  assertIncludes(source, "const tradingModeSections = `${renderTodayKpiStrip(todayTrades, getStats(todayTrades))}${renderJournalWorkspace(filteredTrades, today, { showManualTradePanel: false })}`;", 'Trading Mode includes only the Today KPI strip and journal workspace without the manual trade panel.');
+  // Follow-up fix: Trading Mode now also shows the Manual Trade panel
+  // (moved to the top of the journal panel) — it no longer opts out via
+  // showManualTradePanel. isTradingMode only keeps its compact styling.
+  assertIncludes(source, "const tradingModeSections = `${renderTodayKpiStrip(todayTrades, getStats(todayTrades))}${renderJournalWorkspace(filteredTrades, today, { isTradingMode: true })}`;", 'Trading Mode includes the Today KPI strip and the journal workspace, with its compact styling and the Manual Trade panel.');
   assertIncludes(source, '? tradingModeSections', 'Trading Mode uses the focused workbench sections.');
   assertIncludes(source, ': `${dashboardSections}${journalWorkspaceSection}`;', 'Dashboard Mode keeps the dashboard-first layout.');
 
