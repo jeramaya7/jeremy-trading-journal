@@ -3015,14 +3015,17 @@ function editTradeForm(trade) {
       </form>`;
 }
 
-// DNA 23 Quick Edit v1 — compact single-column layout for split-screen
-// journaling while trading. Reuses the exact same field components, input
-// names, and submitTradeEdit save logic as editTradeForm() above: no new
-// database fields, no new validation, no new calculations. Loss Reason is
-// kept (hidden for non-loss trades, same as Review) purely so its form field
-// stays present — submitTradeEdit() reads formData.get('lossReason')
-// unconditionally, so omitting the field would overwrite saved data with the
-// literal string "null".
+// DNA 23 Quick Edit v1.1 — compact two-column-where-it-helps layout, tuned
+// to fit a 400–450px split-screen panel with little or no scrolling. Still
+// reuses the exact same field components, input names, and submitTradeEdit
+// save logic as editTradeForm() above: no new database fields, no new
+// validation, no new calculations. Loss Reason is kept (hidden for
+// non-loss trades, same as Review) purely so its form field stays present —
+// submitTradeEdit() reads formData.get('lossReason') unconditionally, so
+// omitting the field would overwrite saved data with the literal string
+// "null". Screenshot is collapsed by default behind a Show/Hide toggle to
+// save vertical space; it uses the same <details> pattern as the Review
+// form's collapsible sections.
 function editTradeFormQuickEdit(trade) {
   const currentScreenshot = getEditScreenshotPreview(trade);
   const removeButton = currentScreenshot
@@ -3036,24 +3039,36 @@ function editTradeFormQuickEdit(trade) {
         </div>
         <div class="edit-form-section quick-edit-section">
           <h4 class="edit-form-section-label">Trade</h4>
-          ${field('Entry Price', `<input name="entry" type="number" value="${escapeHtml(trade.entry)}" readonly />`)}
-          ${field('Exit Price', `<input name="exit" type="number" value="${escapeHtml(trade.exit)}" readonly />`)}
-          ${field('Initial Stop Loss', `<input name="stopLoss" type="number" value="${escapeHtml(trade.stopLoss ?? '')}" readonly />`)}
-          ${field('Final Stop Loss', `<input name="adjustedStopLoss" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedStopLoss ?? '')}" placeholder="Optional" />`)}
-          ${field('Initial Take Profit', `<input name="takeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.takeProfit ?? '')}" placeholder="Optional" />`)}
-          ${field('Final Take Profit', `<input name="adjustedTakeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedTakeProfit ?? '')}" placeholder="Optional" />`)}
+          <div class="quick-edit-row">
+            ${field('Entry Price', `<input name="entry" type="number" value="${escapeHtml(trade.entry)}" readonly />`)}
+            ${field('Exit Price', `<input name="exit" type="number" value="${escapeHtml(trade.exit)}" readonly />`)}
+          </div>
+          <div class="quick-edit-row">
+            ${field('Initial Stop Loss', `<input name="stopLoss" type="number" value="${escapeHtml(trade.stopLoss ?? '')}" readonly />`)}
+            ${field('Final Stop Loss', `<input name="adjustedStopLoss" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedStopLoss ?? '')}" placeholder="Optional" />`)}
+          </div>
+          <div class="quick-edit-row">
+            ${field('Initial Take Profit', `<input name="takeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.takeProfit ?? '')}" placeholder="Optional" />`)}
+            ${field('Final Take Profit', `<input name="adjustedTakeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedTakeProfit ?? '')}" placeholder="Optional" />`)}
+          </div>
         </div>
         <div class="edit-form-section quick-edit-section">
           <h4 class="edit-form-section-label">Setup</h4>
-          ${field('Setup', renderPlayBookSetupSelect(trade))}
-          ${field('Position', renderPositionTypeSelect(trade))}
-          ${field('State', renderMarketStateSelect(trade))}
-          ${field('Timeframe', renderTimeframeSelect(trade))}
+          <div class="quick-edit-row">
+            ${field('Setup', renderPlayBookSetupSelect(trade))}
+            ${field('Position', renderPositionTypeSelect(trade))}
+          </div>
+          <div class="quick-edit-row">
+            ${field('State', renderMarketStateSelect(trade))}
+            ${field('Timeframe', renderTimeframeSelect(trade))}
+          </div>
         </div>
         <div class="edit-form-section quick-edit-section">
           <h4 class="edit-form-section-label">Management</h4>
-          ${field('Trade Management', renderTradeManagementSelect(trade))}
-          ${field('Protected', renderProtectedSelect(trade))}
+          <div class="quick-edit-row">
+            ${field('Trade Management', renderTradeManagementSelect(trade))}
+            ${field('Protected', renderProtectedSelect(trade))}
+          </div>
           ${field('Exit Reason', renderCloseReasonSelect(trade))}
           <div class="edit-loss-reason-field"${isLossOutcome ? '' : ' hidden'}>
             ${field('Loss Reason', renderLossReasonSelect(trade))}
@@ -3063,17 +3078,20 @@ function editTradeFormQuickEdit(trade) {
           <h4 class="edit-form-section-label">Journal</h4>
           ${field('Grade', renderGradeSelect(trade))}
           ${field('Notes', `<textarea name="notes" rows="3" placeholder="What was the plan? What happened?">${escapeHtml(trade.notes)}</textarea>`)}
-          <div class="screenshot-upload-field">
-            <label class="screenshot-upload">
-              <span>${icon('image')} Trade screenshot</span>
-              <input name="editScreenshot" type="file" accept="image/*" data-edit-screenshot-input="${escapeHtml(trade.id)}" />
-              <small>Tip: Paste a screenshot with Ctrl+V / Cmd+V</small>
-            </label>
-            <div class="screenshot-field-preview" data-edit-screenshot-preview="${escapeHtml(trade.id)}" aria-live="polite">
-              ${currentScreenshot ? screenshotLink(currentScreenshot, `${getTradeDisplaySymbol(trade)} trade screenshot`) : ''}
+          <details class="edit-collapsible quick-edit-screenshot">
+            <summary>${icon('image')} Screenshot ${currentScreenshot ? '(attached)' : ''}<span class="quick-edit-toggle-label">Show/Hide</span></summary>
+            <div class="screenshot-upload-field">
+              <label class="screenshot-upload">
+                <span>${icon('image')} Trade screenshot</span>
+                <input name="editScreenshot" type="file" accept="image/*" data-edit-screenshot-input="${escapeHtml(trade.id)}" />
+                <small>Tip: Paste a screenshot with Ctrl+V / Cmd+V</small>
+              </label>
+              <div class="screenshot-field-preview" data-edit-screenshot-preview="${escapeHtml(trade.id)}" aria-live="polite">
+                ${currentScreenshot ? screenshotLink(currentScreenshot, `${getTradeDisplaySymbol(trade)} trade screenshot`) : ''}
+              </div>
+              ${removeButton}
             </div>
-            ${removeButton}
-          </div>
+          </details>
         </div>
         <div class="edit-form-actions quick-edit-actions">
           <button class="secondary-button" type="button" data-cancel-edit-trade="${escapeHtml(trade.id)}">Cancel</button>

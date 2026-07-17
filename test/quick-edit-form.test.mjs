@@ -9,6 +9,7 @@ import test from 'node:test';
 // convention as test/screenshot-support.test.mjs.
 
 const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
+const cssSource = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');
 
 function assertIncludes(text, expected, message) {
   assert.ok(text.includes(expected), `${message}\nExpected to find: ${expected}`);
@@ -79,4 +80,42 @@ test('Quick Edit opens through its own trigger and defaults back to Review after
 
 test('closing an edit resets back to Review mode so the next Edit click is unaffected', () => {
   assertIncludes(source, "function closeTradeEdit() {\n  editingTradeId = null;\n  editingTradeMode = 'full';", 'closeTradeEdit() resets editingTradeMode back to full/Review.');
+});
+
+test('v1.1: related fields are paired into two-column rows to fit a 400-450px panel', () => {
+  const quickEditStart = source.indexOf('function editTradeFormQuickEdit(trade)');
+  const quickEditEnd = source.indexOf('\nfunction getEditScreenshotDraft(tradeId)');
+  const quickEditSource = source.slice(quickEditStart, quickEditEnd);
+
+  const pairedRows = [
+    ["field('Entry Price'", "field('Exit Price'"],
+    ["field('Initial Stop Loss'", "field('Final Stop Loss'"],
+    ["field('Initial Take Profit'", "field('Final Take Profit'"],
+    ["field('Setup'", "field('Position'"],
+    ["field('State'", "field('Timeframe'"],
+    ["field('Trade Management'", "field('Protected'"],
+  ];
+
+  for (const [first, second] of pairedRows) {
+    const rowStart = quickEditSource.indexOf('<div class="quick-edit-row">', quickEditSource.indexOf(first) - 60);
+    assert.notEqual(rowStart, -1, `${first} should be wrapped in a quick-edit-row.`);
+    const rowEnd = quickEditSource.indexOf('</div>', rowStart);
+    const row = quickEditSource.slice(rowStart, rowEnd);
+    assertIncludes(row, first, `${first} should be paired with ${second} in the same two-column row.`);
+    assertIncludes(row, second, `${first} should be paired with ${second} in the same two-column row.`);
+  }
+
+  assertIncludes(cssSource, '.quick-edit-row {\n  display: grid;', 'The quick-edit-row class lays fields out as a two-column grid.');
+  assertIncludes(cssSource.replace(/quick-edit-row \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/s, 'MATCHED'), 'MATCHED', 'quick-edit-row uses a 2-column grid template.');
+});
+
+test('v1.1: Notes stays at 3 rows and Screenshot is collapsed by default behind a Show/Hide toggle', () => {
+  const quickEditStart = source.indexOf('function editTradeFormQuickEdit(trade)');
+  const quickEditEnd = source.indexOf('\nfunction getEditScreenshotDraft(tradeId)');
+  const quickEditSource = source.slice(quickEditStart, quickEditEnd);
+
+  assertIncludes(quickEditSource, 'name="notes" rows="3"', 'Notes defaults to 3 rows in Quick Edit.');
+  assertIncludes(quickEditSource, '<details class="edit-collapsible quick-edit-screenshot">', 'Screenshot is wrapped in a collapsed-by-default <details> toggle (no "open" attribute).');
+  assert.ok(!quickEditSource.includes('quick-edit-screenshot" open'), 'The Screenshot <details> must not default to open.');
+  assertIncludes(quickEditSource, 'quick-edit-toggle-label">Show/Hide', 'The Screenshot toggle is labeled Show/Hide.');
 });
