@@ -3448,7 +3448,7 @@ function renderJournalWorkspace(filteredTrades, today, options = {}) {
           </div>
           <section class="manual-trade-panel">
             <button class="secondary-button manual-trade-toggle" type="button" id="toggleManualTrade" aria-expanded="${isManualTradeFormOpen ? 'true' : 'false'}" aria-controls="tradeForm">
-              ${icon(isManualTradeFormOpen ? 'minus' : 'plus')} ${isManualTradeFormOpen ? 'Hide Manual Trade Form' : 'Add Manual Trade'}
+              ${icon(isManualTradeFormOpen ? 'minus' : 'book')} ${isManualTradeFormOpen ? 'Hide Manual Trade Form' : 'Add Manual Trade'}
             </button>
             ${isManualTradeFormOpen ? renderManualTradeForm(manualTradeDateKey || today) : '<p class="manual-trade-helper">Use this only for trades that did not come from cTrader import.</p>'}
           </section>

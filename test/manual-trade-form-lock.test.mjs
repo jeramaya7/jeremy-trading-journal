@@ -89,9 +89,13 @@ test('opening, closing, and saving the Manual Trade form force their own render 
   assertIncludes(calendarBody, 'render({ force: true });', 'Jumping to a calendar date forces its own render through the lock it may have just set.');
 });
 
-test('the doubled "+" icon bug is fixed — the plus icon is not paired with a literal "+" in the label', () => {
-  assert.equal(source.includes("'+ Add Manual Trade'"), false, 'The button label must not include a redundant literal "+" alongside the plus icon.');
-  assertIncludes(source, "${icon(isManualTradeFormOpen ? 'minus' : 'plus')} ${isManualTradeFormOpen ? 'Hide Manual Trade Form' : 'Add Manual Trade'}", 'The button renders one plus icon and a plain "Add Manual Trade" label.');
+test('the doubled "+" icon bug is fixed — no plus icon is paired with a literal "+" in the label', () => {
+  assert.equal(source.includes("'+ Add Manual Trade'"), false, 'The button label must not include a redundant literal "+" alongside its icon.');
+  // Follow-up UI polish: the closed-state icon was swapped from a generic
+  // plus to the notebook/journal icon ('book', already used for Journal
+  // entries and Notes) to better match DNA's journaling theme. The
+  // open-state ('minus', Hide) icon is unchanged.
+  assertIncludes(source, "${icon(isManualTradeFormOpen ? 'minus' : 'book')} ${isManualTradeFormOpen ? 'Hide Manual Trade Form' : 'Add Manual Trade'}", 'The button renders the notebook icon and a plain "Add Manual Trade" label when closed.');
 });
 
 test('the manual "Sync cTrader" button is unaffected — this fix only touches background Auto Sync gating', () => {
