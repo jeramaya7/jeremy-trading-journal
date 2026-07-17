@@ -293,8 +293,8 @@ test('trade edit mode locks rendering and Auto Sync until save or cancel', () =>
   assertIncludes(source, 'if (isTradeEditLocked() && !options.force) {', 'Normal renders are skipped while a trade edit is open.');
   assertIncludes(source, 'if (!isCTraderAutoSyncEnabled || isTradeEditLocked()) {', 'Auto Sync timers are not scheduled during an edit session.');
   assertIncludes(source, `async function syncCTraderOnStartup() {\n  if (isTradeEditLocked()) {`, 'Startup and interval Auto Sync exits without UI updates during edit mode.');
-  assertIncludes(source, 'function closeTradeEdit()', 'Save and cancel share a dedicated edit-state exit.');
-  assertIncludes(source, `closeTradeEdit();\n  delete editScreenshotDrafts[tradeId];`, 'Saving closes the edit lock before persisting and re-rendering the final card.');
+  assertIncludes(source, 'function closeTradeEdit(tradeId)', 'Save and cancel share a dedicated edit-state exit, scoped to one card so multiple cards can be open independently.');
+  assertIncludes(source, `closeTradeEdit(tradeId);\n  delete editScreenshotDrafts[tradeId];`, 'Saving closes the edit lock before persisting and re-rendering the final card.');
 });
 
 test('saving trade edits only updates journaling fields and preserves imported execution data', () => {

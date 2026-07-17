@@ -30,7 +30,10 @@ function assertIncludes(text, expected, message) {
 }
 
 test('isTradeEditLocked() covers the Manual Trade form, not just the trade-card edit form', () => {
-  assertIncludes(source, 'function isTradeEditLocked() {\n  return editingTradeId !== null || isManualTradeFormOpen;\n}', 'The edit lock must also be true while the Manual Trade form is open.');
+  // editingTradeId became editingTradeIds (a Set) so multiple trade cards
+  // can be open in Edit mode at once, but the lock semantics are unchanged:
+  // it is true whenever any card is open OR the Manual Trade form is open.
+  assertIncludes(source, 'function isTradeEditLocked() {\n  return editingTradeIds.size > 0 || isManualTradeFormOpen;\n}', 'The edit lock must also be true while the Manual Trade form is open.');
 });
 
 test('render() itself is the single choke point this protects — no separate guard was bolted on elsewhere', () => {

@@ -140,10 +140,18 @@ let cTraderAccountBalance = null;
 let selectedCTraderAccountId = loadSelectedCTraderAccountId();
 let isLoadingCTraderAccounts = false;
 let hasHandledCTraderOAuthReturn = false;
-let editingTradeId = null;
-// 'full' renders the existing Review edit form; 'quick' renders the compact
-// Quick Edit layout (DNA 23 handoff). Same trade data + save logic either way.
-let editingTradeMode = 'full';
+// Multiple trade cards can be open in Edit mode at the same time, each
+// keeping its own independent unsaved form state. editingTradeIds tracks
+// which cards are currently open; editingTradeModeByTradeId tracks each
+// open card's mode ('full' renders the existing Review edit form, 'quick'
+// renders the compact Quick Edit layout — DNA 23 handoff) independently,
+// since two open cards can be in different modes at once. Same trade data +
+// save logic either way. dirtyTradeIds tracks which open cards actually
+// have unsaved changes (a card can be open but untouched) — this drives the
+// "Save All Changes" button and the leave/refresh warning below.
+let editingTradeIds = new Set();
+let editingTradeModeByTradeId = new Map();
+let dirtyTradeIds = new Set();
 let isManualTradeFormOpen = false;
 // Trash / Undo Delete. Deleting a trade sets `deletedAt` on the trade object
 // instead of removing it from `trades` — see softDeleteTrade() and
@@ -434,7 +442,7 @@ async function loadCloudAnnotationsAndMerge() {
     let didMergeAnyTrade = false;
     const mergedTrades = trades.map((trade) => {
       const tradeKey = String(trade.id);
-      if (tradeKey === String(editingTradeId) || pendingAnnotationPushes.has(tradeKey)) {
+      if (editingTradeIds.has(tradeKey) || pendingAnnotationPushes.has(tradeKey)) {
         return trade;
       }
       const cloudFields = body[tradeKey];
@@ -504,20 +512,27 @@ async function maybeRefreshCloudAnnotations() {
 // sync while the form is open, regardless of whether it polls every 12s,
 // 60s, or anything else.
 function isTradeEditLocked() {
-  return editingTradeId !== null || isManualTradeFormOpen;
+  return editingTradeIds.size > 0 || isManualTradeFormOpen;
 }
 
 function openTradeEdit(tradeId, mode = 'full') {
-  editingTradeId = tradeId;
-  editingTradeMode = mode === 'quick' ? 'quick' : 'full';
+  const key = String(tradeId);
+  editingTradeIds.add(key);
+  editingTradeModeByTradeId.set(key, mode === 'quick' ? 'quick' : 'full');
   scheduleCTraderAutoSync();
   renderTradeCardInPlace(tradeId);
 }
 
-function closeTradeEdit() {
-  editingTradeId = null;
-  editingTradeMode = 'full';
+// Closes edit mode for exactly one card, leaving every other open card (and
+// its unsaved form state) untouched — Set.delete()/Map.delete() are no-ops
+// for a tradeId that isn't open, so this is always safe to call.
+function closeTradeEdit(tradeId) {
+  const key = String(tradeId);
+  editingTradeIds.delete(key);
+  editingTradeModeByTradeId.delete(key);
+  dirtyTradeIds.delete(key);
   scheduleCTraderAutoSync();
+  updateSaveAllButtonVisibility();
 }
 
 function getTradeCardElement(tradeId) {
@@ -2744,7 +2759,7 @@ function tradeCard(trade) {
   const tradeDuration = formatTradeDuration(trade.openTime, trade.closeTime);
   const setupName = String(trade.setup || '').trim();
   const isImported = isCTraderImportedTrade(trade);
-  const isEditing = editingTradeId === trade.id;
+  const isEditing = editingTradeIds.has(String(trade.id));
   const summaryStrip = [
     tradeMetric('Entry', formatOptionalCurrency(trade.entry)),
     tradeMetric('Exit', formatOptionalCurrency(trade.exit)),
@@ -2877,7 +2892,7 @@ function tradeCard(trade) {
           </div>
           ${tradeJournalDetails(trade)}
         </div>
-      </details>` : (editingTradeMode === 'quick' ? editTradeFormQuickEdit(trade) : editTradeForm(trade))}
+      </details>` : (editingTradeModeByTradeId.get(String(trade.id)) === 'quick' ? editTradeFormQuickEdit(trade) : editTradeForm(trade))}
       ${!isEditing ? `
         <div class="trade-card-actions">
           <button class="edit-button" type="button" data-edit-trade="${escapeHtml(trade.id)}" aria-label="Edit journaling fields for ${escapeHtml(displaySymbol)} trade">${icon('edit')} Edit</button>
@@ -3442,6 +3457,7 @@ function renderJournalWorkspace(filteredTrades, today, options = {}) {
             </div>
             <div class="journal-header-actions">
               <input class="search-input" id="searchInput" placeholder="Search trades..." value="${escapeHtml(searchQuery)}" />
+              <button class="secondary-button save-all-trades-button" type="button" data-save-all-trades${dirtyTradeIds.size === 0 ? ' hidden' : ''}>${icon('save')} Save All Changes</button>
               <button class="secondary-button session-notes-button" type="button" data-session-notes-open title="Session Notes" aria-label="Session Notes">📝 Session Notes</button>
               <button class="secondary-button trash-toggle-button" type="button" data-toggle-trash aria-expanded="${isTrashOpen ? 'true' : 'false'}" title="Trash" aria-label="Trash">${icon('trash')} Trash${trashedTradeCount() ? ` (${trashedTradeCount()})` : ''}</button>
             </div>
@@ -3607,6 +3623,8 @@ function bindEvents() {
     document.querySelector('#dnaDoctorErrorBanner')?.remove();
   });
 
+  document.querySelector('[data-save-all-trades]')?.addEventListener('click', saveAllEditedTrades, { signal });
+
   document.querySelectorAll('[data-toggle-trash]').forEach((button) => {
     button.addEventListener('click', toggleTrash, { signal });
   });
@@ -3759,15 +3777,24 @@ function bindTradeCardEvents(tradeCardElement) {
   tradeCardElement.querySelectorAll('[data-cancel-edit-trade]').forEach((button) => {
     button.addEventListener('click', () => {
       const tradeId = button.dataset.cancelEditTrade;
-      if (String(editingTradeId) === String(tradeId)) {
-        closeTradeEdit();
-      }
+      // Only this card's edit state is cleared — every other open card (and
+      // its unsaved form state) is untouched, and renderTradeCardInPlace
+      // only swaps this one card's DOM.
+      closeTradeEdit(tradeId);
       renderTradeCardInPlace(tradeId);
     });
   });
 
   tradeCardElement.querySelectorAll('[data-edit-trade-form]').forEach((form) => {
     form.addEventListener('submit', submitTradeEdit);
+    // Dirty tracking for "Save All Changes": the first time the user
+    // actually types/changes something in this card, mark it dirty. This is
+    // a lightweight DOM update only (see updateSaveAllButtonVisibility) —
+    // it never calls render(), so it never touches any other open card's
+    // uncontrolled <input> values.
+    const tradeId = form.dataset.editTradeForm;
+    form.addEventListener('input', () => markTradeEditDirty(tradeId));
+    form.addEventListener('change', () => markTradeEditDirty(tradeId));
   });
 
   tradeCardElement.querySelectorAll('[data-edit-screenshot-input]').forEach((input) => {
@@ -3780,9 +3807,7 @@ function bindTradeCardEvents(tradeCardElement) {
 
   tradeCardElement.querySelectorAll('[data-delete-trade]').forEach((button) => {
     button.addEventListener('click', () => {
-      if (String(editingTradeId) === String(button.dataset.deleteTrade)) {
-        editingTradeId = null;
-      }
+      closeTradeEdit(button.dataset.deleteTrade);
       softDeleteTrade(button.dataset.deleteTrade);
     });
   });
@@ -4018,9 +4043,11 @@ async function submitTrade(event) {
   persistTrades([nextTrade, ...trades]);
 }
 
-async function submitTradeEdit(event) {
-  event.preventDefault();
-  const form = event.currentTarget;
+// Reads one edit form's fields into the same { tradeId, journalingUpdates,
+// screenshotUpdate } shape both the individual Save button (submitTradeEdit)
+// and "Save All Changes" (saveAllEditedTrades) apply to `trades` — extracted
+// so both paths compute identical updates and can never drift apart.
+async function buildTradeEditUpdate(form) {
   const tradeId = form.dataset.editTradeForm;
   const formData = new FormData(form);
   const screenshotDraft = getEditScreenshotDraft(tradeId);
@@ -4056,7 +4083,15 @@ async function submitTradeEdit(event) {
     ? { screenshot: resolvedScreenshot }
     : {};
 
-  closeTradeEdit();
+  return { tradeId, journalingUpdates, screenshotUpdate };
+}
+
+async function submitTradeEdit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const { tradeId, journalingUpdates, screenshotUpdate } = await buildTradeEditUpdate(form);
+
+  closeTradeEdit(tradeId);
   delete editScreenshotDrafts[tradeId];
   persistTrades(trades.map((trade) => (
     // Keep the existing cTrader execution payload first: ? { ...trade, ...journalingUpdates }
@@ -4065,6 +4100,103 @@ async function submitTradeEdit(event) {
       : trade
   )), { preserveTradeId: tradeId, renderOptions: { force: true } });
   pushTradeAnnotationToCloud(tradeId, extractAnnotationFields(journalingUpdates));
+}
+
+// "Save All Changes": saves every card that actually has unsaved edits
+// (dirtyTradeIds), reusing buildTradeEditUpdate so the result is identical
+// to what clicking each card's own Save button would produce. Cards that
+// are open but untouched (never marked dirty) are left exactly as they are
+// — Save All only ever writes dirty cards, never merely-open ones.
+async function saveAllEditedTrades() {
+  const dirtyIds = [...dirtyTradeIds];
+  if (!dirtyIds.length) {
+    return;
+  }
+
+  const updates = [];
+  for (const tradeId of dirtyIds) {
+    const form = document.querySelector(`[data-edit-trade-form="${cssEscape(tradeId)}"]`);
+    if (!form) {
+      // Defensive: a dirty card's form should always exist (dirty is only
+      // ever set from that exact form's own input/change listener), but if
+      // it's somehow gone, skip it rather than lose or guess at its data.
+      continue;
+    }
+    updates.push(await buildTradeEditUpdate(form));
+  }
+
+  if (!updates.length) {
+    return;
+  }
+
+  const updatesByTradeId = new Map(updates.map((update) => [String(update.tradeId), update]));
+  const nextTrades = trades.map((trade) => {
+    const update = updatesByTradeId.get(String(trade.id));
+    return update ? { ...trade, ...update.journalingUpdates, ...update.screenshotUpdate } : trade;
+  });
+
+  for (const tradeId of updatesByTradeId.keys()) {
+    closeTradeEdit(tradeId);
+    delete editScreenshotDrafts[tradeId];
+  }
+
+  // Same persist steps as persistTrades(), but forces the re-render
+  // directly: other cards that were open-but-clean (not dirty, so not
+  // saved/closed above) may still hold the edit lock, and a plain render()
+  // would otherwise silently no-op and leave the just-saved cards showing
+  // their stale edit forms.
+  trades = normalizeTradeSetups(nextTrades);
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));
+  render({ force: true });
+
+  for (const [tradeId, update] of updatesByTradeId) {
+    pushTradeAnnotationToCloud(tradeId, extractAnnotationFields(update.journalingUpdates));
+  }
+}
+
+// Lightweight DOM update only — deliberately never calls render(). A full
+// render() while any card is open would wipe every open card's uncontrolled
+// <input> values (the same class of bug fixed for the Manual Trade form),
+// so the Save All button's visibility is toggled directly on the element
+// that's already in the DOM from the last full render instead.
+function updateSaveAllButtonVisibility() {
+  const button = document.querySelector('[data-save-all-trades]');
+  if (button) {
+    button.hidden = dirtyTradeIds.size === 0;
+  }
+  updateUnsavedChangesWarning();
+}
+
+function markTradeEditDirty(tradeId) {
+  const key = String(tradeId);
+  if (dirtyTradeIds.has(key)) {
+    return;
+  }
+  dirtyTradeIds.add(key);
+  updateSaveAllButtonVisibility();
+}
+
+// Warns before leaving/refreshing the page while any card has unsaved
+// edits. The listener is only attached while it's actually needed (rather
+// than left on permanently) so it never prompts when there's nothing to
+// lose.
+let isUnsavedChangesWarningActive = false;
+function handleBeforeUnload(event) {
+  event.preventDefault();
+  event.returnValue = '';
+  return '';
+}
+function updateUnsavedChangesWarning() {
+  const shouldWarn = dirtyTradeIds.size > 0;
+  if (shouldWarn === isUnsavedChangesWarningActive) {
+    return;
+  }
+  isUnsavedChangesWarningActive = shouldWarn;
+  if (shouldWarn) {
+    window.addEventListener('beforeunload', handleBeforeUnload);
+  } else {
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+  }
 }
 
 function updateRiskPercentField(event) {
@@ -4114,8 +4246,13 @@ async function pasteScreenshot(event) {
   }
 
   event.preventDefault();
+  // Falls back to the single open card only when there's exactly one —
+  // with multiple cards open at once there's no way to know which one a
+  // focus-less paste was meant for, so it's left to fall through to the
+  // page-level screenshot field below instead of guessing.
+  const singleOpenTradeId = editingTradeIds.size === 1 ? [...editingTradeIds][0] : null;
   const editForm = document.activeElement?.closest?.('[data-edit-trade-form]')
-    || (editingTradeId ? document.querySelector(`[data-edit-trade-form="${cssEscape(editingTradeId)}"]`) : null);
+    || (singleOpenTradeId ? document.querySelector(`[data-edit-trade-form="${cssEscape(singleOpenTradeId)}"]`) : null);
   if (editForm) {
     const tradeId = editForm.dataset.editTradeForm;
     setFileInputFile(editForm.querySelector('input[name="editScreenshot"]'), file);

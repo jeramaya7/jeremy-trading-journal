@@ -3137,6 +3137,7 @@ h2,
   min-width: 0;
 }
 
+.save-all-trades-button,
 .session-notes-button,
 .trash-toggle-button {
   align-self: stretch;

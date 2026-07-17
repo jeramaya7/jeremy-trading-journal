@@ -18,7 +18,7 @@ function assertIncludes(text, expected, message) {
 test('Quick Edit renders as a separate layout from Review, not a redesign of it', () => {
   assertIncludes(source, 'function editTradeFormQuickEdit(trade)', 'A dedicated Quick Edit form renderer exists, separate from editTradeForm().');
   assertIncludes(source, 'function editTradeForm(trade)', 'The original Review edit form renderer is unchanged and still present.');
-  assertIncludes(source, "editingTradeMode === 'quick' ? editTradeFormQuickEdit(trade) : editTradeForm(trade)", 'The trade card picks Quick Edit vs. Review based on which mode was opened.');
+  assertIncludes(source, "editingTradeModeByTradeId.get(String(trade.id)) === 'quick' ? editTradeFormQuickEdit(trade) : editTradeForm(trade)", 'The trade card picks Quick Edit vs. Review based on which mode that specific card was opened in (each open card tracks its own mode independently).');
 });
 
 test('Quick Edit reuses the same form contract as Review so submitTradeEdit needs no changes', () => {
@@ -79,7 +79,12 @@ test('Quick Edit opens through its own trigger and defaults back to Review after
 });
 
 test('closing an edit resets back to Review mode so the next Edit click is unaffected', () => {
-  assertIncludes(source, "function closeTradeEdit() {\n  editingTradeId = null;\n  editingTradeMode = 'full';", 'closeTradeEdit() resets editingTradeMode back to full/Review.');
+  // editingTradeMode became editingTradeModeByTradeId (a Map) so each open
+  // card tracks its own mode independently; closing a card now deletes its
+  // entry entirely, which has the same effect: the next Edit click on that
+  // card gets a fresh mode lookup that misses the Map and falls back to the
+  // Review layout (editTradeForm), exactly like the old 'full' default did.
+  assertIncludes(source, 'function closeTradeEdit(tradeId) {\n  const key = String(tradeId);\n  editingTradeIds.delete(key);\n  editingTradeModeByTradeId.delete(key);', 'closeTradeEdit(tradeId) clears this card\'s mode so the next Edit click defaults back to Review.');
 });
 
 test('v1.1: related fields are paired into two-column rows to fit a 400-450px panel', () => {
