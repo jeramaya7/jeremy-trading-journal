@@ -973,8 +973,27 @@ function getReportPeriodStart(referenceDate, period) {
   return periodStart;
 }
 
+// Bug fix: manual trades only ever set `trade.date` as a plain "YYYY-MM-DD"
+// string (no `closeTime`). JS parses date-only strings as UTC midnight, but
+// this function's result is always compared against locally-constructed
+// Date objects (see getReportPeriodStart/filterTradesForPeriod below). In
+// any timezone behind UTC (all of the Americas), UTC midnight on a given
+// date is still the *previous* calendar day locally, so a manual trade
+// dated "today" was silently read back as dated "yesterday" everywhere
+// this function is used — which is every dashboard stat and period filter
+// (Net P/L, Trades, Win Rate, Protected %, ROI, Profit Factor, the
+// day/week/month/year/all toggle, the monthly calendar, and setup/asset/
+// time-of-day analytics all call this one shared helper). Imported cTrader
+// trades are unaffected: `trade.closeTime` is always a full ISO timestamp
+// (e.g. "2026-07-16T20:49:53.000Z"), which JS already parses as an absolute
+// instant and converts to local time correctly — that branch is untouched.
 function getTradeReportDate(trade) {
   const dateValue = trade.closeTime || trade.date;
+  if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+    const [year, month, day] = dateValue.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+
   const tradeDate = new Date(dateValue);
   return Number.isNaN(tradeDate.getTime()) ? null : tradeDate;
 }
