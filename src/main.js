@@ -42,6 +42,7 @@ const LEGACY_SETUP_NAME_MAP = {
   'Return to 200': 'Wide State Reversal',
   'Support & Resistance': 'Support/Resistance',
   'The General Forecast': 'General Forecast',
+  'EMA Continuation': 'Trend Continuation',
 };
 // Was 60s. Nothing in this codebase enforces a longer delay — no server-side
 // rate limiter or cache sits in front of /api/ctrader/journal-preview (see
@@ -195,7 +196,6 @@ const FRIENDLY_ASSET_NAMES = {
 
 const PLAY_BOOK_SETUP_OPTIONS = [
   'EMA Bounce',
-  'EMA Continuation',
   'EMA Cross',
   'Enter Retrace',
   'Event Bar',
@@ -204,6 +204,7 @@ const PLAY_BOOK_SETUP_OPTIONS = [
   'RBI / GBI',
   'Scalping',
   'Support/Resistance',
+  'Trend Continuation',
   'Trendline Break',
   'Wide State Reversal',
 ];
@@ -232,6 +233,7 @@ const CLOSE_REASON_OPTIONS = [
 const MARKET_STATE_OPTIONS = [
   'Narrow',
   'Trending',
+  'Channel',
   'Wide',
 ];
 const LEGACY_MARKET_STATE_MAP = {

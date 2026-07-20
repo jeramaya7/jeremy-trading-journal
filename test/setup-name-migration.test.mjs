@@ -94,7 +94,6 @@ test('the Play Book setup list is exactly the 13 requested options, Custom last'
   // though the contents are identical.
   assert.deepEqual(Array.from(PLAY_BOOK_SETUP_OPTIONS), [
     'EMA Bounce',
-    'EMA Continuation',
     'EMA Cross',
     'Enter Retrace',
     'Event Bar',
@@ -103,6 +102,7 @@ test('the Play Book setup list is exactly the 13 requested options, Custom last'
     'RBI / GBI',
     'Scalping',
     'Support/Resistance',
+    'Trend Continuation',
     'Trendline Break',
     'Wide State Reversal',
   ]);
@@ -134,6 +134,7 @@ test('every specified legacy setup name migrates to its new canonical name', () 
     'Trade Line Break': 'Trendline Break',
     'Support & Resistance': 'Support/Resistance',
     'The General Forecast': 'General Forecast',
+    'EMA Continuation': 'Trend Continuation',
   };
 
   for (const [oldName, newName] of Object.entries(expectedMigrations)) {
@@ -157,7 +158,7 @@ test('setups retired with no replacement (including Scalp) are left exactly as-i
 test('normalizeSetupName leaves already-current and unrelated setup names untouched', () => {
   const { normalizeSetupName } = loadSetupModule();
 
-  for (const currentName of ['EMA Bounce', 'EMA Continuation', 'Hedge', 'RBI / GBI', 'Wide State Reversal', 'Custom', '', 'Opening range breakout']) {
+  for (const currentName of ['EMA Bounce', 'Trend Continuation', 'Hedge', 'RBI / GBI', 'Wide State Reversal', 'Custom', '', 'Opening range breakout']) {
     assert.equal(normalizeSetupName(currentName), currentName);
   }
 });
