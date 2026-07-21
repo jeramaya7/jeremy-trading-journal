@@ -2862,6 +2862,7 @@ function tradeCard(trade) {
       ${[
         tradeOutcomeLabel,
         trade.state ? normalizeMarketState(trade.state) : '',
+        trade.timeframe,
         trade.position,
         trade.tradeManagement,
         trade.grade,
@@ -2874,6 +2875,7 @@ function tradeCard(trade) {
           ${[
             tradeOutcomeLabel,
             trade.state ? normalizeMarketState(trade.state) : '',
+            trade.timeframe,
             trade.position,
             trade.tradeManagement,
             trade.grade,
