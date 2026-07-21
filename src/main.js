@@ -3698,6 +3698,7 @@ function bindEvents() {
   document.querySelector('#connectCTrader')?.addEventListener('click', startCTraderOAuthFlow, { signal });
   document.querySelector('#syncCTrader').addEventListener('click', () => syncCTrader({ source: 'manual' }));
   document.querySelector('#deleteAllCTraderImports').addEventListener('click', deleteAllCTraderImports, { signal });
+  document.querySelector('#deleteAllScreenshots').addEventListener('click', deleteAllScreenshots, { signal });
   document.querySelector('#exportTrades').addEventListener('click', exportTrades, { signal });
   document.querySelector('#storageWarnExport')?.addEventListener('click', () => { exportTrades(); dismissStorageWarning(); });
   document.querySelector('#storageWarnDismiss')?.addEventListener('click', dismissStorageWarning, { signal });
@@ -4000,6 +4001,26 @@ function deleteAllCTraderImports() {
     message: `Deleted ${deletedCount} imported cTrader ${deletedCount === 1 ? 'trade' : 'trades'}. Sync cTrader to import them again.`,
   };
   persistTrades(remainingTrades);
+}
+
+// Clears only the `screenshot` field (an inline data URL) from every trade,
+// to reclaim browser storage space. All other trade fields — including
+// Notes, Grade, Protected, Trade Management, Setup, State, and Tags — are
+// left completely untouched, and no trade is removed. Screenshots are never
+// synced to Supabase (see JOURNAL_ANNOTATION_FIELDS), so there is nothing to
+// clear there.
+function deleteAllScreenshots() {
+  if (!window.confirm('Delete all screenshots? This cannot be undone.')) {
+    return;
+  }
+
+  const deletedCount = trades.filter((trade) => trade?.screenshot?.dataUrl).length;
+  const nextTrades = trades.map((trade) => (
+    trade?.screenshot ? { ...trade, screenshot: null } : trade
+  ));
+
+  persistTrades(nextTrades);
+  window.alert(`Deleted ${deletedCount} ${deletedCount === 1 ? 'screenshot' : 'screenshots'}.`);
 }
 
 async function submitTrade(event) {
@@ -4427,6 +4448,9 @@ function renderCTraderConnectionCard() {
         </button>
         <button class="secondary-button" type="button" id="deleteAllCTraderImports">
           ${icon('trash')} Delete All cTrader Imports
+        </button>
+        <button class="secondary-button" type="button" id="deleteAllScreenshots">
+          ${icon('trash')} Delete All Screenshots
         </button>
         <button class="secondary-button" type="button" id="exportTrades">${icon('download')} Export JSON</button>
         <label class="secondary-button upload-button">
