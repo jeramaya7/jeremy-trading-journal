@@ -2622,6 +2622,9 @@ function renderTodayKpiStrip(todayTrades, todayStats) {
   const todayPnl = todayStats.totalPnl;
 
   return `
+        <div class="journal-header-actions trading-today-actions">
+          <button class="secondary-button" type="button" id="dailyExport">🧬 Daily Export</button>
+        </div>
         <section class="stats-grid hero-stats-row trading-today-kpi-strip" aria-label="Today trading statistics">
           ${statCard('calendar', 'Today P/L', currency(todayPnl), getMoneyTone(todayPnl))}
           ${statCard('trend', 'Today %', formatPercent(getTodayPnlPercent(todayTrades, todayPnl)))}
@@ -3728,6 +3731,10 @@ function bindEvents() {
   document.querySelector('#deleteAllCTraderImports').addEventListener('click', deleteAllCTraderImports, { signal });
   document.querySelector('#deleteAllScreenshots').addEventListener('click', deleteAllScreenshots, { signal });
   document.querySelector('#exportTrades').addEventListener('click', exportTrades, { signal });
+  // Only present in Trading Mode (see renderTodayKpiStrip) — optional
+  // chaining so binding is a no-op in Dashboard Mode, same pattern as
+  // #connectCTrader above.
+  document.querySelector('#dailyExport')?.addEventListener('click', exportDailyTrades, { signal });
   document.querySelector('#storageWarnExport')?.addEventListener('click', () => { exportTrades(); dismissStorageWarning(); });
   document.querySelector('#storageWarnDismiss')?.addEventListener('click', dismissStorageWarning, { signal });
   document.querySelector('#importTrades').addEventListener('change', importTrades, { signal });
@@ -4920,6 +4927,44 @@ function exportTrades() {
   const link = document.createElement('a');
   link.href = url;
   link.download = 'jeremy-trading-journal.json';
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+// Trading Mode's "Daily Export": every trade dated today (same 'day' period
+// filter used everywhere else — getTradeReportDate/filterTradesForPeriod —
+// so this always matches what the Today KPI strip itself shows), plus the
+// same daily summary getStats() computes for that strip. Every saved
+// trade-card field is included via the { ...trade } spread (notes, tags,
+// timeframe, setup, state, position, tradeManagement, protected, grade,
+// etc.), plus the derived fields the card shows but doesn't store: outcome,
+// pnl, and rMultiple. screenshot is replaced with a reference (name/type/
+// size/attached) — the dataUrl (actual image bytes) is deliberately left
+// out so the export stays small and shareable.
+function exportDailyTrades() {
+  const dateKey = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD, local date — same convention as openShareDashboardView's PNG filename
+  const todayTrades = filterTradesForPeriod(getActiveTrades(), 'day', new Date());
+  const summary = getStats(todayTrades);
+
+  const sanitizedTrades = todayTrades.map((trade) => {
+    const { screenshot, ...tradeWithoutScreenshot } = trade;
+    const pnl = calculatePnl(trade);
+    return {
+      ...tradeWithoutScreenshot,
+      screenshot: screenshot
+        ? { attached: true, name: screenshot.name ?? null, type: screenshot.type ?? null, size: screenshot.size ?? null }
+        : { attached: false },
+      outcome: TRADE_OUTCOME_LABELS[classifyTradeOutcome(pnl)] || '',
+      pnl,
+      rMultiple: calculateRMultiple(trade),
+    };
+  });
+
+  const blob = new Blob([JSON.stringify({ date: dateKey, summary, trades: sanitizedTrades }, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `DNA-Daily-Export-${dateKey}.json`;
   link.click();
   URL.revokeObjectURL(url);
 }
