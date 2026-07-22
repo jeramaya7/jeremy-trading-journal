@@ -279,11 +279,35 @@ const TRADE_MANAGEMENT_OPTIONS = [
   'Break Even',
   'Trail Stop',
   'Partial Profit',
+  'Scale Out',
   'Early Exit',
   'Add to Position',
   'Reverse Position',
   'Other',
 ];
+// Protected is fully derived from Trade Management (Smart Protected) — this
+// map is the single source of truth for that derivation, used both to
+// render the read-only Protected value and to update it live when Trade
+// Management changes (see renderProtectedDisplay/getSmartProtectedValue and
+// the tradeManagement change listener in bindTradeCardEvents). Any Trade
+// Management value not listed here (including blank/None) defaults to 'No'.
+const TRADE_MANAGEMENT_PROTECTED_MAP = {
+  'Trail Stop': 'Yes',
+  'Break Even': 'Yes',
+  'Partial Profit': 'Yes',
+  'Scale Out': 'Yes',
+  'Hit Take Profit': 'Yes',
+  'Set & Forget': 'No',
+  'Hit Stop Loss': 'No',
+  'Early Exit': 'No',
+  'Add to Position': 'No',
+  'Reverse Position': 'No',
+  'Other': 'No',
+};
+
+function getSmartProtectedValue(tradeManagement) {
+  return TRADE_MANAGEMENT_PROTECTED_MAP[String(tradeManagement || '').trim()] || 'No';
+}
 
 const app = document.querySelector('#root');
 
@@ -3022,14 +3046,16 @@ function renderTimeframeSelect(trade) {
   `;
 }
 
-function renderProtectedSelect(trade) {
-  const current = String(trade.protected || '').trim();
-  return `
-    <select name="protected" aria-label="Protected">
-      <option value="">None</option>
-      ${TRADE_PROTECTED_OPTIONS.map((option) => renderSelectOption(option, current)).join('')}
-    </select>
-  `;
+// Protected is no longer independently editable — it's calculated
+// automatically from Trade Management (see TRADE_MANAGEMENT_PROTECTED_MAP
+// above). Rendered as a readonly text input (not a disabled <select>) so its
+// value still submits normally via FormData, exactly like the readonly
+// Entry/Exit Price inputs above. The tradeManagement change listener in
+// bindTradeCardEvents keeps this input's value in sync immediately whenever
+// Trade Management changes, before the trade is saved.
+function renderProtectedDisplay(trade) {
+  const value = getSmartProtectedValue(trade.tradeManagement);
+  return `<input name="protected" type="text" value="${escapeHtml(value)}" readonly aria-label="Protected (calculated automatically from Trade Management)" />`;
 }
 
 function renderGradeSelect(trade) {
@@ -3101,13 +3127,13 @@ function editTradeForm(trade) {
           <h4 class="edit-form-section-label">Trade Review</h4>
           <div class="edit-form-row edit-review-row" aria-label="Trade review">
             ${field('Trade Management', renderTradeManagementSelect(trade))}
-            ${field('Protected', renderProtectedSelect(trade))}
-            ${field('Exit Reason', renderCloseReasonSelect(trade))}
+            ${field('Protected', renderProtectedDisplay(trade))}
             ${field('Grade', renderGradeSelect(trade))}
+            <div class="edit-loss-reason-field"${isLossOutcome ? '' : ' hidden'}>
+              ${field('Loss Reason', renderLossReasonSelect(trade))}
+            </div>
           </div>
-          <div class="edit-loss-reason-field"${isLossOutcome ? '' : ' hidden'}>
-            ${field('Loss Reason', renderLossReasonSelect(trade))}
-          </div>
+          ${field('Exit Reason', renderCloseReasonSelect(trade))}
         </div>
         <div class="edit-form-section">
           <h4 class="edit-form-section-label">Journal</h4>
@@ -3196,16 +3222,18 @@ function editTradeFormQuickEdit(trade) {
           <h4 class="edit-form-section-label">Management</h4>
           <div class="quick-edit-row">
             ${field('Trade Management', renderTradeManagementSelect(trade))}
-            ${field('Protected', renderProtectedSelect(trade))}
+            ${field('Protected', renderProtectedDisplay(trade))}
+          </div>
+          <div class="quick-edit-row">
+            ${field('Grade', renderGradeSelect(trade))}
+            <div class="edit-loss-reason-field"${isLossOutcome ? '' : ' hidden'}>
+              ${field('Loss Reason', renderLossReasonSelect(trade))}
+            </div>
           </div>
           ${field('Exit Reason', renderCloseReasonSelect(trade))}
-          <div class="edit-loss-reason-field"${isLossOutcome ? '' : ' hidden'}>
-            ${field('Loss Reason', renderLossReasonSelect(trade))}
-          </div>
         </div>
         <div class="edit-form-section quick-edit-section">
           <h4 class="edit-form-section-label">Journal</h4>
-          ${field('Grade', renderGradeSelect(trade))}
           ${field('Notes', `<textarea name="notes" rows="3" placeholder="What was the plan? What happened?">${escapeHtml(trade.notes)}</textarea>`)}
           <details class="edit-collapsible quick-edit-screenshot">
             <summary>${icon('image')} Screenshot ${currentScreenshot ? '(attached)' : ''}<span class="quick-edit-toggle-label">Show/Hide</span></summary>
@@ -3802,6 +3830,19 @@ function bindTradeCardEvents(tradeCardElement) {
     form.addEventListener('change', () => markTradeEditDirty(tradeId));
   });
 
+  // Smart Protected: whenever Trade Management changes in an open edit
+  // card, immediately recalculate the read-only Protected value in that
+  // same card — before Save, and without touching any other open card
+  // (scoped to this tradeCardElement, same as the rest of this function).
+  tradeCardElement.querySelectorAll('select[name="tradeManagement"]').forEach((select) => {
+    select.addEventListener('change', () => {
+      const protectedInput = select.closest('form')?.querySelector('input[name="protected"]');
+      if (protectedInput) {
+        protectedInput.value = getSmartProtectedValue(select.value);
+      }
+    });
+  });
+
   tradeCardElement.querySelectorAll('[data-edit-screenshot-input]').forEach((input) => {
     input.addEventListener('change', changeEditScreenshot);
   });
@@ -4034,6 +4075,11 @@ async function submitTrade(event) {
     symbol: String(formData.get('symbol')).trim().toUpperCase(),
     direction: formData.get('direction'),
     setup: normalizeSetupName(String(formData.get('setup')).trim()) || 'Uncategorized setup',
+    // New trades default to the 1m chart timeframe (the form has no
+    // Timeframe input of its own — Timeframe is only editable afterward via
+    // Edit/Quick Edit). Existing trades are untouched since this only runs
+    // when a brand-new trade is created.
+    timeframe: '1m',
     entry: Number(formData.get('entry')),
     exit: Number(formData.get('exit')),
     size: Number(formData.get('size')),

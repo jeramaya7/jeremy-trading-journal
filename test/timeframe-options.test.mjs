@@ -10,6 +10,10 @@ import vm from 'node:vm';
 
 const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
 
+function assertIncludes(text, expected, message) {
+  assert.ok(text.includes(expected), `${message}\nExpected to find: ${expected}`);
+}
+
 function extractFunction(name) {
   const marker = `\nfunction ${name}(`;
   const markerIndex = source.indexOf(marker);
@@ -138,4 +142,29 @@ test('Timeframe is wired into the edit form and the Supabase annotation sync whi
     mainWhitelistMatch[0].includes("'timeframe'"),
     'timeframe must be in the Supabase annotation whitelist (main.js), or edits will be silently stripped before syncing.',
   );
+});
+
+test('new manually-logged trades default their Timeframe to 1m', () => {
+  // The "Add manual trade" form has no Timeframe input of its own (Timeframe
+  // is only editable afterward via Edit/Quick Edit), so the default has to
+  // be a hardcoded value in submitTrade()'s new-trade object, not read from
+  // form data.
+  const submitTradeStart = source.indexOf('async function submitTrade(event)');
+  const submitTradeEnd = source.indexOf('\nasync function ', submitTradeStart + 1);
+  assert.notEqual(submitTradeStart, -1, 'submitTrade should exist.');
+  const submitTradeBody = source.slice(submitTradeStart, submitTradeEnd === -1 ? undefined : submitTradeEnd);
+
+  assertIncludes(submitTradeBody, "timeframe: '1m',", 'New trades should default to the 1m chart timeframe.');
+
+  const manualFormStart = source.indexOf('function renderManualTradeForm(today)');
+  const manualFormEnd = source.indexOf('\nasync function openShareDashboardView', manualFormStart + 1);
+  assert.notEqual(manualFormStart, -1, 'renderManualTradeForm should exist.');
+  const manualFormBody = source.slice(manualFormStart, manualFormEnd === -1 ? undefined : manualFormEnd);
+  assert.equal(manualFormBody.includes('name="timeframe"'), false, 'The Add Trade form itself should not gain a new Timeframe input — the default is applied in code, keeping the form unchanged (no redesign).');
+});
+
+test('existing trades are not affected by the new-trade Timeframe default', () => {
+  // normalizeTradeSetups / loadTrades (the localStorage load path) must not
+  // touch timeframe at all — only submitTrade (brand-new trades) sets it.
+  assert.equal(source.includes("trade.timeframe = trade.timeframe || '1m'"), false, 'Existing trades must not be retroactively defaulted to 1m on load.');
 });

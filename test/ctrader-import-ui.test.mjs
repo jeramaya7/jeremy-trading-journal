@@ -225,17 +225,34 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(setupBody, "${field('State', renderMarketStateSelect(trade))}", 'State keeps its name.');
   assertIncludes(setupBody, "${field('Timeframe', renderTimeframeSelect(trade))}", 'Timeframe is in the Setup section.');
 
-  // Trade Review section: Trade Management, Protected, Exit Reason, Grade,
-  // and Loss Reason (present in the DOM but hidden unless the trade is a
-  // Loss, so its value still round-trips through the save handler).
+  // Trade Review section: Trade Management, Protected (read-only, calculated
+  // from Trade Management), Grade, and Loss Reason all share the same row
+  // (present in the DOM but hidden unless the trade is a Loss, so its value
+  // still round-trips through the save handler). Exit Reason is kept (it
+  // still feeds getActiveStopLoss/getStopLossHitPrice's Risk $ and R-multiple
+  // math) but relocated to its own row below, out of the primary group.
   const reviewBody = editFormBody.slice(reviewIndex, journalIndex);
   assertIncludes(reviewBody, "${field('Trade Management', renderTradeManagementSelect(trade))}", 'Trade Management is in Trade Review.');
-  assertIncludes(reviewBody, "${field('Protected', renderProtectedSelect(trade))}", 'Protected is in Trade Review.');
-  assertIncludes(reviewBody, "${field('Exit Reason', renderCloseReasonSelect(trade))}", 'Exit Reason is in Trade Review.');
+  assertIncludes(reviewBody, "${field('Protected', renderProtectedDisplay(trade))}", 'Protected is in Trade Review.');
   assertIncludes(reviewBody, "${field('Grade', renderGradeSelect(trade))}", 'Grade is in Trade Review.');
   assertIncludes(reviewBody, "${field('Loss Reason', renderLossReasonSelect(trade))}", 'Loss Reason is in Trade Review.');
+  assertIncludes(reviewBody, "${field('Exit Reason', renderCloseReasonSelect(trade))}", 'Exit Reason is still present in Trade Review (relocated, not removed — it still drives Risk $/R-multiple math via getStopLossHitPrice).');
   assertIncludes(reviewBody, "class=\"edit-loss-reason-field\"${isLossOutcome ? '' : ' hidden'}", 'Loss Reason is only visible when the trade outcome is a Loss.');
   assertIncludes(editFormBody, "const isLossOutcome = classifyTradeOutcome(calculatePnl(trade)) === 'loss';", 'Loss outcome uses the shared classifier, matching the trade card\'s own Win/Loss/Breakeven label.');
+
+  // Trade Management, Protected, Grade, and the (hidden-when-not-loss) Loss
+  // Reason field are all grid children of the same edit-review-row — Exit
+  // Reason is deliberately outside that row now.
+  const reviewRowStart = reviewBody.indexOf('<div class="edit-form-row edit-review-row"');
+  const reviewRowEnd = reviewBody.indexOf('</div>\n          ${field(\'Exit Reason\'');
+  assert.notEqual(reviewRowStart, -1, 'The edit-review-row should exist in Trade Review.');
+  assert.notEqual(reviewRowEnd, -1, "Exit Reason should immediately follow the edit-review-row's closing div.");
+  const reviewRowBody = reviewBody.slice(reviewRowStart, reviewRowEnd);
+  assertIncludes(reviewRowBody, "renderTradeManagementSelect(trade)", 'Trade Management is inside the review row.');
+  assertIncludes(reviewRowBody, "renderProtectedDisplay(trade)", 'Protected is inside the review row.');
+  assertIncludes(reviewRowBody, "renderGradeSelect(trade)", 'Grade is inside the review row.');
+  assertIncludes(reviewRowBody, "renderLossReasonSelect(trade)", 'Loss Reason is inside the review row.');
+  assert.equal(reviewRowBody.includes('renderCloseReasonSelect'), false, 'Exit Reason should not be inside the review row.');
 
   // Journal section: Notes and Screenshot only (Tags removed).
   const journalBody = editFormBody.slice(journalIndex);

@@ -3,14 +3,19 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
 
-// Guards the new Protected field (src/main.js): the Yes/No dropdown, and the
-// Protected % dashboard metric derived from it. Extracts the real
-// TRADE_PROTECTED_OPTIONS array, renderProtectedSelect/renderSelectOption,
-// and the getStats() Protected % calculation from the shipped source (rather
-// than reimplementing them) so the tests exercise the actual code the app
+// Guards the Protected field (src/main.js): originally an independent
+// Yes/No dropdown, now "Smart Protected" — a read-only value calculated
+// automatically from Trade Management (see TRADE_MANAGEMENT_PROTECTED_MAP /
+// getSmartProtectedValue / renderProtectedDisplay). Extracts the real
+// constants and functions from the shipped source (rather than
+// reimplementing them) so the tests exercise the actual code the app
 // renders, saves, and calculates from.
 
 const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
+
+function assertIncludes(text, expected, message) {
+  assert.ok(text.includes(expected), `${message}\nExpected to find: ${expected}`);
+}
 
 function extractFunction(name) {
   const marker = `\nfunction ${name}(`;
@@ -59,10 +64,11 @@ function extractConst(name) {
 function loadProtectedModule() {
   const code = [
     extractConst('TRADE_PROTECTED_OPTIONS'),
+    extractConst('TRADE_MANAGEMENT_PROTECTED_MAP'),
     extractFunction('escapeHtml'),
-    extractFunction('renderSelectOption'),
-    extractFunction('renderProtectedSelect'),
-    'module.exports = { TRADE_PROTECTED_OPTIONS, renderProtectedSelect };',
+    extractFunction('getSmartProtectedValue'),
+    extractFunction('renderProtectedDisplay'),
+    'module.exports = { TRADE_PROTECTED_OPTIONS, TRADE_MANAGEMENT_PROTECTED_MAP, getSmartProtectedValue, renderProtectedDisplay };',
   ].join('\n\n');
 
   const context = { module: { exports: {} } };
@@ -71,7 +77,7 @@ function loadProtectedModule() {
   return context.module.exports;
 }
 
-test('the Protected dropdown list is exactly Yes/No, in order', () => {
+test('Protected values are still exactly Yes/No', () => {
   const { TRADE_PROTECTED_OPTIONS } = loadProtectedModule();
 
   // Array.from() rebuilds the array using this realm's Array constructor:
@@ -81,41 +87,77 @@ test('the Protected dropdown list is exactly Yes/No, in order', () => {
   assert.deepEqual(Array.from(TRADE_PROTECTED_OPTIONS), ['Yes', 'No']);
 });
 
-test('a chosen Protected value renders as the selected option and the other option is still present', () => {
-  const { renderProtectedSelect } = loadProtectedModule();
+test('getSmartProtectedValue maps every Trade Management option to the requested Protected value', () => {
+  const { getSmartProtectedValue } = loadProtectedModule();
 
-  const markupYes = renderProtectedSelect({ protected: 'Yes' });
-  assert.match(markupYes, /<option value="Yes" selected>Yes<\/option>/);
-  assert.match(markupYes, /<option value="No">No<\/option>/);
+  const expected = {
+    'Trail Stop': 'Yes',
+    'Break Even': 'Yes', // "Moved to Breakeven" in the request, existing option name kept
+    'Partial Profit': 'Yes',
+    'Scale Out': 'Yes',
+    'Hit Take Profit': 'Yes',
+    'Set & Forget': 'No',
+    'Hit Stop Loss': 'No',
+    'Early Exit': 'No',
+    'Add to Position': 'No',
+    'Reverse Position': 'No',
+    'Other': 'No',
+  };
 
-  const markupNo = renderProtectedSelect({ protected: 'No' });
-  assert.match(markupNo, /<option value="No" selected>No<\/option>/);
-  assert.match(markupNo, /<option value="Yes">Yes<\/option>/);
+  for (const [tradeManagement, protectedValue] of Object.entries(expected)) {
+    assert.equal(getSmartProtectedValue(tradeManagement), protectedValue, `${tradeManagement} should map to Protected = ${protectedValue}.`);
+  }
 });
 
-test('a trade with no Protected value chosen defaults to the blank "None" option, never Yes or No', () => {
-  const { renderProtectedSelect } = loadProtectedModule();
+test('getSmartProtectedValue defaults to No for blank/None or any unrecognized value', () => {
+  const { getSmartProtectedValue } = loadProtectedModule();
 
-  // Existing trades (saved before this field existed) have no `protected`
-  // property at all — this must render as the blank default, not silently
-  // assume Yes or No.
-  const markupMissingField = renderProtectedSelect({});
-  assert.match(markupMissingField, /<option value="">None<\/option>/);
-  assert.equal(markupMissingField.includes('selected>Yes<'), false);
-  assert.equal(markupMissingField.includes('selected>No<'), false);
-
-  const markupBlankField = renderProtectedSelect({ protected: '' });
-  assert.match(markupBlankField, /<option value="">None<\/option>/);
+  assert.equal(getSmartProtectedValue(''), 'No');
+  assert.equal(getSmartProtectedValue(undefined), 'No');
+  assert.equal(getSmartProtectedValue(null), 'No');
+  assert.equal(getSmartProtectedValue('Some Unlisted Value'), 'No');
 });
 
-test('Protected is wired into the edit form and the Supabase annotation sync whitelist', () => {
-  assert.ok(
-    source.includes("${field('Protected', renderProtectedSelect(trade))}"),
-    'The edit form should render the Protected dropdown alongside Trade Management/Grade.',
-  );
+test('Scale Out is a real, selectable Trade Management option', () => {
+  assertIncludes(source, "'Scale Out',", 'Scale Out should be added to TRADE_MANAGEMENT_OPTIONS.');
+});
+
+test('renderProtectedDisplay renders a read-only input (not a select) so Protected can no longer be set independently', () => {
+  const { renderProtectedDisplay } = loadProtectedModule();
+
+  const markupTrailStop = renderProtectedDisplay({ tradeManagement: 'Trail Stop' });
+  assertIncludes(markupTrailStop, 'name="protected"', 'Protected must still submit as "protected" so saving is unaffected.');
+  assertIncludes(markupTrailStop, 'readonly', 'Protected must be read-only, not an editable dropdown.');
+  assertIncludes(markupTrailStop, 'value="Yes"', 'Trail Stop should calculate Protected = Yes.');
+  assert.equal(markupTrailStop.includes('<select'), false, 'Protected should no longer render as a <select>.');
+
+  const markupSetForget = renderProtectedDisplay({ tradeManagement: 'Set & Forget' });
+  assertIncludes(markupSetForget, 'value="No"', 'Set & Forget should calculate Protected = No.');
+
+  // A trade with no Trade Management chosen at all (blank/undefined) must
+  // still calculate a value (No), never render blank or throw.
+  const markupNoManagement = renderProtectedDisplay({});
+  assertIncludes(markupNoManagement, 'value="No"', 'No Trade Management chosen should calculate Protected = No.');
+});
+
+test('Protected is calculated from the trade\'s current Trade Management, not from any independently-saved protected value', () => {
+  const { renderProtectedDisplay } = loadProtectedModule();
+
+  // Even if a trade has an old, independently-set `protected` value from
+  // before Smart Protected existed, the read-only display must show the
+  // value calculated from Trade Management — this is what "read-only
+  // because it's automatically calculated" means. The stale stored value is
+  // only ever overwritten once the trade is actually saved (see
+  // buildTradeEditUpdate, unchanged), not merely by opening the edit form.
+  const markup = renderProtectedDisplay({ tradeManagement: 'Trail Stop', protected: 'No' });
+  assertIncludes(markup, 'value="Yes"', 'Protected should reflect Trade Management (Yes for Trail Stop), ignoring a stale saved protected value.');
+});
+
+test('Protected is wired into both edit forms via renderProtectedDisplay, and still saves through the existing Supabase whitelist', () => {
+  assertIncludes(source, "${field('Protected', renderProtectedDisplay(trade))}", 'The edit form should render the read-only Protected value alongside Trade Management/Grade.');
   assert.ok(
     source.includes("protected: String(formData.get('protected')).trim(),"),
-    'Saving an edited trade should read the Protected field like the other journal fields.',
+    'Saving an edited trade should still read the Protected field like the other journal fields — unchanged, since the input keeps the same name="protected".',
   );
 
   const mainWhitelistMatch = source.match(/const JOURNAL_ANNOTATION_FIELDS = \[[^\]]*\];/);
@@ -123,6 +165,19 @@ test('Protected is wired into the edit form and the Supabase annotation sync whi
   assert.ok(
     mainWhitelistMatch[0].includes("'protected'"),
     "protected must be in the Supabase annotation whitelist (main.js), or edits will be silently stripped before syncing.",
+  );
+});
+
+test('Trade Management changes update the Protected input immediately, scoped to that trade card only', () => {
+  assertIncludes(
+    source,
+    'tradeCardElement.querySelectorAll(\'select[name="tradeManagement"]\').forEach((select) => {',
+    'A change listener on the Trade Management select should exist, scoped per trade card (so multi-card editing is unaffected).',
+  );
+  assertIncludes(
+    source,
+    'protectedInput.value = getSmartProtectedValue(select.value);',
+    'Changing Trade Management should immediately recalculate the Protected input\'s value using the same shared mapping function used at render time.',
   );
 });
 
@@ -134,6 +189,8 @@ test('Protected displays on the trade card journal panel', () => {
 });
 
 // --- Protected % dashboard metric -----------------------------------------
+// Unaffected by Smart Protected: this reads trade.protected as saved,
+// regardless of how that value was produced.
 
 test('getStats computes Protected % as Yes-marked trades divided by all trades in the list, times 100', () => {
   assert.ok(

@@ -48,7 +48,7 @@ test('Quick Edit reuses the same form contract as Review so submitTradeEdit need
     'renderMarketStateSelect(trade)', // name="state"
     'renderTimeframeSelect(trade)', // name="timeframe"
     'renderTradeManagementSelect(trade)', // name="tradeManagement"
-    'renderProtectedSelect(trade)', // name="protected"
+    'renderProtectedDisplay(trade)', // name="protected" (read-only, calculated)
     'renderCloseReasonSelect(trade)', // name="closeReason"
     'renderGradeSelect(trade)', // name="grade"
   ];
@@ -99,6 +99,7 @@ test('v1.1: related fields are paired into two-column rows to fit a 400-450px pa
     ["field('Setup'", "field('Position'"],
     ["field('State'", "field('Timeframe'"],
     ["field('Trade Management'", "field('Protected'"],
+    ["field('Grade'", "field('Loss Reason'"],
   ];
 
   for (const [first, second] of pairedRows) {
