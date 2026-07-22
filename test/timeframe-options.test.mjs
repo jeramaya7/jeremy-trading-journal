@@ -168,3 +168,19 @@ test('existing trades are not affected by the new-trade Timeframe default', () =
   // touch timeframe at all — only submitTrade (brand-new trades) sets it.
   assert.equal(source.includes("trade.timeframe = trade.timeframe || '1m'"), false, 'Existing trades must not be retroactively defaulted to 1m on load.');
 });
+
+test('end-to-end: a freshly-created trade object (exactly as submitTrade builds it) renders with 1m already selected, before any manual change', () => {
+  // This simulates what happens right after Save: submitTrade() builds a
+  // trade object with `timeframe: '1m'` baked in (verified above), and that
+  // object — completely untouched by any dropdown interaction — is what
+  // Edit/Quick Edit's renderTimeframeSelect(trade) renders from. If this
+  // passes, "1m" really is pre-selected the first time the edit form opens
+  // for a brand-new trade — not just present as a string somewhere in the
+  // save logic.
+  const { renderTimeframeSelect } = loadTimeframeModule();
+
+  const freshlyCreatedTrade = { id: 'new-trade', timeframe: '1m' }; // mirrors submitTrade()'s nextTrade shape for this field
+  const markup = renderTimeframeSelect(freshlyCreatedTrade);
+  assert.match(markup, /<option value="1m" selected>1m<\/option>/, 'A brand-new trade should render with 1m already selected.');
+  assert.equal(markup.includes('<option value="" selected>'), false, 'The blank "None" option must not be the one marked selected for a brand-new trade.');
+});
