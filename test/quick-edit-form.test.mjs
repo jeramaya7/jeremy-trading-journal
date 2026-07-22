@@ -99,7 +99,7 @@ test('v1.1: related fields are paired into two-column rows to fit a 400-450px pa
     ["field('Setup'", "field('Position'"],
     ["field('State'", "field('Timeframe'"],
     ["field('Trade Management'", "field('Protected'"],
-    ["field('Grade'", "field('Loss Reason'"],
+    ["field('Exit Reason'", "field('Loss Reason'"],
   ];
 
   for (const [first, second] of pairedRows) {
@@ -113,6 +113,16 @@ test('v1.1: related fields are paired into two-column rows to fit a 400-450px pa
 
   assertIncludes(cssSource, '.quick-edit-row {\n  display: grid;', 'The quick-edit-row class lays fields out as a two-column grid.');
   assertIncludes(cssSource.replace(/quick-edit-row \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/s, 'MATCHED'), 'MATCHED', 'quick-edit-row uses a 2-column grid template.');
+
+  // Grade is the final evaluation step, on its own row beneath Management's
+  // quick-edit-row pairs — not paired with anything else.
+  const gradeIndex = quickEditSource.indexOf("field('Grade'");
+  const nearestRowBeforeGrade = quickEditSource.lastIndexOf('<div class="quick-edit-row">', gradeIndex);
+  const nearestRowCloseBeforeGrade = quickEditSource.lastIndexOf('</div>', gradeIndex);
+  assert.ok(
+    nearestRowCloseBeforeGrade > nearestRowBeforeGrade,
+    "Grade should render after the preceding quick-edit-row has already closed — it is not inside any quick-edit-row.",
+  );
 });
 
 test('v1.1: Notes stays at 3 rows and Screenshot is collapsed by default behind a Show/Hide toggle', () => {

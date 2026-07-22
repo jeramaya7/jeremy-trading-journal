@@ -3128,12 +3128,12 @@ function editTradeForm(trade) {
           <div class="edit-form-row edit-review-row" aria-label="Trade review">
             ${field('Trade Management', renderTradeManagementSelect(trade))}
             ${field('Protected', renderProtectedDisplay(trade))}
-            ${field('Grade', renderGradeSelect(trade))}
+            ${field('Exit Reason', renderCloseReasonSelect(trade))}
             <div class="edit-loss-reason-field"${isLossOutcome ? '' : ' hidden'}>
               ${field('Loss Reason', renderLossReasonSelect(trade))}
             </div>
           </div>
-          ${field('Exit Reason', renderCloseReasonSelect(trade))}
+          ${field('Grade', renderGradeSelect(trade))}
         </div>
         <div class="edit-form-section">
           <h4 class="edit-form-section-label">Journal</h4>
@@ -3225,12 +3225,12 @@ function editTradeFormQuickEdit(trade) {
             ${field('Protected', renderProtectedDisplay(trade))}
           </div>
           <div class="quick-edit-row">
-            ${field('Grade', renderGradeSelect(trade))}
+            ${field('Exit Reason', renderCloseReasonSelect(trade))}
             <div class="edit-loss-reason-field"${isLossOutcome ? '' : ' hidden'}>
               ${field('Loss Reason', renderLossReasonSelect(trade))}
             </div>
           </div>
-          ${field('Exit Reason', renderCloseReasonSelect(trade))}
+          ${field('Grade', renderGradeSelect(trade))}
         </div>
         <div class="edit-form-section quick-edit-section">
           <h4 class="edit-form-section-label">Journal</h4>
