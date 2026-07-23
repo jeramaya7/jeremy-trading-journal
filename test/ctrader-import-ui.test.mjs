@@ -237,8 +237,9 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(reviewBody, "${field('Exit Reason', renderCloseReasonSelect(trade))}", 'Exit Reason is in Trade Review.');
   assertIncludes(reviewBody, "${field('Loss Reason', renderLossReasonSelect(trade))}", 'Loss Reason is in Trade Review.');
   assertIncludes(reviewBody, "${field('Grade', renderGradeSelect(trade))}", 'Grade is still in the Trade Review section (on its own row below).');
+  assertIncludes(reviewBody, "${field('Outcome Override', renderOutcomeOverrideSelect(trade))}", 'Outcome Override is in the Trade Review section, alongside Grade.');
   assertIncludes(reviewBody, "class=\"edit-loss-reason-field\"${isLossOutcome ? '' : ' hidden'}", 'Loss Reason is only visible when the trade outcome is a Loss.');
-  assertIncludes(editFormBody, "const isLossOutcome = classifyTradeOutcome(calculatePnl(trade)) === 'loss';", 'Loss outcome uses the shared classifier, matching the trade card\'s own Win/Loss/Breakeven label.');
+  assertIncludes(editFormBody, "const isLossOutcome = classifyTradeOutcome(calculatePnl(trade), trade.outcomeOverride) === 'loss';", 'Loss outcome uses the shared classifier (respecting Outcome Override), matching the trade card\'s own Win/Loss/Breakeven label.');
 
   // Trade Management, Protected, Exit Reason, and the (hidden-when-not-loss)
   // Loss Reason field are all grid children of the same edit-review-row —

@@ -77,6 +77,8 @@ function loadStatsModuleWithTrades(initialTrades) {
   const code = [
     'let trades = ' + JSON.stringify(initialTrades) + ';',
     extractConst('OUTCOME_DOLLAR_THRESHOLD'),
+    // classifyTradeOutcome's Outcome Override lookup also references this.
+    extractConst('OUTCOME_OVERRIDE_LABEL_TO_KEY'),
     'function getActiveTrades() { return trades.filter((trade) => !trade.deletedAt); }',
     ...STATS_MATH_FUNCTIONS.map(extractFunction),
     'module.exports = { getActiveTrades, filterTradesForPeriod, getStats };',

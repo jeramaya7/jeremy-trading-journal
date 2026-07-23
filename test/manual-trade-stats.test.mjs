@@ -86,6 +86,8 @@ const STATS_MATH_FUNCTIONS = [
 function loadStatsModule() {
   const code = [
     extractConst('OUTCOME_DOLLAR_THRESHOLD'),
+    // classifyTradeOutcome's Outcome Override lookup also references this.
+    extractConst('OUTCOME_OVERRIDE_LABEL_TO_KEY'),
     ...STATS_MATH_FUNCTIONS.map(extractFunction),
     'module.exports = { ' + STATS_MATH_FUNCTIONS.join(', ') + ' };',
   ].join('\n\n');
@@ -179,6 +181,50 @@ test('one manual trade + one imported trade together update every dashboard stat
   assert.equal(balanceAtDayStart, startingBalance, 'Balance at start of today should be unaffected by trades that close today.');
   const roiPercent = calculateRoiPercent(stats.totalPnl, balanceAtDayStart);
   assert.equal(roiPercent, (40 / 5600) * 100, 'ROI % should be computed from Net P/L that includes the manual trade.');
+});
+
+test('Outcome Override flows through getStats(): a Breakeven-overridden loss no longer counts as a loss', () => {
+  const { getStats } = loadStatsModule();
+
+  // A real loss (-$50) that the user has manually reclassified as Breakeven
+  // (e.g. a small stop-out caused by slippage/commission) must not count
+  // toward Win Rate's denominator or Profit Factor's gross loss — exactly
+  // as if it had automatically classified as Breakeven.
+  const overriddenLossTrade = {
+    id: 'overridden-1', date: '2026-07-16', symbol: 'EURUSD', direction: 'Long',
+    entry: 1.1000, exit: 1.0995, size: 100000, protected: 'No',
+    outcomeOverride: 'Breakeven',
+  };
+  const plainWinTrade = {
+    id: 'plain-win', date: '2026-07-16', symbol: 'EURUSD', direction: 'Long',
+    entry: 1.1000, exit: 1.1010, size: 100000, protected: 'No',
+  };
+
+  const stats = getStats([overriddenLossTrade, plainWinTrade]);
+
+  assert.equal(stats.tradeCount, 2, 'Both trades should still be counted.');
+  assert.ok(Math.abs(stats.totalPnl - 50) < 0.01, 'Total P/L should still reflect the real dollar P/L (-50 + 100 = 50), override or not.');
+  assert.equal(stats.winRate, 100, 'Win Rate should be 1 win / 1 decided trade = 100%, since the overridden loss is excluded as Breakeven, not counted as a loss.');
+});
+
+test('Outcome Override flows through getStats(): a Win-overridden breakeven trade counts as a win', () => {
+  const { getStats } = loadStatsModule();
+
+  // A near-flat trade (well inside the $1.00 automatic Breakeven band) that
+  // the user manually marks as a Win must count as a win in Win Rate.
+  const overriddenWinTrade = {
+    id: 'overridden-2', date: '2026-07-16', symbol: 'EURUSD', direction: 'Long',
+    entry: 1.1000, exit: 1.10002, size: 100000, protected: 'No',
+    outcomeOverride: 'Win',
+  };
+  const plainLossTrade = {
+    id: 'plain-loss', date: '2026-07-16', symbol: 'EURUSD', direction: 'Long',
+    entry: 1.1000, exit: 1.0990, size: 100000, protected: 'No',
+  };
+
+  const stats = getStats([overriddenWinTrade, plainLossTrade]);
+
+  assert.equal(stats.winRate, 50, 'Win Rate should be 1 win / 2 decided trades = 50%, only true if the overridden near-flat trade counts as a Win rather than Breakeven.');
 });
 
 test('a manual trade with only a date string is counted in every period filter (Day/WTD/MTD/YTD/Beginning)', () => {

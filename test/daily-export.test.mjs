@@ -102,6 +102,8 @@ function runExportDailyTrades(tradesFixture) {
   const code = [
     extractConst('OUTCOME_DOLLAR_THRESHOLD'),
     extractConst('TRADE_OUTCOME_LABELS'),
+    // classifyTradeOutcome's Outcome Override lookup also references this.
+    extractConst('OUTCOME_OVERRIDE_LABEL_TO_KEY'),
     ...EXPORT_FUNCTIONS.map(extractFunction),
     'module.exports = { exportDailyTrades };',
   ].join('\n\n');

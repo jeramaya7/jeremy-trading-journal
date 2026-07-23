@@ -217,6 +217,29 @@ test('PUT /api/journal/annotations/:tradeId saves and syncs Initial Stop Loss (s
   }, { fetchImpl });
 });
 
+test('PUT /api/journal/annotations/:tradeId saves and syncs Outcome Override', async () => {
+  // outcomeOverride must be in JOURNAL_ANNOTATION_FIELDS or a Win/Breakeven/
+  // Loss override would be silently stripped before reaching Supabase and
+  // never appear on a second device.
+  const { fetchImpl } = createFakeSupabase();
+  await withServer(async ({ port }) => {
+    const putResponse = await fetch(`http://127.0.0.1:${port}/api/journal/annotations/trade-1`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ outcomeOverride: 'Breakeven' }),
+    });
+    const putBody = await putResponse.json();
+
+    assert.equal(putResponse.status, 200);
+    assert.deepEqual(putBody, { tradeId: 'trade-1', outcomeOverride: 'Breakeven' });
+
+    const getResponse = await fetch(`http://127.0.0.1:${port}/api/journal/annotations`);
+    const getBody = await getResponse.json();
+
+    assert.deepEqual(getBody, { 'trade-1': { outcomeOverride: 'Breakeven' } });
+  }, { fetchImpl });
+});
+
 test('PUT /api/journal/annotations/:tradeId saves and syncs Timeframe like the other journal fields', async () => {
   // New field: timeframe must round-trip through PUT and GET exactly like
   // setup/state/position, so it saves, reloads, and syncs across devices.

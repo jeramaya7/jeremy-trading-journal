@@ -51,6 +51,7 @@ test('Quick Edit reuses the same form contract as Review so submitTradeEdit need
     'renderProtectedDisplay(trade)', // name="protected" (read-only, calculated)
     'renderCloseReasonSelect(trade)', // name="closeReason"
     'renderGradeSelect(trade)', // name="grade"
+    'renderOutcomeOverrideSelect(trade)', // name="outcomeOverride"
   ];
 
   const quickEditStart = source.indexOf('function editTradeFormQuickEdit(trade)');

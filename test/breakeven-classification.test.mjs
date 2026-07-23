@@ -65,6 +65,8 @@ function loadTradeMathModule() {
     // from the real source rather than hardcoded so the test can't drift
     // out of sync with the shipped threshold.
     extractConst('OUTCOME_DOLLAR_THRESHOLD'),
+    // classifyTradeOutcome's Outcome Override lookup also references this.
+    extractConst('OUTCOME_OVERRIDE_LABEL_TO_KEY'),
     ...PURE_TRADE_MATH_FUNCTIONS.map(extractFunction),
     'module.exports = { ' + PURE_TRADE_MATH_FUNCTIONS.join(', ') + ' };',
   ].join('\n\n');
@@ -90,6 +92,35 @@ test('Outcome boundary values classify exactly as specified: $1.00 and beyond is
   assert.equal(classifyTradeOutcome(1.01), 'win', '+$1.01 should be a Win.');
   assert.equal(classifyTradeOutcome(-1.01), 'loss', '-$1.01 should be a Loss.');
   assert.equal(classifyTradeOutcome(0), 'breakeven', 'Exactly $0.00 should be Breakeven.');
+});
+
+test('Outcome Override: Win/Breakeven/Loss ignore the automatic dollar calculation entirely', () => {
+  const { classifyTradeOutcome } = loadTradeMathModule();
+
+  // A big winner (+$500) and a big loser (-$500) would automatically
+  // classify as Win/Loss — the override must replace that result outright,
+  // not just nudge it.
+  assert.equal(classifyTradeOutcome(500, 'Win'), 'win', 'Win override on a big winner stays Win.');
+  assert.equal(classifyTradeOutcome(500, 'Breakeven'), 'breakeven', 'Breakeven override on a big winner forces Breakeven.');
+  assert.equal(classifyTradeOutcome(500, 'Loss'), 'loss', 'Loss override on a big winner forces Loss.');
+  assert.equal(classifyTradeOutcome(-500, 'Win'), 'win', 'Win override on a big loser forces Win.');
+  assert.equal(classifyTradeOutcome(-500, 'Breakeven'), 'breakeven', 'Breakeven override on a big loser forces Breakeven (the tiny slippage/commission use case).');
+  assert.equal(classifyTradeOutcome(-500, 'Loss'), 'loss', 'Loss override on a big loser stays Loss.');
+});
+
+test('Outcome Override: Auto (the default for every trade) falls through to the existing automatic logic, unchanged', () => {
+  const { classifyTradeOutcome } = loadTradeMathModule();
+
+  // 'Auto', '', undefined, and null must all behave identically to calling
+  // classifyTradeOutcome with no override at all — existing trades (which
+  // have no outcomeOverride field) and new trades (which default to the
+  // 'Auto' option) must see zero change in behavior.
+  assert.equal(classifyTradeOutcome(500, 'Auto'), 'win');
+  assert.equal(classifyTradeOutcome(500, ''), 'win');
+  assert.equal(classifyTradeOutcome(500, undefined), 'win');
+  assert.equal(classifyTradeOutcome(500, null), 'win');
+  assert.equal(classifyTradeOutcome(-500, 'Auto'), 'loss');
+  assert.equal(classifyTradeOutcome(0.42, 'Auto'), 'breakeven');
 });
 
 test('regression: a trade stopped out at a trailed (breakeven+) stop still classifies as Breakeven under the dollar rule', () => {
@@ -144,12 +175,13 @@ test('sanity: well-formed trades with a normal stop still classify as Win/Loss/B
   assert.equal(classifyTradeOutcome(calculatePnl(shortBigWinner)), 'win');
 });
 
-test('every breakeven-count call site shares the same single-argument classifyTradeOutcome(pnl) pipeline', () => {
+test('every breakeven-count call site shares the same classifyTradeOutcome(pnl, outcomeOverride) pipeline', () => {
   // The dashboard stats, setup analytics, asset analytics, session stats,
   // trade card, and calendar day review summary must all route through the
-  // same classifier so this rule (and any future one) applies everywhere at
+  // same classifier — and all pass trade.outcomeOverride as the second
+  // argument — so this rule (and Outcome Override) applies everywhere at
   // once, instead of needing six separate patches.
-  const sharedCallSites = source.match(/classifyTradeOutcome\((?:pnl(?:Values\[index\])?|tradePnls\[index\])\)/g) ?? [];
+  const sharedCallSites = source.match(/classifyTradeOutcome\((?:pnl(?:Values\[index\])?|tradePnls\[index\]|calculatePnl\(trade\)), trade\.outcomeOverride\)/g) ?? [];
   assert.ok(sharedCallSites.length >= 5, `Expected at least 5 shared classifyTradeOutcome call sites, found ${sharedCallSites.length}.`);
 });
 
@@ -189,8 +221,8 @@ test('trade card Outcome badge reuses the shared classifier and the existing DNA
   // the existing gold/navy analysis pill styling rather than introducing a
   // new win/loss color scheme.
   assert.ok(
-    source.includes("const tradeOutcomeLabel = TRADE_OUTCOME_LABELS[classifyTradeOutcome(pnl)] || '';"),
-    'tradeCard() should derive its Outcome label from the shared classifyTradeOutcome(pnl), not a separate calculation.',
+    source.includes("const tradeOutcomeLabel = TRADE_OUTCOME_LABELS[classifyTradeOutcome(pnl, trade.outcomeOverride)] || '';"),
+    'tradeCard() should derive its Outcome label from the shared classifyTradeOutcome(pnl, trade.outcomeOverride), not a separate calculation.',
   );
   assert.ok(
     source.includes("const TRADE_OUTCOME_LABELS = { win: 'Win', loss: 'Loss', breakeven: 'Breakeven' };"),

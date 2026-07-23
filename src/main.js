@@ -59,7 +59,7 @@ const AUTO_SYNC_INTERVAL_MS = 12 * 1000;
 
 // Fields the backend persists to Supabase for cross-device annotation sync.
 // Must match JOURNAL_ANNOTATION_FIELDS in src/server.js.
-const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'position', 'timeframe', 'protected', 'tradeManagement', 'grade', 'closeReason', 'lossReason', 'tags', 'notes', 'adjustedStopLoss', 'adjustedTakeProfit', 'takeProfit', 'stopLoss'];
+const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'position', 'timeframe', 'protected', 'tradeManagement', 'grade', 'closeReason', 'lossReason', 'tags', 'notes', 'adjustedStopLoss', 'adjustedTakeProfit', 'takeProfit', 'stopLoss', 'outcomeOverride'];
 
 const starterTrades = [
   {
@@ -1040,10 +1040,28 @@ function calculatePnl(trade) {
 // a flat dollar amount.)
 const OUTCOME_DOLLAR_THRESHOLD = 1.00;
 
+// Outcome Override: lets a trade's Win/Loss/Breakeven bucket be manually
+// forced (e.g. a tiny slippage/commission loss the trader wants treated as
+// Breakeven, or manual journaling classification), instead of always
+// following the automatic dollar-threshold rule below. 'Auto' (blank/no
+// override) is the default for every trade, existing and new, so nothing
+// changes unless a trade is explicitly overridden.
+const OUTCOME_OVERRIDE_OPTIONS = ['Win', 'Breakeven', 'Loss'];
+const OUTCOME_OVERRIDE_LABEL_TO_KEY = { Win: 'win', Breakeven: 'breakeven', Loss: 'loss' };
+
 // Single shared classification used everywhere wins/losses are counted
-// (dashboard stats, setup/asset/session analytics, calendar day review) so
-// a trade is never a Win in one report and Breakeven in another.
-function classifyTradeOutcome(pnl) {
+// (dashboard stats, setup/asset/session analytics, calendar day review,
+// trade card, exports) so a trade is never a Win in one report and
+// Breakeven in another. When a trade has a valid Outcome Override, that
+// value wins outright and the automatic pnl-based rule below is skipped
+// entirely — every call site passes trade.outcomeOverride as the second
+// argument so this is the one and only place the override is applied.
+function classifyTradeOutcome(pnl, outcomeOverride) {
+  const overrideKey = OUTCOME_OVERRIDE_LABEL_TO_KEY[String(outcomeOverride || '').trim()];
+  if (overrideKey) {
+    return overrideKey;
+  }
+
   if (pnl >= OUTCOME_DOLLAR_THRESHOLD) return 'win';
   if (pnl <= -OUTCOME_DOLLAR_THRESHOLD) return 'loss';
   return 'breakeven';
@@ -1227,7 +1245,7 @@ function getSetupAnalytics(tradeList = trades) {
 
     const pnl = calculatePnl(trade);
     const rMultiple = calculateRMultiple(trade);
-    const outcome = classifyTradeOutcome(pnl);
+    const outcome = classifyTradeOutcome(pnl, trade.outcomeOverride);
     const report = setupReports.get(setupName) ?? {
       setupName,
       tradeCount: 0,
@@ -1301,7 +1319,7 @@ function getAssetAnalytics(tradeList = trades) {
 
     const pnl = calculatePnl(trade);
     const rMultiple = calculateRMultiple(trade);
-    const outcome = classifyTradeOutcome(pnl);
+    const outcome = classifyTradeOutcome(pnl, trade.outcomeOverride);
     const report = assetReports.get(asset) ?? {
       asset,
       displayName: getFriendlyAssetName(asset),
@@ -1684,7 +1702,7 @@ function buildSessionStats(tradeList, labelFn, labelOrder) {
     if (!report) return;
     const pnl = calculatePnl(trade);
     const rMultiple = calculateRMultiple(trade);
-    const outcome = classifyTradeOutcome(pnl);
+    const outcome = classifyTradeOutcome(pnl, trade.outcomeOverride);
     report.tradeCount += 1;
     report.netPnl += pnl;
     if (outcome === 'win') { report.winCount += 1; report.winningPnl.push(pnl); }
@@ -2132,7 +2150,7 @@ function renderCalendarDayReviewSummary(dateKey, dayTrades) {
   const startingBalance = dayTrades.map(getTradeStartingBalance).find((balance) => balance !== null) ?? null;
   const pnlPercent = startingBalance ? formatPercent((pnl / startingBalance) * 100) : '—';
   const tradePnls = dayTrades.map(calculatePnl);
-  const tradeOutcomes = dayTrades.map((trade, index) => classifyTradeOutcome(tradePnls[index]));
+  const tradeOutcomes = dayTrades.map((trade, index) => classifyTradeOutcome(tradePnls[index], trade.outcomeOverride));
   const winningPnls = tradePnls.filter((value, index) => tradeOutcomes[index] === 'win');
   const losingPnls = tradePnls.filter((value, index) => tradeOutcomes[index] === 'loss');
   const breakevenCount = tradeOutcomes.filter((outcome) => outcome === 'breakeven').length;
@@ -2439,7 +2457,7 @@ function getStats(tradeList = trades) {
   // const riskDollarValues = trades.map(calculateRiskDollars).filter(Number.isFinite);
   // const riskPercentValues = trades.map(calculateRiskPercent).filter(Number.isFinite);
   const pnlValues = tradeList.map(calculatePnl);
-  const outcomes = tradeList.map((trade, index) => classifyTradeOutcome(pnlValues[index]));
+  const outcomes = tradeList.map((trade, index) => classifyTradeOutcome(pnlValues[index], trade.outcomeOverride));
   const totalRiskUsed = tradeList.map(calculateOriginalRiskDollars).filter(Number.isFinite).reduce((sum, value) => sum + value, 0);
   const performanceR = totalRiskUsed > 0 ? pnlValues.reduce((sum, value) => sum + value, 0) / totalRiskUsed : null;
   const riskDollarValues = tradeList.map(calculateRiskDollars).filter(Number.isFinite);
@@ -2778,7 +2796,7 @@ function tradeCard(trade) {
   const riskDollars = calculateRiskDollars(trade);
   const riskPercent = calculateRiskPercent(trade);
   const rMultiple = calculateRMultiple(trade);
-  const tradeOutcomeLabel = TRADE_OUTCOME_LABELS[classifyTradeOutcome(pnl)] || '';
+  const tradeOutcomeLabel = TRADE_OUTCOME_LABELS[classifyTradeOutcome(pnl, trade.outcomeOverride)] || '';
   const tone = getPerformanceTone(pnl);
   const rTone = getPerformanceTone(rMultiple);
   const importedTimeDetail = cTraderTimeDetails(trade);
@@ -3071,6 +3089,20 @@ function renderGradeSelect(trade) {
   `;
 }
 
+// Blank/"Auto" is the default for every trade (existing and new) — the
+// automatic classifyTradeOutcome() dollar-threshold rule applies exactly as
+// before. Picking Win/Breakeven/Loss here overrides that everywhere the
+// trade's outcome is used (trade card, dashboard, statistics, exports).
+function renderOutcomeOverrideSelect(trade) {
+  const current = String(trade.outcomeOverride || '').trim();
+  return `
+    <select name="outcomeOverride" aria-label="Outcome Override">
+      <option value="">Auto</option>
+      ${OUTCOME_OVERRIDE_OPTIONS.map((option) => renderSelectOption(option, current)).join('')}
+    </select>
+  `;
+}
+
 function renderTradeManagementSelect(trade) {
   const current = String(trade.tradeManagement || '').trim();
   return `
@@ -3098,7 +3130,7 @@ function editTradeForm(trade) {
   // Loss Reason only applies to trades that actually closed as a Loss —
   // reuses the same shared classifier as everywhere else Win/Loss/Breakeven
   // is decided, so it can never disagree with the trade card's own outcome.
-  const isLossOutcome = classifyTradeOutcome(calculatePnl(trade)) === 'loss';
+  const isLossOutcome = classifyTradeOutcome(calculatePnl(trade), trade.outcomeOverride) === 'loss';
   return `
       <form class="edit-trade-form" data-edit-trade-form="${escapeHtml(trade.id)}">
         <div class="edit-mode-banner" aria-label="Edit mode active">
@@ -3137,6 +3169,7 @@ function editTradeForm(trade) {
             </div>
           </div>
           ${field('Grade', renderGradeSelect(trade))}
+          ${field('Outcome Override', renderOutcomeOverrideSelect(trade))}
         </div>
         <div class="edit-form-section">
           <h4 class="edit-form-section-label">Journal</h4>
@@ -3189,7 +3222,7 @@ function editTradeFormQuickEdit(trade) {
   const removeButton = currentScreenshot
     ? `<button class="secondary-button" type="button" data-remove-edit-screenshot="${escapeHtml(trade.id)}">${icon('trash')} Remove screenshot</button>`
     : '';
-  const isLossOutcome = classifyTradeOutcome(calculatePnl(trade)) === 'loss';
+  const isLossOutcome = classifyTradeOutcome(calculatePnl(trade), trade.outcomeOverride) === 'loss';
   return `
       <form class="edit-trade-form quick-edit-form" data-edit-trade-form="${escapeHtml(trade.id)}">
         <div class="edit-mode-banner quick-edit-banner" aria-label="Quick Edit mode active">
@@ -3234,6 +3267,7 @@ function editTradeFormQuickEdit(trade) {
             </div>
           </div>
           ${field('Grade', renderGradeSelect(trade))}
+          ${field('Outcome Override', renderOutcomeOverrideSelect(trade))}
         </div>
         <div class="edit-form-section quick-edit-section">
           <h4 class="edit-form-section-label">Journal</h4>
@@ -4149,6 +4183,7 @@ async function buildTradeEditUpdate(form) {
     protected: String(formData.get('protected')).trim(),
     tradeManagement: String(formData.get('tradeManagement')).trim(),
     grade: String(formData.get('grade')).trim(),
+    outcomeOverride: String(formData.get('outcomeOverride')).trim(),
     // Tags is no longer editable from the edit form (removed per cleanup) —
     // omitted here entirely so the trade's existing tags value is preserved
     // unchanged by the { ...trade, ...journalingUpdates } spread below,
@@ -4959,7 +4994,7 @@ function exportDailyTrades() {
       screenshot: screenshot
         ? { attached: true, name: screenshot.name ?? null, type: screenshot.type ?? null, size: screenshot.size ?? null }
         : { attached: false },
-      outcome: TRADE_OUTCOME_LABELS[classifyTradeOutcome(pnl)] || '',
+      outcome: TRADE_OUTCOME_LABELS[classifyTradeOutcome(pnl, trade.outcomeOverride)] || '',
       pnl,
       rMultiple: calculateRMultiple(trade),
     };

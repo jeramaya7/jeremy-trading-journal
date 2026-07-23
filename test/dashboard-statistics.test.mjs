@@ -133,7 +133,7 @@ test('biggest winner and loser calculate from closed trade P&L', () => {
 
 test('Outcome classification uses a fixed $1.00 dollar threshold everywhere wins/losses are counted', () => {
   assert.ok(source.includes('const OUTCOME_DOLLAR_THRESHOLD = 1.00;'), 'Outcome threshold should be a flat $1.00, not a risk multiple.');
-  assert.ok(source.includes('function classifyTradeOutcome(pnl)'), 'A single shared classifier should decide win/loss/breakeven from raw dollar P/L alone.');
+  assert.ok(source.includes('function classifyTradeOutcome(pnl, outcomeOverride)'), 'A single shared classifier should decide win/loss/breakeven from raw dollar P/L alone (plus an optional manual Outcome Override).');
   assert.ok(source.includes('if (pnl >= OUTCOME_DOLLAR_THRESHOLD) return \'win\';'), 'P/L at or above +$1.00 should count as a win.');
   assert.ok(source.includes('if (pnl <= -OUTCOME_DOLLAR_THRESHOLD) return \'loss\';'), 'P/L at or below -$1.00 should count as a loss.');
   assert.ok(source.includes("return 'breakeven';"), 'P/L strictly between -$1.00 and +$1.00 should count as breakeven.');
@@ -145,10 +145,10 @@ test('Outcome classification uses a fixed $1.00 dollar threshold everywhere wins
   // Every place wins/losses were previously counted should still go through
   // the shared classifier instead, so a trade is never a Win in one report
   // and Breakeven in another.
-  const sharedCallSites = source.match(/classifyTradeOutcome\((?:pnl(?:Values\[index\])?|tradePnls\[index\])\)/g) ?? [];
+  const sharedCallSites = source.match(/classifyTradeOutcome\((?:pnl(?:Values\[index\])?|tradePnls\[index\]|calculatePnl\(trade\)), trade\.outcomeOverride\)/g) ?? [];
   assert.ok(sharedCallSites.length >= 5, 'The main dashboard, setup, asset, session analytics, and calendar day review should all classify trades the same way.');
-  assert.ok(source.includes('classifyTradeOutcome(pnlValues[index])'), 'The main dashboard stats should classify each trade individually.');
-  assert.ok(source.includes('classifyTradeOutcome(tradePnls[index])'), 'The calendar day review summary should use the shared classifier.');
+  assert.ok(source.includes('classifyTradeOutcome(pnlValues[index], trade.outcomeOverride)'), 'The main dashboard stats should classify each trade individually.');
+  assert.ok(source.includes('classifyTradeOutcome(tradePnls[index], trade.outcomeOverride)'), 'The calendar day review summary should use the shared classifier.');
 
   // Actual P/L is never hidden or altered by classification — only the
   // win/loss/breakeven bucket a trade counts toward changes.
