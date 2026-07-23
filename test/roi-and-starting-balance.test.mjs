@@ -296,26 +296,26 @@ test('Starting Account Balance is editable from the Settings modal, and is only 
   );
 });
 
-test('DNA Results first row renders ROI %, Biggest Winner, Biggest Loser, Profit Factor in that order', () => {
+test('DNA Results first row renders ROI %, Biggest Winner, Biggest Loser, Protected % in that order', () => {
   const roiIndex = source.indexOf('renderRoiCard(roiPercent),');
   const biggestWinnerIndex = source.indexOf("statCard('trend', 'Biggest Winner'");
   const biggestLoserIndex = source.indexOf("statCard('trend', 'Biggest Loser'");
-  const profitFactorIndex = source.indexOf("statCard('line', 'Profit Factor', formatProfitFactor(stats.profitFactor), getProfitFactorTone(stats.profitFactor))");
+  const protectedPercentIndex = source.indexOf("statCard('chart', 'Protected %', formatPercent(stats.protectedPercent))");
 
   assert.notEqual(roiIndex, -1, 'ROI % card should render in the DNA Results first row.');
-  assert.notEqual(profitFactorIndex, -1, 'Profit Factor card should render in the DNA Results first row.');
+  assert.notEqual(protectedPercentIndex, -1, 'Protected % card should render in the DNA Results first row.');
   assert.ok(
-    roiIndex < biggestWinnerIndex && biggestWinnerIndex < biggestLoserIndex && biggestLoserIndex < profitFactorIndex,
-    'DNA Results first row order should be: ROI %, Biggest Winner, Biggest Loser, Profit Factor.',
+    roiIndex < biggestWinnerIndex && biggestWinnerIndex < biggestLoserIndex && biggestLoserIndex < protectedPercentIndex,
+    'DNA Results first row order should be: ROI %, Biggest Winner, Biggest Loser, Protected %.',
   );
 });
 
-test('Profit Factor no longer renders in the top KPI row (it now lives under DNA Results)', () => {
+test('Profit Factor renders in the top KPI row (Dashboard hero stats row)', () => {
   const heroRowStart = source.indexOf('function renderHeroStatsRow(stats)');
   const heroRowEnd = source.indexOf('\nfunction ', heroRowStart + 1);
   const heroRowBody = source.slice(heroRowStart, heroRowEnd);
 
-  assert.equal(heroRowBody.includes('Profit Factor'), false, 'Profit Factor should not appear in renderHeroStatsRow.');
+  assert.ok(heroRowBody.includes('Profit Factor'), 'Profit Factor should appear in renderHeroStatsRow.');
 });
 
 test('Biggest Risk is removed from the dashboard entirely (display only — the calculation itself is untouched)', () => {

@@ -2648,7 +2648,7 @@ function renderTodayKpiStrip(todayTrades, todayStats) {
           ${statCard('trend', 'Today %', formatPercent(getTodayPnlPercent(todayTrades, todayPnl)))}
           ${statCard('target', 'Win Rate', formatPercent(todayStats.winRate))}
           ${statCard('chart', 'Trades', todayStats.tradeCount)}
-          ${statCard('chart', 'Protected %', formatPercent(todayStats.protectedPercent))}
+          ${statCard('line', 'Profit Factor', formatProfitFactor(todayStats.profitFactor), getProfitFactorTone(todayStats.profitFactor))}
         </section>`;
 }
 
@@ -2658,7 +2658,7 @@ function renderHeroStatsRow(stats) {
           ${statCard('trend', 'Net P/L', currency(stats.totalPnl), getMoneyTone(stats.totalPnl))}
           ${statCard('chart', 'Trades', stats.tradeCount)}
           ${statCard('target', 'Win Rate', formatPercent(stats.winRate))}
-          ${statCard('chart', 'Protected %', formatPercent(stats.protectedPercent))}
+          ${statCard('line', 'Profit Factor', formatProfitFactor(stats.profitFactor), getProfitFactorTone(stats.profitFactor))}
         </section>`;
 }
 
@@ -3353,7 +3353,7 @@ function render(options = {}) {
         renderRoiCard(roiPercent),
         statCard('trend', 'Biggest Winner', stats.biggestWinner === null ? '—' : currency(stats.biggestWinner)),
         statCard('trend', 'Biggest Loser', stats.biggestLoser === null ? '—' : currency(stats.biggestLoser), getMoneyTone(stats.biggestLoser)),
-        statCard('line', 'Profit Factor', formatProfitFactor(stats.profitFactor), getProfitFactorTone(stats.profitFactor)),
+        statCard('chart', 'Protected %', formatPercent(stats.protectedPercent)),
       ],
     },
     {

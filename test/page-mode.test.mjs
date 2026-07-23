@@ -24,7 +24,7 @@ test('Trading Mode renders a focused workbench without dashboard analytics secti
   assertIncludes(source, "statCard('trend', 'Today %'", 'Today KPI strip shows Today %.');
   assertIncludes(source, "statCard('target', 'Win Rate'", 'Today KPI strip shows Win Rate.');
   assertIncludes(source, "statCard('chart', 'Trades', todayStats.tradeCount)", 'Today KPI strip shows Trades.');
-  assertIncludes(source, "statCard('chart', 'Protected %', formatPercent(todayStats.protectedPercent))", 'Today KPI strip shows Protected % in place of Expectancy.');
+  assertIncludes(source, "statCard('line', 'Profit Factor', formatProfitFactor(todayStats.profitFactor), getProfitFactorTone(todayStats.profitFactor))", 'Today KPI strip shows Profit Factor in place of Expectancy.');
   assert.equal(source.includes("statCard('trend', 'Expectancy', formatRMultiple(todayStats.averageR))"), false, 'Expectancy should no longer render in the Today KPI strip.');
   // Follow-up fix: Trading Mode now also shows the Manual Trade panel
   // (moved to the top of the journal panel) — it no longer opts out via
@@ -39,12 +39,12 @@ test('Trading Mode renders a focused workbench without dashboard analytics secti
   const todayPercentIndex = source.indexOf("statCard('trend', 'Today %'");
   const todayWinRateIndex = source.indexOf("statCard('target', 'Win Rate', formatPercent(todayStats.winRate))");
   const todayTradesIndex = source.indexOf("statCard('chart', 'Trades', todayStats.tradeCount)");
-  const todayProtectedIndex = source.indexOf("statCard('chart', 'Protected %', formatPercent(todayStats.protectedPercent))");
+  const todayProfitFactorIndex = source.indexOf("statCard('line', 'Profit Factor', formatProfitFactor(todayStats.profitFactor), getProfitFactorTone(todayStats.profitFactor))");
   assert.ok(
     todayPnlIndex !== -1 && todayPnlIndex < todayPercentIndex
       && todayPercentIndex < todayWinRateIndex
       && todayWinRateIndex < todayTradesIndex
-      && todayTradesIndex < todayProtectedIndex,
-    'Today KPI strip should render in order: Today P/L, Today %, Win Rate, Trades, Protected %.',
+      && todayTradesIndex < todayProfitFactorIndex,
+    'Today KPI strip should render in order: Today P/L, Today %, Win Rate, Trades, Profit Factor.',
   );
 });

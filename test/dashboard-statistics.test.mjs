@@ -24,7 +24,7 @@ test('dashboard renders top KPI row above the DNA Results with requested perform
   assert.equal(source.includes("statCard('line', 'Total R', formatRMultiple(stats.totalR)"), false, 'Total R should not render as a KPI card.');
   assert.ok(source.includes("statCard('chart', 'Trades', stats.tradeCount)"), 'Trades should render in the top KPI row.');
   assert.ok(source.includes("statCard('target', 'Win Rate'"), 'Win Rate should render in the hero stats row.');
-  assert.ok(source.includes("statCard('chart', 'Protected %', formatPercent(stats.protectedPercent))"), 'Protected % should render as the fourth card in the top KPI row.');
+  assert.ok(source.includes("statCard('line', 'Profit Factor', formatProfitFactor(stats.profitFactor), getProfitFactorTone(stats.profitFactor))"), 'Profit Factor should render as the fourth card in the top KPI row.');
   assert.equal(source.includes("statCard('trend', 'Expectancy', formatRMultiple(stats.averageR))"), false, 'Expectancy (Average R) should no longer render in the top KPI row.');
   assert.equal(source.includes("statCard('target', 'Average R', formatRMultiple(stats.averageR))"), false, 'Average R should no longer render as a DNA Results dashboard card.');
   assert.ok(source.includes("statCard('target', 'Average Risk $'"), 'Average Risk $ should render as a dashboard card.');
@@ -33,23 +33,15 @@ test('dashboard renders top KPI row above the DNA Results with requested perform
   const netPnlIndex = source.indexOf("statCard('trend', 'Net P/L', currency(stats.totalPnl), getMoneyTone(stats.totalPnl))");
   const tradesIndex = source.indexOf("statCard('chart', 'Trades', stats.tradeCount)");
   const winRateIndex = source.indexOf("statCard('target', 'Win Rate', formatPercent(stats.winRate))");
-  const protectedPercentIndex = source.indexOf("statCard('chart', 'Protected %', formatPercent(stats.protectedPercent))");
+  const heroProfitFactorIndex = source.indexOf("statCard('line', 'Profit Factor', formatProfitFactor(stats.profitFactor), getProfitFactorTone(stats.profitFactor))");
   assert.ok(
     netPnlIndex !== -1 && netPnlIndex < tradesIndex
       && tradesIndex < winRateIndex
-      && winRateIndex < protectedPercentIndex,
-    'The top KPI row should render in order: Net P/L, Trades, Win Rate, Protected %.',
+      && winRateIndex < heroProfitFactorIndex,
+    'The top KPI row should render in order: Net P/L, Trades, Win Rate, Profit Factor.',
   );
 
-  // Profit Factor must not appear in the top KPI row at all — it belongs
-  // under DNA Results instead. renderHeroStatsRow's body is bounded by the
-  // next function declaration.
-  const heroRowStart = source.indexOf('function renderHeroStatsRow(stats)');
-  const heroRowEnd = source.indexOf('\nfunction ', heroRowStart + 1);
-  const heroRowBody = source.slice(heroRowStart, heroRowEnd);
-  assert.equal(heroRowBody.includes('Profit Factor'), false, 'Profit Factor should not render in the top KPI row.');
-
-  // Profit Factor must render under DNA Results as the fourth card in the
+  // Protected % must render under DNA Results as the fourth card in the
   // first row, alongside ROI %, Biggest Winner, Biggest Loser.
   assert.ok(source.includes("renderRoiCard(roiPercent),"), 'ROI % should render as the first DNA Results card.');
   assert.ok(source.includes("statCard('trend', 'Biggest Winner'"), 'Biggest Winner should render as a DNA Results card.');
@@ -57,12 +49,12 @@ test('dashboard renders top KPI row above the DNA Results with requested perform
   const roiIndex = source.indexOf('renderRoiCard(roiPercent),');
   const biggestWinnerIndex = source.indexOf("statCard('trend', 'Biggest Winner'");
   const biggestLoserIndex = source.indexOf("statCard('trend', 'Biggest Loser'");
-  const dnaProfitFactorIndex = source.indexOf("statCard('line', 'Profit Factor', formatProfitFactor(stats.profitFactor), getProfitFactorTone(stats.profitFactor))");
+  const dnaProtectedPercentIndex = source.indexOf("statCard('chart', 'Protected %', formatPercent(stats.protectedPercent))");
   assert.ok(
     roiIndex !== -1 && roiIndex < biggestWinnerIndex
       && biggestWinnerIndex < biggestLoserIndex
-      && biggestLoserIndex < dnaProfitFactorIndex,
-    'DNA Results first row should render in order: ROI %, Biggest Winner, Biggest Loser, Profit Factor.',
+      && biggestLoserIndex < dnaProtectedPercentIndex,
+    'DNA Results first row should render in order: ROI %, Biggest Winner, Biggest Loser, Protected %.',
   );
 });
 
