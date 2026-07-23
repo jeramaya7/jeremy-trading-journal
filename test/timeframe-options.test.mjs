@@ -144,43 +144,59 @@ test('Timeframe is wired into the edit form and the Supabase annotation sync whi
   );
 });
 
-test('new manually-logged trades default their Timeframe to 1m', () => {
-  // The "Add manual trade" form has no Timeframe input of its own (Timeframe
-  // is only editable afterward via Edit/Quick Edit), so the default has to
-  // be a hardcoded value in submitTrade()'s new-trade object, not read from
-  // form data.
+function getManualTradeFormBody() {
+  const manualFormStart = source.indexOf('function renderManualTradeForm(today)');
+  const manualFormEnd = source.indexOf('\nasync function openShareDashboardView', manualFormStart + 1);
+  assert.notEqual(manualFormStart, -1, 'renderManualTradeForm should exist.');
+  return source.slice(manualFormStart, manualFormEnd === -1 ? undefined : manualFormEnd);
+}
+
+test('the live "Add manual trade" screen itself renders a Timeframe dropdown, pre-selected to 1m, before Save is ever clicked', () => {
+  // This is the actual UI creation path (the form the user looks at while
+  // typing in a new trade) — not just submitTrade()'s save-time object.
+  // Regression: an earlier fix only set timeframe: '1m' inside submitTrade's
+  // saved object; this form had no Timeframe field at all, so nothing was
+  // ever visibly "1m" until after Save, via a separate Edit/Quick Edit form.
+  const manualFormBody = getManualTradeFormBody();
+  assertIncludes(manualFormBody, "${field('Timeframe', renderTimeframeSelect({ timeframe: '1m' }))}", 'The Add Trade form should render the shared Timeframe dropdown, defaulted to 1m.');
+
+  // Execute the real renderManualTradeForm() and confirm the rendered
+  // <select> actually shows 1m as the selected option, not just present in
+  // the source as a call — this is what "1m immediately before saving"
+  // requires.
+  const code = [
+    extractConst('TRADE_TIMEFRAME_OPTIONS'),
+    extractFunction('escapeHtml'),
+    extractFunction('renderSelectOption'),
+    extractFunction('renderTimeframeSelect'),
+    extractFunction('icon'),
+    "function field(label, control) { return `<label class=\"field\"><span>${label}</span>${control}</label>`; }",
+    extractFunction('renderManualTradeForm'),
+    'module.exports = { renderManualTradeForm };',
+  ].join('\n\n');
+  const context = { module: { exports: {} } };
+  vm.createContext(context);
+  vm.runInContext(code, context, { filename: 'main.js (extracted manual trade form)' });
+  const formMarkup = context.module.exports.renderManualTradeForm('2026-01-01');
+
+  assert.match(formMarkup, /<option value="1m" selected>1m<\/option>/, 'The rendered Add Trade form must show 1m already selected in the Timeframe dropdown.');
+  assert.equal(formMarkup.includes('<option value="" selected>'), false, 'The blank "None" option must not be the one selected on a brand-new trade.');
+});
+
+test('submitTrade saves whatever the Add Trade form\'s own Timeframe dropdown is set to (not a value disconnected from the visible UI)', () => {
+  // Fixes the actual bug: the object saved by submitTrade() must come from
+  // the same form field the user sees and can change, not a hardcoded
+  // literal that happens to also say '1m' but is wired to nothing.
   const submitTradeStart = source.indexOf('async function submitTrade(event)');
   const submitTradeEnd = source.indexOf('\nasync function ', submitTradeStart + 1);
   assert.notEqual(submitTradeStart, -1, 'submitTrade should exist.');
   const submitTradeBody = source.slice(submitTradeStart, submitTradeEnd === -1 ? undefined : submitTradeEnd);
 
-  assertIncludes(submitTradeBody, "timeframe: '1m',", 'New trades should default to the 1m chart timeframe.');
-
-  const manualFormStart = source.indexOf('function renderManualTradeForm(today)');
-  const manualFormEnd = source.indexOf('\nasync function openShareDashboardView', manualFormStart + 1);
-  assert.notEqual(manualFormStart, -1, 'renderManualTradeForm should exist.');
-  const manualFormBody = source.slice(manualFormStart, manualFormEnd === -1 ? undefined : manualFormEnd);
-  assert.equal(manualFormBody.includes('name="timeframe"'), false, 'The Add Trade form itself should not gain a new Timeframe input — the default is applied in code, keeping the form unchanged (no redesign).');
+  assertIncludes(submitTradeBody, "timeframe: String(formData.get('timeframe') || '1m').trim(),", "submitTrade should read timeframe from the form's own Timeframe field (falling back to 1m only if it were somehow blank), not a disconnected hardcoded value.");
 });
 
 test('existing trades are not affected by the new-trade Timeframe default', () => {
   // normalizeTradeSetups / loadTrades (the localStorage load path) must not
   // touch timeframe at all — only submitTrade (brand-new trades) sets it.
   assert.equal(source.includes("trade.timeframe = trade.timeframe || '1m'"), false, 'Existing trades must not be retroactively defaulted to 1m on load.');
-});
-
-test('end-to-end: a freshly-created trade object (exactly as submitTrade builds it) renders with 1m already selected, before any manual change', () => {
-  // This simulates what happens right after Save: submitTrade() builds a
-  // trade object with `timeframe: '1m'` baked in (verified above), and that
-  // object — completely untouched by any dropdown interaction — is what
-  // Edit/Quick Edit's renderTimeframeSelect(trade) renders from. If this
-  // passes, "1m" really is pre-selected the first time the edit form opens
-  // for a brand-new trade — not just present as a string somewhere in the
-  // save logic.
-  const { renderTimeframeSelect } = loadTimeframeModule();
-
-  const freshlyCreatedTrade = { id: 'new-trade', timeframe: '1m' }; // mirrors submitTrade()'s nextTrade shape for this field
-  const markup = renderTimeframeSelect(freshlyCreatedTrade);
-  assert.match(markup, /<option value="1m" selected>1m<\/option>/, 'A brand-new trade should render with 1m already selected.');
-  assert.equal(markup.includes('<option value="" selected>'), false, 'The blank "None" option must not be the one marked selected for a brand-new trade.');
 });

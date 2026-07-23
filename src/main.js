@@ -3530,6 +3530,7 @@ function renderManualTradeForm(today) {
         ${field('Symbol', '<input name="symbol" placeholder="SPY" required />')}
         ${field('Direction', '<select name="direction"><option>Long</option><option>Short</option></select>')}
         ${field('Setup', '<input name="setup" placeholder="Breakout, pullback, VWAP..." />')}
+        ${field('Timeframe', renderTimeframeSelect({ timeframe: '1m' }))}
         ${field('Entry', '<input name="entry" type="number" min="0" step="0.01" required />')}
         ${field('Exit', '<input name="exit" type="number" min="0" step="0.01" required />')}
         ${field('Size', '<input name="size" type="number" min="0.01" step="0.01" required />')}
@@ -4082,11 +4083,15 @@ async function submitTrade(event) {
     symbol: String(formData.get('symbol')).trim().toUpperCase(),
     direction: formData.get('direction'),
     setup: normalizeSetupName(String(formData.get('setup')).trim()) || 'Uncategorized setup',
-    // New trades default to the 1m chart timeframe (the form has no
-    // Timeframe input of its own — Timeframe is only editable afterward via
-    // Edit/Quick Edit). Existing trades are untouched since this only runs
-    // when a brand-new trade is created.
-    timeframe: '1m',
+    // Read from the Add Trade form's own Timeframe dropdown (rendered via
+    // the same shared renderTimeframeSelect() used everywhere else, and
+    // pre-selected to 1m — see renderManualTradeForm()), so the saved value
+    // always matches exactly what the user saw/could change before Save.
+    // '1m' fallback only guards a missing/blank field; it should never
+    // actually be needed since the dropdown always has a value selected.
+    // Existing/imported trades are untouched — this only runs when a
+    // brand-new manual trade is created.
+    timeframe: String(formData.get('timeframe') || '1m').trim(),
     entry: Number(formData.get('entry')),
     exit: Number(formData.get('exit')),
     size: Number(formData.get('size')),

@@ -112,6 +112,54 @@ test('cTrader sync does not override a Final SL/TP that was already set', () => 
   assert.equal(journalTrade.adjustedTakeProfit, 1.16);
 });
 
+test('cTrader sync defaults a newly-imported trade\'s Timeframe to 1m when the preview has none', () => {
+  // cTrader never reports a chart timeframe, so a fresh preview trade always
+  // has no `timeframe` field at all — this is the normal case for every
+  // real import.
+  const journalTrade = convertCTraderPreviewTradeToJournalEntry(closedPreviewTrade, {
+    now: () => Date.parse('2026-06-12T15:00:00.000Z'),
+  });
+
+  assert.equal(journalTrade.timeframe, '1m', 'A newly imported trade with no Timeframe should default to 1m, so it doesn\'t have to be picked manually in Edit Mode.');
+});
+
+test('cTrader sync does not override a Timeframe that already exists on the preview trade', () => {
+  const journalTrade = convertCTraderPreviewTradeToJournalEntry({
+    ...closedPreviewTrade,
+    timeframe: '15m',
+  }, {
+    now: () => Date.parse('2026-06-12T15:00:00.000Z'),
+  });
+
+  assert.equal(journalTrade.timeframe, '15m', 'An existing Timeframe value must never be overwritten by the 1m default.');
+});
+
+test('re-syncing an already-imported trade never touches its saved Timeframe, blank or set', () => {
+  // The 1m default only applies inside convertCTraderPreviewTradeToJournalEntry
+  // (brand-new imports). applyCTraderImportedTradeUpdates is the function
+  // that touches already-saved trades on every subsequent sync, and it must
+  // never write a timeframe field at all — matching the same "never
+  // touches Protected/Grade/Notes/Tags" guarantee already relied on for
+  // manual journal fields.
+  const existingTrades = [
+    { id: 'ctrader-501', provider: 'ctrader', sourceTradeId: '501', symbol: 'EURUSD', brokerSymbol: 'EURUSD', timeframe: '' },
+    { id: 'ctrader-906', provider: 'ctrader', sourceTradeId: '906', symbol: 'XAUUSD', brokerSymbol: 'XAUUSD', timeframe: '4H' },
+  ];
+  const previewTrades = [
+    { ...closedPreviewTrade, id: 'ctrader-501', sourceDealId: 501, symbol: 'EURUSD', brokerSymbol: 'EURUSD', openTime: '2026-06-12T13:15:00.000Z' },
+    { ...closedPreviewTrade, id: 'ctrader-906', sourceDealId: 906, symbol: 'XAUUSD', brokerSymbol: 'XAUUSD', openTime: '2026-06-12T13:15:00.000Z' },
+  ];
+
+  const syncPlan = buildCTraderSyncPlan(previewTrades, existingTrades, {
+    now: () => Date.parse('2026-06-12T15:00:00.000Z'),
+  });
+  const updatedExistingTrades = applyCTraderImportedTradeUpdates(existingTrades, syncPlan.skippedTrades);
+
+  assert.equal(syncPlan.importedCount, 0, 'Both trades are already in the journal, so nothing new should be imported.');
+  assert.equal(updatedExistingTrades.trades[0].timeframe, '', 'A blank Timeframe on an existing trade must stay blank — re-sync must never apply the 1m default retroactively.');
+  assert.equal(updatedExistingTrades.trades[1].timeframe, '4H', 'A Timeframe already set by the user on an existing trade must be completely unaffected by re-sync.');
+});
+
 test('cTrader sync imports only trades not already in the journal', () => {
   const existingTrades = [
     {

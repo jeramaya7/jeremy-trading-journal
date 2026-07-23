@@ -149,6 +149,13 @@ export function convertCTraderPreviewTradeToJournalEntry(previewTrade, options =
     ...(isBlankTradeValue(previewTrade.adjustedTakeProfit) && !isBlankTradeValue(previewTrade.takeProfit)
       ? { adjustedTakeProfit: previewTrade.takeProfit }
       : {}),
+    // Chart Timeframe defaults to 1m on import so it doesn't have to be
+    // picked manually in Edit Mode. cTrader never reports a chart timeframe
+    // (it's a DNA-only journaling field), so previewTrade.timeframe is
+    // always blank on a fresh import — this only fills that blank; it never
+    // overwrites a timeframe that's already set (this function only ever
+    // runs on brand-new imports, never on already-saved trades).
+    ...(isBlankTradeValue(previewTrade.timeframe) ? { timeframe: '1m' } : {}),
     importedAt: getImportedAt(options),
     ...getImportedAccountBalanceFields(options.accountBalance),
   };
