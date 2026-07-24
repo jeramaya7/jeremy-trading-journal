@@ -3140,8 +3140,10 @@ function editTradeForm(trade) {
               ${field('Loss Reason', renderLossReasonSelect(trade))}
             </div>
           </div>
-          ${field('Grade', renderGradeSelect(trade))}
-          ${field('Outcome Override', renderOutcomeOverrideSelect(trade))}
+          <div class="edit-form-row edit-review-row" aria-label="Trade grade and outcome override">
+            ${field('Grade', renderGradeSelect(trade))}
+            ${field('Outcome Override', renderOutcomeOverrideSelect(trade))}
+          </div>
         </div>
         <div class="edit-form-section">
           <h4 class="edit-form-section-label">Journal</h4>
