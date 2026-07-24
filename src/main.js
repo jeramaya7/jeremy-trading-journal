@@ -43,7 +43,7 @@ const LEGACY_SETUP_NAME_MAP = {
   'MATX': 'MA Cross',
   'MAX': 'MA Cross',
   'Return to 200': 'Counter Trend',
-  'Support & Resistance': 'S&R',
+  'Support & Resistance': 'Support/Resistance',
   'The General Forecast': 'Other',
   'EMA Continuation': 'Trend',
   // Previous (DNA 25) 12-option Play Book list, migrated to the new 8 options
@@ -53,7 +53,10 @@ const LEGACY_SETUP_NAME_MAP = {
   'General Forecast': 'Other',
   'RBI / GBI': 'Counter Trend',
   'Scalping': 'Other',
-  'Support/Resistance': 'S&R',
+  // 'Support/Resistance' is itself the canonical DNA 26 option name (see
+  // PLAY_BOOK_SETUP_OPTIONS below, renamed from the short-lived S and R
+  // abbreviation) — no migration entry needed since it already equals its
+  // own target.
   'Trend Continuation': 'Trend',
   'Trendline Break': 'Counter Trend',
   'Wide State Reversal': 'Counter Trend',
@@ -214,7 +217,7 @@ const PLAY_BOOK_SETUP_OPTIONS = [
   'Event Bar',
   'Retrace',
   'Counter Trend',
-  'S&R',
+  'Support/Resistance',
   'Hedge',
   'Other',
 ];

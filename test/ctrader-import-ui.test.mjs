@@ -288,12 +288,15 @@ test('legacy setup names migrate to their current canonical name', () => {
   assertIncludes(source, "'MATX': 'MA Cross',", 'MATX migrates to MA Cross.');
   assertIncludes(source, "'MAX': 'MA Cross',", 'MAX migrates to MA Cross.');
   assertIncludes(source, "'Return to 200': 'Counter Trend',", 'Return to 200 migrates to Counter Trend.');
-  assertIncludes(source, "'Support & Resistance': 'S&R',", 'Support & Resistance migrates to S&R.');
+  assertIncludes(source, "'Support & Resistance': 'Support/Resistance',", 'Support & Resistance migrates to Support/Resistance.');
   assertIncludes(source, "'The General Forecast': 'Other',", 'The General Forecast migrates to Other.');
   // The previous (DNA 25) 12-option Play Book list also migrates now that
   // the Setup dropdown is down to 8 options.
   assertIncludes(source, "'Trendline Break': 'Counter Trend',", 'The retired Trendline Break option migrates to Counter Trend.');
-  assertIncludes(source, "'Support/Resistance': 'S&R',", 'The retired Support/Resistance option migrates to S&R.');
+  // Support/Resistance is itself the canonical DNA 26 option name (renamed
+  // from the short-lived S&R), so it is no longer a migration entry.
+  assert.ok(!source.includes("'Support/Resistance': "), "Support/Resistance is the canonical option now, not a migration key.");
+  assert.ok(!source.includes("'S&R'"), "S&R has been fully renamed to Support/Resistance.");
   assert.ok(!source.includes("'Scalp': "), 'Scalp is deliberately left unmigrated (kept as its own preserved value), per product decision.');
 
   assertIncludes(source, 'function normalizeSetupName(setup) {', 'Setup normalization is a single shared function.');

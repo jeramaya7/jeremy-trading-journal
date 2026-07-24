@@ -98,7 +98,7 @@ test('the Play Book setup list is exactly the 8 DNA 26 options, in the requested
     'Event Bar',
     'Retrace',
     'Counter Trend',
-    'S&R',
+    'Support/Resistance',
     'Hedge',
     'Other',
   ]);
@@ -107,11 +107,11 @@ test('the Play Book setup list is exactly the 8 DNA 26 options, in the requested
   assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('Custom'), false, 'Custom lives outside the fixed list, appended separately.');
 });
 
-test('Counter Trend and S&R are real, selectable Play Book setups', () => {
+test('Counter Trend and Support/Resistance are real, selectable Play Book setups', () => {
   const { isPlayBookSetup } = loadSetupModule();
 
   assert.equal(isPlayBookSetup('Counter Trend'), true, 'Counter Trend should be recognized as a fixed Play Book option.');
-  assert.equal(isPlayBookSetup('S&R'), true, 'S&R should be recognized as a fixed Play Book option.');
+  assert.equal(isPlayBookSetup('Support/Resistance'), true, 'Support/Resistance should be recognized as a fixed Play Book option.');
 });
 
 test('every retired setup name (old aliases and the previous 12-option list) migrates to its new canonical name', () => {
@@ -126,7 +126,7 @@ test('every retired setup name (old aliases and the previous 12-option list) mig
     'Return to 200': 'Counter Trend',
     'Trend Line Break': 'Counter Trend',
     'Trade Line Break': 'Counter Trend',
-    'Support & Resistance': 'S&R',
+    'Support & Resistance': 'Support/Resistance',
     'The General Forecast': 'Other',
     'EMA Continuation': 'Trend',
     // Previous (DNA 25) 12-option Play Book list
@@ -136,7 +136,6 @@ test('every retired setup name (old aliases and the previous 12-option list) mig
     'General Forecast': 'Other',
     'RBI / GBI': 'Counter Trend',
     'Scalping': 'Other',
-    'Support/Resistance': 'S&R',
     'Trend Continuation': 'Trend',
     'Trendline Break': 'Counter Trend',
     'Wide State Reversal': 'Counter Trend',
@@ -163,7 +162,7 @@ test('setups retired with no replacement (including Scalp) are left exactly as-i
 test('normalizeSetupName leaves already-current and unrelated setup names untouched', () => {
   const { normalizeSetupName } = loadSetupModule();
 
-  for (const currentName of ['Trend', 'MA Cross', 'Event Bar', 'Retrace', 'Counter Trend', 'S&R', 'Hedge', 'Other', 'Custom', '', 'Opening range breakout']) {
+  for (const currentName of ['Trend', 'MA Cross', 'Event Bar', 'Retrace', 'Counter Trend', 'Support/Resistance', 'Hedge', 'Other', 'Custom', '', 'Opening range breakout']) {
     assert.equal(normalizeSetupName(currentName), currentName);
   }
 });
@@ -215,7 +214,7 @@ test('regression: saving a trade with no setup chosen falls back to Uncategorize
   // A real, deliberate selection still saves normally.
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Trend', setupCustom: '', setup: '' })), 'Trend');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Counter Trend', setupCustom: '', setup: '' })), 'Counter Trend');
-  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'S&R', setupCustom: '', setup: '' })), 'S&R');
+  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Support/Resistance', setupCustom: '', setup: '' })), 'Support/Resistance');
 
   // Custom behavior is unchanged.
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Custom', setupCustom: 'My own setup', setup: '' })), 'My own setup');
