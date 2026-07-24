@@ -201,8 +201,8 @@ test('exportDailyTrades includes every saved trade-card field plus outcome, P/L,
     id: 'a', date: todayKey, symbol: 'XAUUSD', direction: 'Long',
     entry: 2000, exit: 2010, size: 1, fees: 0, stopLoss: 1990,
     notes: 'Good entry off the 15m structure', tags: 'gap, A+',
-    timeframe: '5m', setup: 'Trend Continuation', state: 'Trending',
-    position: 'Position 1', tradeManagement: 'Trail Stop', protected: 'Yes',
+    timeframe: '5m', setup: 'Trend', state: 'Trending',
+    tradeManagement: 'Trail Stop', protected: 'Yes',
     grade: 'A', closeReason: 'Trailed Stop', lossReason: '',
     screenshot: { dataUrl: 'data:image/png;base64,verylongimagedatahere', name: 'chart.png', type: 'image/png', size: 12345 },
   };
@@ -211,7 +211,7 @@ test('exportDailyTrades includes every saved trade-card field plus outcome, P/L,
   const exported = payload.trades[0];
 
   // Every saved trade-card field survives the export.
-  for (const field of ['notes', 'tags', 'timeframe', 'setup', 'state', 'position', 'tradeManagement', 'protected', 'grade', 'closeReason']) {
+  for (const field of ['notes', 'tags', 'timeframe', 'setup', 'state', 'tradeManagement', 'protected', 'grade', 'closeReason']) {
     assert.equal(exported[field], tradeWithScreenshot[field], `${field} should be included in the export exactly as saved.`);
   }
 

@@ -93,14 +93,9 @@ test('getSmartProtectedValue maps every Trade Management option to the requested
   const expected = {
     'Trail Stop': 'Yes',
     'Break Even': 'Yes', // "Moved to Breakeven" in the request, existing option name kept
-    'Partial Profit': 'Yes',
-    'Scale Out': 'Yes',
-    'Hit Take Profit': 'Yes',
     'Set & Forget': 'No',
-    'Hit Stop Loss': 'No',
-    'Early Exit': 'No',
-    'Add to Position': 'No',
-    'Reverse Position': 'No',
+    'Stop Loss': 'No',
+    'Manual Exit': 'No',
     'Other': 'No',
   };
 
@@ -118,8 +113,9 @@ test('getSmartProtectedValue defaults to No for blank/None or any unrecognized v
   assert.equal(getSmartProtectedValue('Some Unlisted Value'), 'No');
 });
 
-test('Scale Out is a real, selectable Trade Management option', () => {
-  assertIncludes(source, "'Scale Out',", 'Scale Out should be added to TRADE_MANAGEMENT_OPTIONS.');
+test('Stop Loss and Manual Exit are real, selectable Trade Management options', () => {
+  assertIncludes(source, "'Stop Loss',", 'Stop Loss should be a TRADE_MANAGEMENT_OPTIONS entry.');
+  assertIncludes(source, "'Manual Exit',", 'Manual Exit should be a TRADE_MANAGEMENT_OPTIONS entry.');
 });
 
 test('renderProtectedDisplay renders a read-only input (not a select) so Protected can no longer be set independently', () => {

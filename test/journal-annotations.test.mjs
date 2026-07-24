@@ -335,7 +335,7 @@ test('annotations persist across a fresh server instance backed by the same fake
     await fetch(`http://127.0.0.1:${firstPort}/api/journal/annotations/trade-1`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ setup: 'ORB', position: 'Full size' }),
+      body: JSON.stringify({ setup: 'ORB', state: 'Trending' }),
     });
     await new Promise((resolve) => firstServer.close(resolve));
 
@@ -348,7 +348,7 @@ test('annotations persist across a fresh server instance backed by the same fake
       const body = await response.json();
 
       assert.deepEqual(body, {
-        'trade-1': { setup: 'ORB', position: 'Full size' },
+        'trade-1': { setup: 'ORB', state: 'Trending' },
       });
     } finally {
       await new Promise((resolve) => secondServer.close(resolve));

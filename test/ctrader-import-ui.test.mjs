@@ -163,7 +163,7 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(source, "${field('Setup', renderPlayBookSetupSelect(trade))}", 'The edit form allows setup changes through the Play Book dropdown.');
   assertIncludes(source, 'const PLAY_BOOK_SETUP_OPTIONS = [', 'The Play Book setup dropdown has a fixed setup list.');
   assertIncludes(source, "'Event Bar'", 'The Play Book setup dropdown includes Event Bar.');
-  assertIncludes(source, "'Trendline Break'", 'The Play Book setup dropdown includes Trendline Break.');
+  assertIncludes(source, "'Counter Trend'", 'The Play Book setup dropdown includes Counter Trend.');
   assert.ok(!source.includes("  'Trade Line Break',"), 'The Play Book setup dropdown no longer shows the misspelled setup label.');
   assert.ok(!source.includes("'Elephant Bar',") , 'The retired Elephant Bar label is no longer a selectable Play Book option (migrated to Event Bar instead).');
   assert.ok(!source.includes("'Ride the 🐋',"), 'Ride the whale is retired from the Play Book dropdown.');
@@ -218,10 +218,9 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(tradePlanBody, `<input name="takeProfit" type="number" min="0" step="0.01" value="\${escapeHtml(trade.takeProfit ?? '')}" placeholder="Optional" />`, 'Initial Take Profit stays auto-populated.');
   assertIncludes(tradePlanBody, `<input name="adjustedTakeProfit" type="number" min="0" step="0.01" value="\${escapeHtml(trade.adjustedTakeProfit ?? '')}" placeholder="Optional" />`, 'Final Take Profit stays auto-populated.');
 
-  // Setup section: Setup, Position, State, Timeframe — keeping the exact
-  // "Position" and "State" names (not renamed).
+  // Setup section: Setup, State, Timeframe — Position was removed (DNA 26).
   const setupBody = editFormBody.slice(setupIndex, reviewIndex);
-  assertIncludes(setupBody, "${field('Position', renderPositionTypeSelect(trade))}", 'Position keeps its name.');
+  assert.equal(setupBody.includes("renderPositionTypeSelect"), false, 'Position should no longer render anywhere in the Setup section (removed in DNA 26).');
   assertIncludes(setupBody, "${field('State', renderMarketStateSelect(trade))}", 'State keeps its name.');
   assertIncludes(setupBody, "${field('Timeframe', renderTimeframeSelect(trade))}", 'Timeframe is in the Setup section.');
 
@@ -271,16 +270,20 @@ test('legacy setup names migrate to their current canonical name', () => {
   // migrates the same way, wherever a setup is displayed, edited,
   // filtered, analyzed, or reported.
   assertIncludes(source, 'const LEGACY_SETUP_NAME_MAP = {', 'Legacy setup names are retained only for migration, in one shared map.');
-  assertIncludes(source, "'Trade Line Break': 'Trendline Break',", 'The old misspelled Trade Line Break value migrates to Trendline Break.');
-  assertIncludes(source, "'Trend Line Break': 'Trendline Break',", 'The old Trend Line Break value migrates to Trendline Break.');
+  assertIncludes(source, "'Trade Line Break': 'Counter Trend',", 'The old misspelled Trade Line Break value migrates to Counter Trend.');
+  assertIncludes(source, "'Trend Line Break': 'Counter Trend',", 'The old Trend Line Break value migrates to Counter Trend.');
   assertIncludes(source, "'Elephant Bar': 'Event Bar',", 'Elephant Bar migrates to Event Bar.');
-  assertIncludes(source, "'Buy the Retrace': 'Enter Retrace',", 'Buy the Retrace migrates to Enter Retrace.');
-  assertIncludes(source, "'MATX': 'EMA Cross',", 'MATX migrates to EMA Cross.');
-  assertIncludes(source, "'MAX': 'EMA Cross',", 'MAX migrates to EMA Cross.');
-  assertIncludes(source, "'Return to 200': 'Wide State Reversal',", 'Return to 200 migrates to Wide State Reversal.');
-  assertIncludes(source, "'Support & Resistance': 'Support/Resistance',", 'Support & Resistance migrates to Support/Resistance.');
-  assertIncludes(source, "'The General Forecast': 'General Forecast',", 'The General Forecast migrates to General Forecast.');
-  assert.ok(!source.includes("'Scalp': "), 'Scalp is deliberately left unmigrated (falls back to Custom), per product decision.');
+  assertIncludes(source, "'Buy the Retrace': 'Retrace',", 'Buy the Retrace migrates to Retrace.');
+  assertIncludes(source, "'MATX': 'MA Cross',", 'MATX migrates to MA Cross.');
+  assertIncludes(source, "'MAX': 'MA Cross',", 'MAX migrates to MA Cross.');
+  assertIncludes(source, "'Return to 200': 'Counter Trend',", 'Return to 200 migrates to Counter Trend.');
+  assertIncludes(source, "'Support & Resistance': 'S&R',", 'Support & Resistance migrates to S&R.');
+  assertIncludes(source, "'The General Forecast': 'Other',", 'The General Forecast migrates to Other.');
+  // The previous (DNA 25) 12-option Play Book list also migrates now that
+  // the Setup dropdown is down to 8 options.
+  assertIncludes(source, "'Trendline Break': 'Counter Trend',", 'The retired Trendline Break option migrates to Counter Trend.');
+  assertIncludes(source, "'Support/Resistance': 'S&R',", 'The retired Support/Resistance option migrates to S&R.');
+  assert.ok(!source.includes("'Scalp': "), 'Scalp is deliberately left unmigrated (kept as its own preserved value), per product decision.');
 
   assertIncludes(source, 'function normalizeSetupName(setup) {', 'Setup normalization is a single shared function.');
   assertIncludes(source, 'return Object.prototype.hasOwnProperty.call(LEGACY_SETUP_NAME_MAP, setup) ? LEGACY_SETUP_NAME_MAP[setup] : setup;', 'Setup normalization looks up the shared legacy map instead of a single hardcoded pair.');
@@ -344,15 +347,17 @@ test('saving trade edits only updates journaling fields and preserves imported e
 
 test('loss reason dropdown is optional and only renders on trade cards when filled', () => {
   assertIncludes(source, 'const LOSS_REASON_OPTIONS = [', 'Loss reason options are centralized for the edit dropdown.');
-  assertIncludes(source, "'Bad Entry'", 'Loss reason includes Bad Entry.');
-  assertIncludes(source, "'Ignored Rules'", 'Loss reason includes Ignored Rules.');
-  assert.ok(!source.includes("'News Event'"), 'Loss reason excludes News Event from selectable options.');
-  assertIncludes(source, "'Good Trade, Normal Loss'", 'Loss reason includes Good Trade, Normal Loss.');
+  assertIncludes(source, "'Normal Loss'", 'Loss reason includes Normal Loss.');
   assertIncludes(source, "'Stop Too Tight'", 'Loss reason includes Stop Too Tight.');
+  assertIncludes(source, "'Chased Price'", 'Loss reason includes Chased Price.');
+  assertIncludes(source, "'Broke Rules'", 'Loss reason includes Broke Rules.');
+  assertIncludes(source, "const LOSS_REASON_OPTIONS = [\n  'Normal Loss',\n  'Stop Too Tight',\n  'Chased Price',\n  'Broke Rules',\n  'Other',\n];", 'Loss reason options are exactly the DNA 26 list, in the requested order.');
+  assert.ok(!source.includes("'Bad Entry'"), 'Loss reason excludes the retired Bad Entry option.');
+  assert.ok(!source.includes("'Ignored Rules'"), 'Loss reason excludes the retired Ignored Rules option (renamed Broke Rules).');
+  assert.ok(!source.includes("'Good Trade, Normal Loss'"), 'Loss reason excludes the retired Good Trade, Normal Loss option (renamed Normal Loss).');
+  assert.ok(!source.includes("'Stayed In Too Long'"), 'Loss reason excludes the retired Stayed In Too Long option.');
   assertIncludes(source, 'const legacyLossReasonOption = currentLossReason && !LOSS_REASON_OPTIONS.includes(currentLossReason)', 'Loss reason dropdown preserves legacy saved values that are no longer selectable for new trades.');
-  assert.ok(!source.includes("'Entered Too Late'"), 'Loss reason excludes removed detailed timing options.');
   assertIncludes(source, '<option value="">No loss reason</option>', 'Loss reason can be left blank for existing or winning trades.');
-  assertIncludes(source, '${trade.lossReason ? `<p class="loss-reason"><strong>Loss Reason:</strong> ${escapeHtml(trade.lossReason)}</p>` : \'\'}', 'Trade cards only show loss reason when a saved value exists.');
 });
 
 
@@ -361,14 +366,13 @@ test('close reason dropdown is optional and only renders on trade cards when fil
   assertIncludes(source, "'Take Profit'", 'Close reason includes Take Profit.');
   assertIncludes(source, "'Stop Loss'", 'Close reason includes Stop Loss.');
   assertIncludes(source, "'Trailed Stop'", 'Close reason includes Trailed Stop.');
-  assertIncludes(source, "'Trend Change'", 'Close reason includes Trend Change.');
-  assertIncludes(source, "'Manual Close'", 'Close reason includes Manual Close.');
-  assertIncludes(source, "'Break Even'", 'Close reason includes Break Even.');
-  assertIncludes(source, "'Closed Too Early'", 'Close reason includes Closed Too Early.');
-  assertIncludes(source, "'Secured Profit Early'", 'Close reason includes Secured Profit Early.');
-  assertIncludes(source, "const CLOSE_REASON_OPTIONS = [\n  'Break Even',\n  'Closed Too Early',\n  'Manual Close',\n  'Other',\n  'Secured Profit Early',\n  'Stop Loss',\n  'Take Profit',\n  'Trailed Stop',\n  'Trend Change',\n];", 'Close reason options remain alphabetized.');
+  assertIncludes(source, "'Manual Exit'", 'Close reason includes Manual Exit.');
+  assertIncludes(source, "const CLOSE_REASON_OPTIONS = [\n  'Take Profit',\n  'Stop Loss',\n  'Trailed Stop',\n  'Manual Exit',\n  'Other',\n];", 'Close reason options are exactly the DNA 26 list, in the requested order.');
+  assert.ok(!source.includes("'Trend Change'"), 'Close reason excludes the retired Trend Change option.');
+  assert.ok(!source.includes("'Manual Close'"), 'Close reason excludes the retired Manual Close option (renamed Manual Exit).');
+  assert.ok(!source.includes("'Closed Too Early'"), 'Close reason excludes the retired Closed Too Early option.');
+  assert.ok(!source.includes("'Secured Profit Early'"), 'Close reason excludes the retired Secured Profit Early option.');
   assertIncludes(source, '<option value="">No close reason</option>', 'Close reason can be left blank for existing trades.');
-  assertIncludes(source, '${trade.closeReason ? `<p class="close-reason"><strong>Close Reason:</strong> ${escapeHtml(trade.closeReason)}</p>` : \'\'}', 'Trade cards only show close reason when a saved value exists.');
 });
 
 test('imported cTrader edit flow supports screenshot attachments', () => {

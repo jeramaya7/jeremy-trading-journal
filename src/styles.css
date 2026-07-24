@@ -1204,6 +1204,21 @@ a:focus-visible {
   background: rgba(201, 148, 32, 0.06);
 }
 
+/* Dropdown readability: alternate the option rows White / Light Gray for
+   every real <select> in the Trade Card edit forms (Setup, State,
+   Timeframe, Trade Management, Exit Reason, Loss Reason, Grade, Outcome
+   Override). Scoped to .edit-trade-form so it never touches the Add Trade
+   form's own selects. Protected is a read-only <input>, not a <select>, so
+   it has no dropdown list to stripe. This only affects the option list
+   background — it does not change the closed select's own appearance. */
+.edit-trade-form select option:nth-of-type(odd) {
+  background-color: #ffffff;
+}
+
+.edit-trade-form select option:nth-of-type(even) {
+  background-color: #f2f4f7;
+}
+
 .edit-mode-banner {
   align-items: center;
   background: rgba(201, 148, 32, 0.15);

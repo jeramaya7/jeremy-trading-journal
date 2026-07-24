@@ -27,22 +27,36 @@ const DNA_TIMEFRAME_OPTIONS = [
 // Legacy Setup names (renamed or retired from the current Play Book list)
 // mapped to their current canonical name. Existing trades tagged with any
 // of these old names are transparently migrated to the new name wherever a
-// setup is displayed, edited, filtered, analyzed, or reported. Setup names
-// that were retired with no direct replacement (e.g. ORB, Ride the whale,
-// Set & Forget, TB Retrace, Scalp) are deliberately NOT in this map — they
-// keep their original text and fall through to the Custom setup input when
-// edited, same as any value that was never on the Play Book list.
+// setup is displayed, edited, filtered, analyzed, or reported. This map
+// covers both the old pre-DNA-26 typos/aliases and the entire previous
+// 12-option Play Book list, all pointed directly at their closest match in
+// the simplified 8-option list (DNA 26). Setup names that were retired with
+// no sensible replacement fall through to their own preserved custom value
+// via renderPlayBookSetupSelect's legacySetupOption, same as any value that
+// was never on the Play Book list.
 const LEGACY_SETUP_NAME_MAP = {
-  'Trade Line Break': 'Trendline Break',
-  'Trend Line Break': 'Trendline Break',
+  // Older typo/alias names (pre-existing entries, repointed at the new list)
+  'Trade Line Break': 'Counter Trend',
+  'Trend Line Break': 'Counter Trend',
   'Elephant Bar': 'Event Bar',
-  'Buy the Retrace': 'Enter Retrace',
-  'MATX': 'EMA Cross',
-  'MAX': 'EMA Cross',
-  'Return to 200': 'Wide State Reversal',
-  'Support & Resistance': 'Support/Resistance',
-  'The General Forecast': 'General Forecast',
-  'EMA Continuation': 'Trend Continuation',
+  'Buy the Retrace': 'Retrace',
+  'MATX': 'MA Cross',
+  'MAX': 'MA Cross',
+  'Return to 200': 'Counter Trend',
+  'Support & Resistance': 'S&R',
+  'The General Forecast': 'Other',
+  'EMA Continuation': 'Trend',
+  // Previous (DNA 25) 12-option Play Book list, migrated to the new 8 options
+  'EMA Bounce': 'MA Cross',
+  'EMA Cross': 'MA Cross',
+  'Enter Retrace': 'Retrace',
+  'General Forecast': 'Other',
+  'RBI / GBI': 'Counter Trend',
+  'Scalping': 'Other',
+  'Support/Resistance': 'S&R',
+  'Trend Continuation': 'Trend',
+  'Trendline Break': 'Counter Trend',
+  'Wide State Reversal': 'Counter Trend',
 };
 // Was 60s. Nothing in this codebase enforces a longer delay — no server-side
 // rate limiter or cache sits in front of /api/ctrader/journal-preview (see
@@ -59,7 +73,7 @@ const AUTO_SYNC_INTERVAL_MS = 12 * 1000;
 
 // Fields the backend persists to Supabase for cross-device annotation sync.
 // Must match JOURNAL_ANNOTATION_FIELDS in src/server.js.
-const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'position', 'timeframe', 'protected', 'tradeManagement', 'grade', 'closeReason', 'lossReason', 'tags', 'notes', 'adjustedStopLoss', 'adjustedTakeProfit', 'takeProfit', 'stopLoss', 'outcomeOverride'];
+const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'timeframe', 'protected', 'tradeManagement', 'grade', 'closeReason', 'lossReason', 'tags', 'notes', 'adjustedStopLoss', 'adjustedTakeProfit', 'takeProfit', 'stopLoss', 'outcomeOverride'];
 
 const starterTrades = [
   {
@@ -195,40 +209,29 @@ const FRIENDLY_ASSET_NAMES = {
 };
 
 const PLAY_BOOK_SETUP_OPTIONS = [
-  'EMA Bounce',
-  'EMA Cross',
-  'Enter Retrace',
+  'Trend',
+  'MA Cross',
   'Event Bar',
-  'General Forecast',
+  'Retrace',
+  'Counter Trend',
+  'S&R',
   'Hedge',
-  'RBI / GBI',
-  'Scalping',
-  'Support/Resistance',
-  'Trend Continuation',
-  'Trendline Break',
-  'Wide State Reversal',
+  'Other',
 ];
 const CUSTOM_SETUP_OPTION = 'Custom';
 const LOSS_REASON_OPTIONS = [
-  'Bad Entry',
-  'Chased Price',
-  'Good Trade, Normal Loss',
-  'Ignored Rules',
-  'Other',
-  'Stayed In Too Long',
+  'Normal Loss',
   'Stop Too Tight',
+  'Chased Price',
+  'Broke Rules',
+  'Other',
 ];
 const CLOSE_REASON_OPTIONS = [
-  'Break Even',
-  'Closed Too Early',
-  'Manual Close',
-  'Other',
-  'Secured Profit Early',
-  'Stop Loss',
   'Take Profit',
-  'TLB Exit — Trend Line Break',
+  'Stop Loss',
   'Trailed Stop',
-  'Trend Change',
+  'Manual Exit',
+  'Other',
 ];
 const MARKET_STATE_OPTIONS = [
   'Narrow',
@@ -258,13 +261,6 @@ const TRADE_PROTECTED_OPTIONS = [
   'Yes',
   'No',
 ];
-const POSITION_TYPE_OPTIONS = [
-  'Position 0',
-  'Position 1',
-  'Position 2',
-  'Position 3',
-  'Position 4',
-];
 const GRADE_OPTIONS = [
   'A+',
   'A',
@@ -274,15 +270,10 @@ const GRADE_OPTIONS = [
 ];
 const TRADE_MANAGEMENT_OPTIONS = [
   'Set & Forget',
-  'Hit Take Profit',
-  'Hit Stop Loss',
-  'Break Even',
   'Trail Stop',
-  'Partial Profit',
-  'Scale Out',
-  'Early Exit',
-  'Add to Position',
-  'Reverse Position',
+  'Break Even',
+  'Stop Loss',
+  'Manual Exit',
   'Other',
 ];
 // Protected is fully derived from Trade Management (Smart Protected) — this
@@ -291,17 +282,14 @@ const TRADE_MANAGEMENT_OPTIONS = [
 // Management changes (see renderProtectedDisplay/getSmartProtectedValue and
 // the tradeManagement change listener in bindTradeCardEvents). Any Trade
 // Management value not listed here (including blank/None) defaults to 'No'.
+// Same Yes/No logic as before DNA 26's option cleanup: Trail Stop and Break
+// Even are the only two that mean risk was actually removed from the trade.
 const TRADE_MANAGEMENT_PROTECTED_MAP = {
   'Trail Stop': 'Yes',
   'Break Even': 'Yes',
-  'Partial Profit': 'Yes',
-  'Scale Out': 'Yes',
-  'Hit Take Profit': 'Yes',
   'Set & Forget': 'No',
-  'Hit Stop Loss': 'No',
-  'Early Exit': 'No',
-  'Add to Position': 'No',
-  'Reverse Position': 'No',
+  'Stop Loss': 'No',
+  'Manual Exit': 'No',
   'Other': 'No',
 };
 
@@ -2828,7 +2816,6 @@ function tradeCard(trade) {
   const journalPanel = tradePanel('Journal', [
     tradeMetric('Setup', trade.setup),
     tradeMetric('State', trade.state),
-    tradeMetric('Position', trade.position),
     tradeMetric('Protected', trade.protected),
     tradeMetric('Exit Reason', trade.closeReason),
     tradeMetric('Loss Reason', trade.lossReason),
@@ -2890,11 +2877,11 @@ function tradeCard(trade) {
         <div class="tc-md" aria-hidden="true"></div>
         <div class="tc-mc"><span class="tc-ml">Exit</span><span class="tc-mv">${formatOptionalCurrency(trade.exit) || '—'}</span></div>
         <div class="tc-md" aria-hidden="true"></div>
-        <div class="tc-mc"><span class="tc-ml">R</span><span class="tc-mv ${rTone}">${rMultiple !== null ? formatRMultiple(rMultiple) : '—'}</span></div>
-        <div class="tc-md" aria-hidden="true"></div>
         <div class="tc-mc"><span class="tc-ml">Risk $</span><span class="tc-mv">${riskDollars !== null ? currency(riskDollars) : '—'}</span></div>
         <div class="tc-md" aria-hidden="true"></div>
         <div class="tc-mc"><span class="tc-ml">Risk %</span><span class="tc-mv">${riskPercent !== null ? formatRiskPercent(riskPercent) : '—'}</span></div>
+        <div class="tc-md" aria-hidden="true"></div>
+        <div class="tc-mc"><span class="tc-ml">P/L</span><span class="tc-mv ${tone}">${currency(pnl)}</span></div>
       </div>
       <div class="tc-meta">
         ${[
@@ -2908,7 +2895,6 @@ function tradeCard(trade) {
         tradeOutcomeLabel,
         trade.state ? normalizeMarketState(trade.state) : '',
         trade.timeframe,
-        trade.position,
         trade.tradeManagement,
         trade.grade,
         trade.closeReason,
@@ -2921,7 +2907,6 @@ function tradeCard(trade) {
             tradeOutcomeLabel,
             trade.state ? normalizeMarketState(trade.state) : '',
             trade.timeframe,
-            trade.position,
             trade.tradeManagement,
             trade.grade,
             trade.closeReason,
@@ -3047,16 +3032,6 @@ function renderMarketStateSelect(trade) {
   `;
 }
 
-function renderPositionTypeSelect(trade) {
-  const current = String(trade.position || '').trim();
-  return `
-    <select name="position" aria-label="Position Type">
-      <option value="">None</option>
-      ${POSITION_TYPE_OPTIONS.map((option) => renderSelectOption(option, current)).join('')}
-    </select>
-  `;
-}
-
 function renderTimeframeSelect(trade) {
   const current = String(trade.timeframe || '').trim();
   return `
@@ -3153,7 +3128,6 @@ function editTradeForm(trade) {
           <h4 class="edit-form-section-label">Setup</h4>
           <div class="edit-form-row edit-journal-row" aria-label="Setup context">
             ${field('Setup', renderPlayBookSetupSelect(trade))}
-            ${field('Position', renderPositionTypeSelect(trade))}
             ${field('State', renderMarketStateSelect(trade))}
             ${field('Timeframe', renderTimeframeSelect(trade))}
           </div>
@@ -3247,10 +3221,9 @@ function editTradeFormQuickEdit(trade) {
           <h4 class="edit-form-section-label">Setup</h4>
           <div class="quick-edit-row">
             ${field('Setup', renderPlayBookSetupSelect(trade))}
-            ${field('Position', renderPositionTypeSelect(trade))}
+            ${field('State', renderMarketStateSelect(trade))}
           </div>
           <div class="quick-edit-row">
-            ${field('State', renderMarketStateSelect(trade))}
             ${field('Timeframe', renderTimeframeSelect(trade))}
           </div>
         </div>
@@ -4178,7 +4151,6 @@ async function buildTradeEditUpdate(form) {
     lossReason: String(formData.get('lossReason')).trim(),
     closeReason,
     state: String(formData.get('state')).trim(),
-    position: String(formData.get('position')).trim(),
     timeframe: String(formData.get('timeframe')).trim(),
     protected: String(formData.get('protected')).trim(),
     tradeManagement: String(formData.get('tradeManagement')).trim(),
