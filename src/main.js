@@ -3113,13 +3113,11 @@ function editTradeForm(trade) {
         </div>
         <div class="edit-form-section">
           <h4 class="edit-form-section-label">Trade Plan</h4>
-          <div class="edit-form-row edit-price-row" aria-label="Trade prices">
+          <div class="edit-form-row edit-price-row" aria-label="Trade prices and take profits">
             ${field('Entry Price', `<input name="entry" type="number" value="${escapeHtml(trade.entry)}" readonly />`)}
             ${field('Exit Price', `<input name="exit" type="number" value="${escapeHtml(trade.exit)}" readonly />`)}
             ${field('Initial Stop Loss', `<input name="stopLoss" type="number" value="${escapeHtml(trade.stopLoss ?? '')}" readonly />`)}
             ${field('Final Stop Loss', `<input name="adjustedStopLoss" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedStopLoss ?? '')}" placeholder="Optional" />`)}
-          </div>
-          <div class="edit-form-row edit-take-profit-row" aria-label="Trade take profits">
             ${field('Initial Take Profit', `<input name="takeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.takeProfit ?? '')}" placeholder="Optional" />`)}
             ${field('Final Take Profit', `<input name="adjustedTakeProfit" type="number" min="0" step="0.01" value="${escapeHtml(trade.adjustedTakeProfit ?? '')}" placeholder="Optional" />`)}
           </div>

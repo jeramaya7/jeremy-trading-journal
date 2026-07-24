@@ -38,7 +38,7 @@ test('analytics use the final stop through shared risk and R helpers', () => {
 
 
 test('take profit edit fields are visible and persisted', () => {
-  assertIncludes(source, 'edit-take-profit-row', 'Edit forms place take-profit controls in their own visible row.');
+  assertIncludes(source, 'edit-price-row', 'Edit forms place take-profit controls in the Trade Plan row, alongside prices and stops.');
   assertIncludes(source, "${field('Initial Take Profit', `<input name=\"takeProfit\"", 'Edit forms keep the Initial Take Profit label and input.');
   assertIncludes(source, "${field('Final Take Profit', `<input name=\"adjustedTakeProfit\"", 'Edit forms keep the Final Take Profit label and input.');
   assertIncludes(source, "takeProfit: toOptionalNumber(formData.get('takeProfit'))", 'Trade saves persist the initial take profit value.');
