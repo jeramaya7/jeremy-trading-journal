@@ -70,6 +70,10 @@ const STATS_MATH_FUNCTIONS = [
   'getTradeReportDate',
   'getReportPeriodStart',
   'filterTradesForPeriod',
+  'getEquityCurveTrades',
+  'getCapitalExposureWalk',
+  'calculateMaxCapitalExposure',
+  'calculateCapitalEfficiency',
   'getStats',
 ];
 

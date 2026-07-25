@@ -1139,10 +1139,16 @@ function filterTradesForPeriod(tradeList, period, referenceDate = new Date()) {
 }
 
 function calculatePnlForPeriod(tradeList, period, referenceDate = new Date()) {
-  return filterTradesForPeriod(tradeList, period, referenceDate).reduce((report, trade) => ({
+  const periodTrades = filterTradesForPeriod(tradeList, period, referenceDate);
+  const baseReport = periodTrades.reduce((report, trade) => ({
     pnl: report.pnl + calculatePnl(trade),
     tradeCount: report.tradeCount + 1,
   }), { pnl: 0, tradeCount: 0 });
+
+  // Capital Efficiency for this same period-filtered trade set — see
+  // getCapitalExposureWalk/calculateCapitalEfficiency above. Drives the
+  // Daily/Weekly/Monthly/Yearly CE metrics under DNA Results.
+  return { ...baseReport, capitalEfficiency: calculateCapitalEfficiency(periodTrades) };
 }
 
 function getPnlReports(referenceDate = new Date(), tradeList = trades) {
@@ -1200,6 +1206,86 @@ function getEquityCurve(tradeList = trades) {
       cumulativePnl,
     };
   });
+}
+
+// Capital Efficiency (CE) — DNA 27.
+//
+// CE measures how efficiently capital was used during a period: Net Profit
+// divided by Maximum Capital Exposure, the single highest amount of
+// capital that was ever genuinely "on the line" at any point while working
+// through that period's trades in the order they actually closed.
+//
+// This journal only ever stores already-closed trades (every trade has
+// both an entry and an exit) — there is no live open-position tracking —
+// so Maximum Capital Exposure is built purely from realized history:
+// walk every closed trade in chronological close order (oldest to newest,
+// via getEquityCurveTrades — the same ordering the equity curve chart
+// uses) while tracking the running realized P/L, and for each trade:
+//
+//   Capital Exposure (this trade) = max(0, -RunningPnLBeforeThisTrade) + RiskDollars(trade)
+//
+// In words: whatever is currently down (a realized drawdown not yet
+// recovered) adds directly to this trade's exposure, on top of the $ risk
+// being taken on the trade itself — e.g. down $50 and risking $22 on the
+// next trade means $72 is on the line. Running profit, on the other hand,
+// only ever acts as a cushion: it can reduce the drawdown contribution to
+// zero, but it can never make exposure less than the trade's own Risk $ —
+// e.g. up $200 and risking $50 is $50 of exposure, not less. Maximum
+// Capital Exposure is the largest single-trade exposure value reached
+// anywhere in the period. Net Profit is the sum of P/L across that exact
+// same chronological, valid-date trade set (via getEquityCurveTrades), so
+// the numerator and denominator can never drift apart from mismatched
+// trade filtering.
+//
+// A trade with no computable Risk $ (missing entry/stop/size) contributes
+// $0 of its own risk to the walk — it still affects the running P/L used
+// by later trades, it just adds no exposure of its own.
+//
+// This is deterministic and independent of input ordering: the same set
+// of closed trades for a period always produces the same result, no
+// matter what order the caller's array is in, because getEquityCurveTrades
+// always re-sorts by close date first.
+function getCapitalExposureWalk(tradeList) {
+  const chronological = getEquityCurveTrades(tradeList);
+  let runningPnl = 0;
+  let maxExposure = 0;
+
+  chronological.forEach(({ trade, pnl }) => {
+    const riskDollars = calculateRiskDollars(trade) ?? 0;
+    const exposureBeforeThisTrade = Math.max(0, -runningPnl) + riskDollars;
+    if (exposureBeforeThisTrade > maxExposure) {
+      maxExposure = exposureBeforeThisTrade;
+    }
+    runningPnl += pnl;
+  });
+
+  return { maxExposure, netProfit: runningPnl };
+}
+
+// Maximum Capital Exposure alone (see getCapitalExposureWalk above) —
+// exposed separately so it can be reasoned about/tested independently of
+// the CE ratio itself.
+function calculateMaxCapitalExposure(tradeList) {
+  return getCapitalExposureWalk(tradeList).maxExposure;
+}
+
+// CE = Net Profit ÷ Maximum Capital Exposure. Returns null (rendered as
+// "—" by formatCapitalEfficiency) when Maximum Capital Exposure is 0 —
+// e.g. no trades in the period, or every trade had $0 risk and the period
+// never went into a realized drawdown — since dividing by zero exposure is
+// meaningless, not infinitely efficient.
+function calculateCapitalEfficiency(tradeList) {
+  const { maxExposure, netProfit } = getCapitalExposureWalk(tradeList);
+  return maxExposure > 0 ? netProfit / maxExposure : null;
+}
+
+// Two decimal places with a "×" suffix (e.g. "3.14×"), matching how a
+// capital-efficiency multiple is conventionally displayed. "—" for null/
+// non-finite input (zero exposure, or no data).
+function formatCapitalEfficiency(value) {
+  return value === null || value === undefined || !Number.isFinite(Number(value))
+    ? '—'
+    : `${Number(value).toFixed(2)}×`;
 }
 
 function getProfitFactor(winningPnlValues, losingPnlValues) {
@@ -2475,6 +2561,10 @@ function getStats(tradeList = trades) {
   // is no open-position concept yet — so tradeList.length is the denominator.
   const protectedYesCount = tradeList.filter((trade) => String(trade.protected || '').trim() === 'Yes').length;
   const protectedPercent = tradeList.length ? (protectedYesCount / tradeList.length) * 100 : null;
+  // Capital Efficiency (CE) — see getCapitalExposureWalk/calculateCapitalEfficiency
+  // above for the full explanation. Computed from this same tradeList, so it
+  // always reflects whatever period/filter the caller already applied.
+  const capitalEfficiency = calculateCapitalEfficiency(tradeList);
 
   return {
     totalPnl,
@@ -2492,6 +2582,7 @@ function getStats(tradeList = trades) {
     biggestWinner,
     biggestLoser,
     biggestRisk,
+    capitalEfficiency,
   };
 }
 
@@ -2640,6 +2731,7 @@ function renderTodayKpiStrip(todayTrades, todayStats) {
           ${statCard('target', 'Win Rate', formatPercent(todayStats.winRate))}
           ${statCard('chart', 'Trades', todayStats.tradeCount)}
           ${statCard('line', 'Profit Factor', formatProfitFactor(todayStats.profitFactor), getProfitFactorTone(todayStats.profitFactor))}
+          ${statCard('line', 'CE', formatCapitalEfficiency(todayStats.capitalEfficiency), getPerformanceTone(todayStats.capitalEfficiency))}
         </section>`;
 }
 
@@ -2650,6 +2742,7 @@ function renderHeroStatsRow(stats) {
           ${statCard('chart', 'Trades', stats.tradeCount)}
           ${statCard('target', 'Win Rate', formatPercent(stats.winRate))}
           ${statCard('line', 'Profit Factor', formatProfitFactor(stats.profitFactor), getProfitFactorTone(stats.profitFactor))}
+          ${statCard('line', 'CE', formatCapitalEfficiency(stats.capitalEfficiency), getPerformanceTone(stats.capitalEfficiency))}
         </section>`;
 }
 
@@ -3348,6 +3441,15 @@ function render(options = {}) {
         statCard('calendar', 'Weekly P/L', currency(weeklyPnl.pnl), getMoneyTone(weeklyPnl.pnl)),
         statCard('calendar', 'Monthly P/L', currency(monthlyPnl.pnl), getMoneyTone(monthlyPnl.pnl)),
         statCard('calendar', 'Yearly P/L', currency(yearlyPnl.pnl), getMoneyTone(yearlyPnl.pnl)),
+      ],
+    },
+    {
+      label: 'Capital Efficiency',
+      cards: [
+        statCard('line', 'Daily CE', formatCapitalEfficiency(dailyPnl.capitalEfficiency), getPerformanceTone(dailyPnl.capitalEfficiency)),
+        statCard('line', 'Weekly CE', formatCapitalEfficiency(weeklyPnl.capitalEfficiency), getPerformanceTone(weeklyPnl.capitalEfficiency)),
+        statCard('line', 'Monthly CE', formatCapitalEfficiency(monthlyPnl.capitalEfficiency), getPerformanceTone(monthlyPnl.capitalEfficiency)),
+        statCard('line', 'Yearly CE', formatCapitalEfficiency(yearlyPnl.capitalEfficiency), getPerformanceTone(yearlyPnl.capitalEfficiency)),
       ],
     },
   ];
