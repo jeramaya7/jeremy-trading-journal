@@ -3,10 +3,11 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 // Guards the reduced metric-value font size inside DNA Results cards
-// (src/styles.css). Requested: shrink only the numeric value text (the
-// <strong> inside each .stat-card) in DNA Results by ~15-20%, while the
-// Trading Mode / Dashboard header KPI strips at the top of the page keep
-// their existing, larger size. Values stay bold — only font-size changes.
+// (src/styles.css). Two successive reductions to the numeric value text
+// (the <strong> inside each .stat-card) in DNA Results: ~17%, then
+// another ~13% on top of that. The Trading Mode / Dashboard header KPI
+// strips at the top of the page keep their existing, larger size. Values
+// stay bold — only font-size changes.
 
 const styles = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');
 
@@ -14,11 +15,11 @@ function assertIncludes(text, expected, message) {
   assert.ok(text.includes(expected), `${message}\nExpected to find: ${expected}`);
 }
 
-test('DNA Results card values are ~17% smaller than before, and stay bold', () => {
+test('DNA Results card values are ~13% smaller again on top of the previous ~17% reduction, and stay bold', () => {
   assertIncludes(
     styles,
-    '.dashboard-card-row .stat-card strong {\n  /* ~17% smaller than the previous clamp(1.75rem, 3.1vw, 3.2rem) — DNA\n     Results values only. Trading Mode/Dashboard header KPI cards use the\n     base .stat-card strong rule above and are unaffected. */\n  font-size: clamp(1.45rem, 2.55vw, 2.65rem);\n  letter-spacing: -0.055em;\n  line-height: 0.98;\n}',
-    'DNA Results value font-size should be reduced to clamp(1.45rem, 2.55vw, 2.65rem) (down from clamp(1.75rem, 3.1vw, 3.2rem)) — a ~17% reduction across the min, preferred, and max clamp values.',
+    '.dashboard-card-row .stat-card strong {\n  /* Two successive reductions, DNA Results values only (Trading\n     Mode/Dashboard header KPI cards use the base .stat-card strong rule\n     above and are unaffected): originally clamp(1.75rem, 3.1vw, 3.2rem),\n     then ~17% smaller at clamp(1.45rem, 2.55vw, 2.65rem), now another\n     ~13% smaller here. */\n  font-size: clamp(1.27rem, 2.22vw, 2.31rem);\n  letter-spacing: -0.055em;\n  line-height: 0.98;\n}',
+    'DNA Results value font-size should now be clamp(1.27rem, 2.22vw, 2.31rem) — roughly another 13% down from clamp(1.45rem, 2.55vw, 2.65rem), across the min, preferred, and max clamp values.',
   );
 
   // Bold weight comes from the shared base rule (.stat-card strong,
