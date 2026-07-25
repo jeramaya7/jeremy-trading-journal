@@ -2055,7 +2055,10 @@ h2,
 }
 
 .dashboard-card-row .stat-card strong {
-  font-size: clamp(1.75rem, 3.1vw, 3.2rem);
+  /* ~17% smaller than the previous clamp(1.75rem, 3.1vw, 3.2rem) — DNA
+     Results values only. Trading Mode/Dashboard header KPI cards use the
+     base .stat-card strong rule above and are unaffected. */
+  font-size: clamp(1.45rem, 2.55vw, 2.65rem);
   letter-spacing: -0.055em;
   line-height: 0.98;
 }
