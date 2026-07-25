@@ -528,8 +528,16 @@ h2 {
 }
 
 @media (min-width: 1101px) {
+  /* Trading Mode: Today P/L, Today %, Win Rate, Trades, Profit Factor, CE —
+     six KPI cards, kept on a single row (was five before CE was added). */
   .stats-grid.trading-today-kpi-strip {
     gap: clamp(0.65rem, 1vw, 0.9rem);
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  /* Dashboard header: Net P/L, Trades, Win Rate, Profit Factor, CE — five
+     KPI cards, kept on a single row (was four before CE was added). */
+  .stats-grid.hero-stats-row {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
