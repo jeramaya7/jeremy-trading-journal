@@ -1639,7 +1639,7 @@ function renderDnaDoctorReport(report, fullReportOpen = false) {
   const statusClass = score >= 70 ? 'positive' : score >= 40 ? 'neutral' : 'negative';
   const scannedAt = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
   const warningSigns = (report.weaknesses || []).length ? report.weaknesses : (report.riskFactors || []);
-const tomorrowFocus = report.tomorrowsFocus || biggestIssue || biggestRisk || 'Tomorrow, execute only your highest-quality setup.';
+const tomorrowFocus = 'Tomorrow, follow your planned stop on every trade.';
 
   return `
     <div class="dna-doctor-report">
