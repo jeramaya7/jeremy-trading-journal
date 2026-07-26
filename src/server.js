@@ -1575,17 +1575,17 @@ Use: "Your evening trades have consistently lost money over the past 30 trades. 
 Instead of: "You entered badly."
 Use: "Consider waiting for the retrace before entering."
 If the same mistake repeats several times: "This is the fifth time this week. It is becoming a habit."
-
+// Tomorrow's Focus must always be one simple action the trader can execute on the next trading day. Never repeat statistics or restate the diagnosis.
 Respond ONLY with valid JSON matching this exact schema — no markdown, no explanation outside the JSON:
 {
   "score": number (0-100),
   "grade": "string (A+/A/B+/B/C+/C/D/F)",
 "scoreExplanation": "string",
 "diagnosis": "string",
-  "strengths": ["string"],
-  "weaknesses": ["string"],
-  "prescription": ["string"],
-  "riskFactors": ["string"]
+  "strengths": ["Maximum 3 concise bullet points"],
+"weaknesses": ["Maximum 3 concise bullet points"],
+"prescription": ["Maximum 2 concise bullet points"],
+"tomorrowsFocus": "One short action for the next trading session only."
 }`;
 
   const userPrompt = `Here are my trading statistics. Produce a DNA Doctor Report.
