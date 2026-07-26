@@ -1585,7 +1585,7 @@ Respond ONLY with valid JSON matching this exact schema — no markdown, no expl
   "strengths": ["Maximum 3 concise bullet points"],
 "weaknesses": ["Maximum 3 concise bullet points"],
 "prescription": ["Maximum 2 concise bullet points"],
-"tomorrowsFocus": "One short action for the next trading session only."
+"tomorrowsFocus": "One sentence starting with 'Tomorrow,' followed by exactly one specific action the trader should execute next session. Do not repeat statistics, the diagnosis, or the prescription."
 }`;
 
   const userPrompt = `Here are my trading statistics. Produce a DNA Doctor Report.
