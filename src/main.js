@@ -200,7 +200,13 @@ let pageMode = loadPageMode();
 let sessionNotesByDay = loadSessionNotesByDay();
 let isSessionNotesModalOpen = false;
 let isSettingsModalOpen = false;
-let dnaDoctorState = { status: 'idle', report: null, error: null, dismissError: false }; // idle | loading | done | error
+let dnaDoctorState = {
+  status: 'idle',
+  report: null,
+  error: null,
+  dismissError: false,
+  fullReportOpen: false
+};
 
 const FRIENDLY_ASSET_NAMES = {
   XAUUSD: 'Gold',
@@ -1521,6 +1527,7 @@ const DNA_DOCTOR_LOADING_STEPS = [
 ];
 
 function renderDnaDoctor(tradeList = trades) {
+  const fullReportOpen = dnaDoctorState.fullReportOpen;
   const { status, report, error, dismissError } = dnaDoctorState;
   const isLoading = status === 'loading';
 
@@ -1541,7 +1548,7 @@ function renderDnaDoctor(tradeList = trades) {
 
   const reportHtml = report ? `
     <div class="dna-doctor-report-wrap ${status === 'done' ? 'dna-doctor-fadein' : ''}">
-      ${renderDnaDoctorReport(report)}
+     ${renderDnaDoctorReport(report, fullReportOpen)}
     </div>` : '';
 
   return `
@@ -1621,7 +1628,7 @@ function renderDnaDoctor(tradeList = trades) {
     </section>`;
 }
 
-function renderDnaDoctorReport(report) {
+function renderDnaDoctorReport(report, fullReportOpen = false) {
   const score = report.score || 0;
   const gradeClass = report.grade?.startsWith('A') ? 'positive' : report.grade?.startsWith('B') ? 'neutral' : 'negative';
   const barClass = score >= 70 ? 'positive' : score >= 40 ? 'neutral' : 'negative';
@@ -3699,6 +3706,9 @@ function bindEvents() {
 
   document.querySelector('#toggleManualTrade')?.addEventListener('click', toggleManualTradeForm, { signal });
   document.querySelector('#shareDashboard')?.addEventListener('click', openShareDashboardView, { signal });
+  document.querySelector('.dna-doctor-full-report')?.addEventListener('toggle', (event) => {
+  dnaDoctorState.fullReportOpen = event.currentTarget.open;
+}, { signal });
   document.querySelector('#runDnaDoctor')?.addEventListener('click', async () => {
     // Preserve existing report during re-scan — never flash empty content
     dnaDoctorState = { ...dnaDoctorState, status: 'loading', report: dnaDoctorState.report, error: null, dismissError: false };

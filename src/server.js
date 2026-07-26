@@ -1524,11 +1524,11 @@ async function readRequestBody(request) {
 }
 
 async function runDnaDoctorEndpoint(request, response, options = {}, fetchImpl = fetch) {
-  const apiKey = options.anthropicApiKey || process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    sendJson(response, 500, { error: 'Anthropic API key is not configured on the server.' });
-    return;
-  }
+const apiKey = options.openaiApiKey || process.env.OPENAI_API_KEY;
+if (!apiKey) {
+  sendJson(response, 500, { error: 'OpenAI API key is not configured on the server.' });
+  return;
+}
 
   let payload;
   try {
@@ -1611,33 +1611,44 @@ ${(payload.sessions || []).map((s) => `${s.session}: ${s.trades} trades, ${Numbe
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const claudeResponse = await fetchImpl('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }],
-      }),
-    });
-    clearTimeout(timeout);
-
-    if (!claudeResponse.ok) {
-      const err = await claudeResponse.json().catch(() => ({}));
-      const msg = err.error?.message || `Claude API error ${claudeResponse.status}`;
-      sendJson(response, 502, { error: msg });
-      return;
+ const openaiResponse = await fetchImpl('https://api.openai.com/v1/responses', {
+  method: 'POST',
+  signal: controller.signal,
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${apiKey}`,
+  },
+  body: JSON.stringify({
+    model: 'gpt-5-mini',
+    store: false,
+    max_output_tokens: 2048,
+    input: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ],
+    text: {
+      format: {
+        type: 'json_object'
+      }
     }
+  })
+});
 
-    const data = await claudeResponse.json();
-    const text = data.content?.find((b) => b.type === 'text')?.text || '';
-    console.log('[DNA Doctor] Raw Claude response length:', text.length, '| stop_reason:', data.stop_reason);
+clearTimeout(timeout);
+
+if (!openaiResponse.ok) {
+  const err = await openaiResponse.json().catch(() => ({}));
+  const msg = err.error?.message || `OpenAI API error ${openaiResponse.status}`;
+  sendJson(response, 502, { error: msg });
+  return;
+}
+
+const data = await openaiResponse.json();
+const text = (data.output || [])
+  .flatMap(item => item.content || [])
+  .find(item => item.type === 'output_text')?.text || '';
+
+console.log('[DNA Doctor] Raw OpenAI response length:', text.length, '| status:', data.status);
 
     // Strip markdown fences if present
     const clean = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
