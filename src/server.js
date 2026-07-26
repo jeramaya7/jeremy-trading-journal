@@ -1580,8 +1580,8 @@ Respond ONLY with valid JSON matching this exact schema — no markdown, no expl
 {
   "score": number (0-100),
   "grade": "string (A+/A/B+/B/C+/C/D/F)",
- "scoreExplanation": "string - 2 natural coaching sentences. Never use the words Fact, Opinion or Recommendation.",
-"diagnosis": "string - Maximum 2 sentences. Be direct, encouraging, and practical.",
+"scoreExplanation": "string",
+"diagnosis": "string",
   "strengths": ["string"],
   "weaknesses": ["string"],
   "prescription": ["string"],
