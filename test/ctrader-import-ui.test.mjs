@@ -379,9 +379,10 @@ test('close reason dropdown is optional and only renders on trade cards when fil
   assertIncludes(source, 'const CLOSE_REASON_OPTIONS = [', 'Close reason options are centralized for the edit dropdown.');
   assertIncludes(source, "'Take Profit'", 'Close reason includes Take Profit.');
   assertIncludes(source, "'Stop Loss'", 'Close reason includes Stop Loss.');
-  assertIncludes(source, "'Trailed Stop'", 'Close reason includes Trailed Stop.');
+  assertIncludes(source, "'Trail Stop'", 'Close reason includes Trail Stop.');
   assertIncludes(source, "'Manual Exit'", 'Close reason includes Manual Exit.');
-  assertIncludes(source, "const CLOSE_REASON_OPTIONS = [\n  'Take Profit',\n  'Stop Loss',\n  'Trailed Stop',\n  'Manual Exit',\n  'Other',\n];", 'Close reason options are exactly the DNA 26 list, in the requested order.');
+  assertIncludes(source, "const CLOSE_REASON_OPTIONS = [\n  'Take Profit',\n  'Stop Loss',\n  'Trail Stop',\n  'Manual Exit',\n  'Other',\n];", 'Close reason options are exactly the DNA 27 list, in the requested order.');
+  assertIncludes(source, 'const legacyCloseReasonOption = currentCloseReason && !CLOSE_REASON_OPTIONS.includes(currentCloseReason)', 'Close reason dropdown preserves legacy saved values that are no longer selectable for new trades.');
   assert.ok(!source.includes("'Trend Change'"), 'Close reason excludes the retired Trend Change option.');
   assert.ok(!source.includes("'Manual Close'"), 'Close reason excludes the retired Manual Close option (renamed Manual Exit).');
   assert.ok(!source.includes("'Closed Too Early'"), 'Close reason excludes the retired Closed Too Early option.');

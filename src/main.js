@@ -238,7 +238,7 @@ const LOSS_REASON_OPTIONS = [
 const CLOSE_REASON_OPTIONS = [
   'Take Profit',
   'Stop Loss',
-  'Trailed Stop',
+  'Trail Stop',
   'Manual Exit',
   'Other',
 ];
@@ -304,6 +304,29 @@ const TRADE_MANAGEMENT_PROTECTED_MAP = {
 
 function getSmartProtectedValue(tradeManagement) {
   return TRADE_MANAGEMENT_PROTECTED_MAP[String(tradeManagement || '').trim()] || 'No';
+}
+
+const TRADE_MANAGEMENT_CLOSE_REASON_MAP = {
+  'Trail Stop': 'Trail Stop',
+  'Stop Loss': 'Stop Loss',
+  'Manual Exit': 'Manual Exit',
+  'Other': 'Other',
+};
+
+const LEGACY_SMART_CLOSE_REASON_MAP = {
+  'Trail Stop': ['Trailed Stop'],
+};
+
+function getSmartCloseReasonValue(tradeManagement) {
+  return TRADE_MANAGEMENT_CLOSE_REASON_MAP[String(tradeManagement || '').trim()] || '';
+}
+
+function isSmartCloseReasonValue(closeReason, tradeManagement) {
+  const smartValue = getSmartCloseReasonValue(tradeManagement);
+  const trimmedCloseReason = String(closeReason || '').trim();
+  return !trimmedCloseReason
+    || trimmedCloseReason === smartValue
+    || (LEGACY_SMART_CLOSE_REASON_MAP[smartValue] || []).includes(trimmedCloseReason);
 }
 
 const app = document.querySelector('#root');
@@ -3071,10 +3094,14 @@ function renderLossReasonSelect(trade) {
 
 function renderCloseReasonSelect(trade) {
   const currentCloseReason = String(trade.closeReason || '').trim();
+  const legacyCloseReasonOption = currentCloseReason && !CLOSE_REASON_OPTIONS.includes(currentCloseReason)
+    ? renderSelectOption(currentCloseReason, currentCloseReason)
+    : '';
   return `
     <select name="closeReason" aria-label="Exit Reason">
       <option value="">No close reason</option>
       ${CLOSE_REASON_OPTIONS.map((option) => renderSelectOption(option, currentCloseReason)).join('')}
+      ${legacyCloseReasonOption}
     </select>
   `;
 }
@@ -3925,10 +3952,25 @@ function bindTradeCardEvents(tradeCardElement) {
   // (scoped to this tradeCardElement, same as the rest of this function).
   tradeCardElement.querySelectorAll('select[name="tradeManagement"]').forEach((select) => {
     select.addEventListener('change', () => {
-      const protectedInput = select.closest('form')?.querySelector('input[name="protected"]');
+      const form = select.closest('form');
+      const protectedInput = form?.querySelector('input[name="protected"]');
       if (protectedInput) {
         protectedInput.value = getSmartProtectedValue(select.value);
       }
+      const closeReasonSelect = form?.querySelector('select[name="closeReason"]');
+      if (closeReasonSelect && closeReasonSelect.dataset.manuallyChanged !== 'true' && isSmartCloseReasonValue(closeReasonSelect.value, closeReasonSelect.dataset.tradeManagement)) {
+        closeReasonSelect.value = getSmartCloseReasonValue(select.value);
+      }
+      if (closeReasonSelect) {
+        closeReasonSelect.dataset.tradeManagement = select.value;
+      }
+    });
+  });
+
+  tradeCardElement.querySelectorAll('select[name="closeReason"]').forEach((select) => {
+    select.dataset.tradeManagement = select.closest('form')?.querySelector('select[name="tradeManagement"]')?.value || '';
+    select.addEventListener('change', () => {
+      select.dataset.manuallyChanged = 'true';
     });
   });
 
