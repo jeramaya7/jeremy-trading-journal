@@ -427,7 +427,11 @@ function persistTrades(nextTrades, options = {}) {
     renderPreservingTradePosition(options.preserveTradeId, options.renderOptions);
     return;
   }
-  render(options.renderOptions || {});
+  if (options.refreshVisibleTradeData) {
+    refreshVisibleTradeDataSections();
+    return;
+  }
+  render();
 }
 
 // Keeps only the fields the backend/Supabase are allowed to store, so we
@@ -507,7 +511,7 @@ async function loadCloudAnnotationsAndMerge() {
     if (changedTradeIds.size > 0) {
       trades = normalizeTradeSetups(mergedTrades);
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));
-      refreshChangedTradeCards(changedTradeIds, { renderOptions: { preserveDnaDoctorPanel: true } });
+      refreshChangedTradeCards(changedTradeIds);
     }
   } catch (error) {
     console.warn('[DNA] Could not load cloud annotations (using local data only):', error.message);
@@ -622,19 +626,162 @@ function renderTradeCardInPlace(tradeId) {
   }
 }
 
-function refreshChangedTradeCards(tradeIds, options = {}) {
-  let shouldRender = false;
+function refreshChangedTradeCards(tradeIds) {
   for (const tradeId of tradeIds) {
     const tradeCard = getTradeCardElement(tradeId);
     if (!tradeCard) {
-      shouldRender = true;
       continue;
     }
     renderTradeCardInPlace(tradeId);
   }
-  if (shouldRender) {
-    render(options.renderOptions || {});
+}
+
+function getFocusRestoreSelector(element) {
+  if (!element || element === document.body) {
+    return '';
   }
+  if (element.id) {
+    return `#${cssEscape(element.id)}`;
+  }
+  const namedControl = element.closest('[name]');
+  if (namedControl?.name) {
+    return `[name="${cssEscape(namedControl.name)}"]`;
+  }
+  return '';
+}
+
+function replaceVisibleSection(selector, html, options = {}) {
+  const currentElement = document.querySelector(selector);
+  const template = document.createElement('template');
+  template.innerHTML = String(html || '').trim();
+  const nextElement = template.content.querySelector(options.nextSelector || selector);
+
+  if (!currentElement) {
+    const insertBeforeElement = options.insertBeforeSelector
+      ? document.querySelector(options.insertBeforeSelector)
+      : null;
+    if (nextElement && insertBeforeElement?.parentNode) {
+      insertBeforeElement.parentNode.insertBefore(nextElement, insertBeforeElement);
+      return true;
+    }
+    return false;
+  }
+
+  if (!nextElement) {
+    currentElement.remove();
+    return true;
+  }
+
+  if (currentElement.outerHTML === nextElement.outerHTML) {
+    return false;
+  }
+
+  currentElement.replaceWith(nextElement);
+  return true;
+}
+
+function getDashboardCardRows(stats, pnlReports, roiPercent) {
+  const [dailyPnl, weeklyPnl, monthlyPnl, yearlyPnl] = pnlReports;
+  const dashboardCardRows = [
+    {
+      label: 'R Metrics',
+      cards: [
+        renderRoiCard(roiPercent),
+        statCard('trend', 'Biggest Winner', stats.biggestWinner === null ? '—' : currency(stats.biggestWinner)),
+        statCard('trend', 'Biggest Loser', stats.biggestLoser === null ? '—' : currency(stats.biggestLoser), getMoneyTone(stats.biggestLoser)),
+        statCard('chart', 'Protected %', formatPercent(stats.protectedPercent)),
+      ],
+    },
+    {
+      label: 'Risk Metrics',
+      cards: [
+        statCard('trend', 'Average Winner', currency(stats.averageWin)),
+        statCard('trend', 'Average Loser', currency(stats.averageLoss), getMoneyTone(stats.averageLoss)),
+        statCard('target', 'Average Risk $', stats.averageRiskDollars === null ? '—' : currency(stats.averageRiskDollars)),
+        statCard('target', 'Average Risk %', formatRiskPercent(stats.averageRiskPercent)),
+      ],
+    },
+    {
+      label: 'Time Performance',
+      cards: [
+        statCard('calendar', 'Daily P/L', currency(dailyPnl.pnl), getMoneyTone(dailyPnl.pnl)),
+        statCard('calendar', 'Weekly P/L', currency(weeklyPnl.pnl), getMoneyTone(weeklyPnl.pnl)),
+        statCard('calendar', 'Monthly P/L', currency(monthlyPnl.pnl), getMoneyTone(monthlyPnl.pnl)),
+        statCard('calendar', 'Yearly P/L', currency(yearlyPnl.pnl), getMoneyTone(yearlyPnl.pnl)),
+      ],
+    },
+    {
+      label: 'Capital Efficiency',
+      cards: [
+        statCard('line', 'Daily CE', formatCapitalEfficiency(dailyPnl.capitalEfficiency), getPerformanceTone(dailyPnl.capitalEfficiency)),
+        statCard('line', 'Weekly CE', formatCapitalEfficiency(weeklyPnl.capitalEfficiency), getPerformanceTone(weeklyPnl.capitalEfficiency)),
+        statCard('line', 'Monthly CE', formatCapitalEfficiency(monthlyPnl.capitalEfficiency), getPerformanceTone(monthlyPnl.capitalEfficiency)),
+        statCard('line', 'Yearly CE', formatCapitalEfficiency(yearlyPnl.capitalEfficiency), getPerformanceTone(yearlyPnl.capitalEfficiency)),
+      ],
+    },
+  ];
+  return dashboardCardRows;
+}
+
+function refreshVisibleTradeDataSections() {
+  if (isTradeEditLocked()) {
+    return;
+  }
+
+  const scrollY = window.scrollY;
+  const focusSelector = getFocusRestoreSelector(document.activeElement);
+  const dnaReferenceDate = getDnaResultsReferenceDate();
+  const activeTrades = getActiveTrades();
+  const filteredTrades = getFilteredTrades();
+  const today = new Date().toISOString().slice(0, 10);
+  let didUpdate = false;
+
+  if (pageMode === PAGE_MODES.trading) {
+    const todayTrades = filterTradesForPeriod(activeTrades, 'day', dnaReferenceDate);
+    const tradingModeSections = renderTodayKpiStrip(todayTrades, getStats(todayTrades));
+    didUpdate = replaceVisibleSection('.trading-today-actions', tradingModeSections)
+      || didUpdate;
+    didUpdate = replaceVisibleSection('.trading-today-kpi-strip', tradingModeSections)
+      || didUpdate;
+    didUpdate = replaceVisibleSection('.workspace-grid', renderJournalWorkspace(filteredTrades, today, { isTradingMode: true }))
+      || didUpdate;
+  } else {
+    const dnaResultsTrades = getDnaResultsTrades(dnaReferenceDate);
+    const stats = getStats(dnaResultsTrades);
+    const pnlReports = getPnlReports(dnaReferenceDate, activeTrades);
+    const roiAccountBalance = calculateAccountBalanceAtPeriodStart(dnaResultsTimeframe, dnaReferenceDate, activeTrades, startingAccountBalance);
+    const roiPercent = calculateRoiPercent(stats.totalPnl, roiAccountBalance);
+    const dashboardCardRows = getDashboardCardRows(stats, pnlReports, roiPercent);
+    const heroStatsRow = renderHeroStatsRow(stats);
+
+    didUpdate = replaceVisibleSection('.hero-equity-section', `<section class="hero-equity-section" aria-label="Equity curve">${renderEquityCurveCard(dnaResultsTrades)}</section>`)
+      || didUpdate;
+    didUpdate = replaceVisibleSection('#shareCapture', `<div id="shareCapture">${heroStatsRow}${renderDashboardSnapshot(dashboardCardRows)}</div>`)
+      || didUpdate;
+    didUpdate = replaceVisibleSection('.monthly-calendar-panel', renderMonthlyTradingCalendar(monthlyCalendarDate, activeTrades))
+      || didUpdate;
+    didUpdate = replaceVisibleSection('.calendar-review-backdrop', renderCalendarDayReviewPanel())
+      || didUpdate;
+    didUpdate = replaceVisibleSection('[aria-label="Setup Analytics"]', renderSetupAnalytics(dnaResultsTrades))
+      || didUpdate;
+    didUpdate = replaceVisibleSection('[aria-label="Asset Analytics"]', renderAssetAnalytics(dnaResultsTrades))
+      || didUpdate;
+    didUpdate = replaceVisibleSection('[aria-label="Trading Session Analysis"]', renderTimeOfDayAnalytics(dnaResultsTrades), {
+      insertBeforeSelector: '.dna-doctor-panel',
+    }) || didUpdate;
+    didUpdate = replaceVisibleSection('.workspace-grid', renderJournalWorkspace(filteredTrades, today))
+      || didUpdate;
+  }
+
+  if (!didUpdate) {
+    return;
+  }
+
+  bindEvents();
+  if (focusSelector) {
+    document.querySelector(focusSelector)?.focus();
+  }
+  window.scrollTo({ top: scrollY, left: window.scrollX });
 }
 
 function captureTradeScrollAnchor(tradeId) {
@@ -3413,7 +3560,6 @@ function render(options = {}) {
     return;
   }
 
-  const preservedDnaDoctorPanel = options.preserveDnaDoctorPanel ? getPreservedDnaDoctorPanel() : null;
   const dnaReferenceDate = getDnaResultsReferenceDate();
   // Deleted trades (Trash) are excluded from every dashboard/journal read
   // below via this one list — `trades` itself still holds them (see
@@ -3422,47 +3568,9 @@ function render(options = {}) {
   const dnaResultsTrades = getDnaResultsTrades(dnaReferenceDate);
   const stats = getStats(dnaResultsTrades);
   const pnlReports = getPnlReports(dnaReferenceDate, activeTrades);
-  const [dailyPnl, weeklyPnl, monthlyPnl, yearlyPnl] = pnlReports;
   const roiAccountBalance = calculateAccountBalanceAtPeriodStart(dnaResultsTimeframe, dnaReferenceDate, activeTrades, startingAccountBalance);
   const roiPercent = calculateRoiPercent(stats.totalPnl, roiAccountBalance);
-  const dashboardCardRows = [
-    {
-      label: 'R Metrics',
-      cards: [
-        renderRoiCard(roiPercent),
-        statCard('trend', 'Biggest Winner', stats.biggestWinner === null ? '—' : currency(stats.biggestWinner)),
-        statCard('trend', 'Biggest Loser', stats.biggestLoser === null ? '—' : currency(stats.biggestLoser), getMoneyTone(stats.biggestLoser)),
-        statCard('chart', 'Protected %', formatPercent(stats.protectedPercent)),
-      ],
-    },
-    {
-      label: 'Risk Metrics',
-      cards: [
-        statCard('trend', 'Average Winner', currency(stats.averageWin)),
-        statCard('trend', 'Average Loser', currency(stats.averageLoss), getMoneyTone(stats.averageLoss)),
-        statCard('target', 'Average Risk $', stats.averageRiskDollars === null ? '—' : currency(stats.averageRiskDollars)),
-        statCard('target', 'Average Risk %', formatRiskPercent(stats.averageRiskPercent)),
-      ],
-    },
-    {
-      label: 'Time Performance',
-      cards: [
-        statCard('calendar', 'Daily P/L', currency(dailyPnl.pnl), getMoneyTone(dailyPnl.pnl)),
-        statCard('calendar', 'Weekly P/L', currency(weeklyPnl.pnl), getMoneyTone(weeklyPnl.pnl)),
-        statCard('calendar', 'Monthly P/L', currency(monthlyPnl.pnl), getMoneyTone(monthlyPnl.pnl)),
-        statCard('calendar', 'Yearly P/L', currency(yearlyPnl.pnl), getMoneyTone(yearlyPnl.pnl)),
-      ],
-    },
-    {
-      label: 'Capital Efficiency',
-      cards: [
-        statCard('line', 'Daily CE', formatCapitalEfficiency(dailyPnl.capitalEfficiency), getPerformanceTone(dailyPnl.capitalEfficiency)),
-        statCard('line', 'Weekly CE', formatCapitalEfficiency(weeklyPnl.capitalEfficiency), getPerformanceTone(weeklyPnl.capitalEfficiency)),
-        statCard('line', 'Monthly CE', formatCapitalEfficiency(monthlyPnl.capitalEfficiency), getPerformanceTone(monthlyPnl.capitalEfficiency)),
-        statCard('line', 'Yearly CE', formatCapitalEfficiency(yearlyPnl.capitalEfficiency), getPerformanceTone(yearlyPnl.capitalEfficiency)),
-      ],
-    },
-  ];
+  const dashboardCardRows = getDashboardCardRows(stats, pnlReports, roiPercent);
   const filteredTrades = getFilteredTrades();
   const monthlyTradingCalendarSection = renderMonthlyTradingCalendar(monthlyCalendarDate, activeTrades);
   const setupAnalyticsSection = renderSetupAnalytics(dnaResultsTrades);
@@ -3565,27 +3673,8 @@ function render(options = {}) {
     </main>
   `;
 
-  restorePreservedDnaDoctorPanel(preservedDnaDoctorPanel);
   bindEvents();
 }
-
-function getPreservedDnaDoctorPanel() {
-  if (pageMode !== PAGE_MODES.dashboard || (!dnaDoctorState.report && dnaDoctorState.status !== 'loading')) {
-    return null;
-  }
-  return document.querySelector('.dna-doctor-panel');
-}
-
-function restorePreservedDnaDoctorPanel(preservedPanel) {
-  if (!preservedPanel) {
-    return;
-  }
-  const nextPanel = document.querySelector('.dna-doctor-panel');
-  if (nextPanel) {
-    nextPanel.replaceWith(preservedPanel);
-  }
-}
-
 
 function renderDashboardSnapshot(dashboardCardRows) {
   return `
@@ -5010,7 +5099,7 @@ async function syncCTrader(options = {}) {
 
     const updatedExistingTrades = applyCTraderImportedTradeUpdates(trades, syncPlan.skippedTrades);
     if (syncPlan.importedTrades.length || updatedExistingTrades.updatedCount > 0) {
-      persistTrades([...syncPlan.importedTrades, ...updatedExistingTrades.trades], { renderOptions: { preserveDnaDoctorPanel: true } });
+      persistTrades([...syncPlan.importedTrades, ...updatedExistingTrades.trades], { refreshVisibleTradeData: isAutoSync });
     }
 
     const syncedAt = new Date().toISOString();

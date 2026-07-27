@@ -32,7 +32,7 @@ test('cTrader preview trades are converted into saved journal entries', () => {
   assertIncludes(syncSource, "tags: '',", 'Imported entries leave saved journal tags blank by default.');
   assertIncludes(syncSource, "notes: '',", 'Imported entries leave saved journal notes blank by default.');
   assertIncludes(syncSource, 'importedAt: getImportedAt(options)', 'Imported entries record when they were saved locally.');
-  assertIncludes(source, 'persistTrades([...syncPlan.importedTrades, ...updatedExistingTrades.trades], { renderOptions: { preserveDnaDoctorPanel: true } })', 'Imported trades are saved to the existing local journal storage path while preserving DNA Scan during background sync.');
+  assertIncludes(source, 'persistTrades([...syncPlan.importedTrades, ...updatedExistingTrades.trades], { refreshVisibleTradeData: isAutoSync })', 'Imported trades are saved to the existing local journal storage path and Auto Sync refreshes visible trade data without a full app render.');
   assertIncludes(source, 'applyCTraderImportedTradeUpdates(trades, syncPlan.skippedTrades)', 'Skipped duplicate imports refresh stale local cTrader symbols.');
 });
 
@@ -98,8 +98,18 @@ test('cTrader Auto Sync keeps syncing while the app is open', () => {
   assertIncludes(source, 'bindCTraderConnectionEvents();', 'Replacing the cTrader card rebinds that card controls.');
   assertIncludes(source, 'syncStatus.textContent = cTraderSyncStatus.message;', 'Normal cTrader status refreshes update existing status text instead of replacing the card.');
   assertIncludes(source, 'lastSyncElement.textContent = formatSyncTime(cTraderLastSyncAt);', 'Normal cTrader last-sync refreshes update existing text instead of replacing the card.');
-  assertIncludes(source, 'preserveDnaDoctorPanel: true', 'Background sync renders preserve the existing DNA Scan panel instead of rebuilding it.');
-  assertIncludes(source, 'nextPanel.replaceWith(preservedPanel);', 'When a background sync must re-render, the existing DNA Scan panel is restored into place.');
+  assertIncludes(source, 'if (options.refreshVisibleTradeData) {\n    refreshVisibleTradeDataSections();\n    return;\n  }', 'Background Auto Sync refreshes only visible trade-data sections after saving.');
+  assertIncludes(source, 'function refreshVisibleTradeDataSections()', 'Background Auto Sync has a targeted UI refresh path.');
+  assertIncludes(source, 'replaceVisibleSection(\'#shareCapture\'', 'Dashboard KPIs, ROI, reports, and statistics are refreshed in place.');
+  assertIncludes(source, 'replaceVisibleSection(\'.workspace-grid\'', 'Newly imported trades can appear in the visible journal without a full app render.');
+  assertIncludes(source, 'renderJournalWorkspace(filteredTrades, today, { isTradingMode: true })', 'Trading Mode journal refresh uses the existing Trading Mode journal markup.');
+  assertIncludes(source, 'insertBeforeSelector: \'.dna-doctor-panel\'', 'Trading session analytics can be inserted without replacing the DNA Scan panel.');
+  assert.equal(source.includes('replaceVisibleSection(\'.dna-doctor-panel\''), false, 'Auto Sync should not replace the DNA Scan panel.');
+  assert.equal(source.includes('preserveDnaDoctorPanel'), false, 'Background sync should avoid unnecessary renders instead of preserving individual panels.');
+  const refreshChangedTradeCardsStart = source.indexOf('function refreshChangedTradeCards(tradeIds) {');
+  const refreshChangedTradeCardsEnd = source.indexOf('\nfunction captureTradeScrollAnchor(', refreshChangedTradeCardsStart);
+  const refreshChangedTradeCardsBody = source.slice(refreshChangedTradeCardsStart, refreshChangedTradeCardsEnd);
+  assert.equal(refreshChangedTradeCardsBody.includes('render('), false, 'Supabase annotation refresh should update visible changed cards only, never trigger a full render fallback.');
 
   // Lowering the interval from 60s to 12s is only safe because overlapping
   // requests were already prevented and still are: both entry points bail
