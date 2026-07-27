@@ -427,7 +427,7 @@ function persistTrades(nextTrades, options = {}) {
     renderPreservingTradePosition(options.preserveTradeId, options.renderOptions);
     return;
   }
-  render();
+  render(options.renderOptions || {});
 }
 
 // Keeps only the fields the backend/Supabase are allowed to store, so we
@@ -507,7 +507,7 @@ async function loadCloudAnnotationsAndMerge() {
     if (changedTradeIds.size > 0) {
       trades = normalizeTradeSetups(mergedTrades);
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));
-      refreshChangedTradeCards(changedTradeIds);
+      refreshChangedTradeCards(changedTradeIds, { renderOptions: { preserveDnaDoctorPanel: true } });
     }
   } catch (error) {
     console.warn('[DNA] Could not load cloud annotations (using local data only):', error.message);
@@ -622,7 +622,7 @@ function renderTradeCardInPlace(tradeId) {
   }
 }
 
-function refreshChangedTradeCards(tradeIds) {
+function refreshChangedTradeCards(tradeIds, options = {}) {
   let shouldRender = false;
   for (const tradeId of tradeIds) {
     const tradeCard = getTradeCardElement(tradeId);
@@ -633,7 +633,7 @@ function refreshChangedTradeCards(tradeIds) {
     renderTradeCardInPlace(tradeId);
   }
   if (shouldRender) {
-    render();
+    render(options.renderOptions || {});
   }
 }
 
@@ -3413,6 +3413,7 @@ function render(options = {}) {
     return;
   }
 
+  const preservedDnaDoctorPanel = options.preserveDnaDoctorPanel ? getPreservedDnaDoctorPanel() : null;
   const dnaReferenceDate = getDnaResultsReferenceDate();
   // Deleted trades (Trash) are excluded from every dashboard/journal read
   // below via this one list — `trades` itself still holds them (see
@@ -3564,7 +3565,25 @@ function render(options = {}) {
     </main>
   `;
 
+  restorePreservedDnaDoctorPanel(preservedDnaDoctorPanel);
   bindEvents();
+}
+
+function getPreservedDnaDoctorPanel() {
+  if (pageMode !== PAGE_MODES.dashboard || (!dnaDoctorState.report && dnaDoctorState.status !== 'loading')) {
+    return null;
+  }
+  return document.querySelector('.dna-doctor-panel');
+}
+
+function restorePreservedDnaDoctorPanel(preservedPanel) {
+  if (!preservedPanel) {
+    return;
+  }
+  const nextPanel = document.querySelector('.dna-doctor-panel');
+  if (nextPanel) {
+    nextPanel.replaceWith(preservedPanel);
+  }
 }
 
 
@@ -4991,7 +5010,7 @@ async function syncCTrader(options = {}) {
 
     const updatedExistingTrades = applyCTraderImportedTradeUpdates(trades, syncPlan.skippedTrades);
     if (syncPlan.importedTrades.length || updatedExistingTrades.updatedCount > 0) {
-      persistTrades([...syncPlan.importedTrades, ...updatedExistingTrades.trades]);
+      persistTrades([...syncPlan.importedTrades, ...updatedExistingTrades.trades], { renderOptions: { preserveDnaDoctorPanel: true } });
     }
 
     const syncedAt = new Date().toISOString();

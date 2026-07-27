@@ -32,7 +32,7 @@ test('cTrader preview trades are converted into saved journal entries', () => {
   assertIncludes(syncSource, "tags: '',", 'Imported entries leave saved journal tags blank by default.');
   assertIncludes(syncSource, "notes: '',", 'Imported entries leave saved journal notes blank by default.');
   assertIncludes(syncSource, 'importedAt: getImportedAt(options)', 'Imported entries record when they were saved locally.');
-  assertIncludes(source, 'persistTrades([...syncPlan.importedTrades, ...updatedExistingTrades.trades])', 'Imported trades are saved to the existing local journal storage path.');
+  assertIncludes(source, 'persistTrades([...syncPlan.importedTrades, ...updatedExistingTrades.trades], { renderOptions: { preserveDnaDoctorPanel: true } })', 'Imported trades are saved to the existing local journal storage path while preserving DNA Scan during background sync.');
   assertIncludes(source, 'applyCTraderImportedTradeUpdates(trades, syncPlan.skippedTrades)', 'Skipped duplicate imports refresh stale local cTrader symbols.');
 });
 
@@ -98,6 +98,8 @@ test('cTrader Auto Sync keeps syncing while the app is open', () => {
   assertIncludes(source, 'bindCTraderConnectionEvents();', 'Replacing the cTrader card rebinds that card controls.');
   assertIncludes(source, 'syncStatus.textContent = cTraderSyncStatus.message;', 'Normal cTrader status refreshes update existing status text instead of replacing the card.');
   assertIncludes(source, 'lastSyncElement.textContent = formatSyncTime(cTraderLastSyncAt);', 'Normal cTrader last-sync refreshes update existing text instead of replacing the card.');
+  assertIncludes(source, 'preserveDnaDoctorPanel: true', 'Background sync renders preserve the existing DNA Scan panel instead of rebuilding it.');
+  assertIncludes(source, 'nextPanel.replaceWith(preservedPanel);', 'When a background sync must re-render, the existing DNA Scan panel is restored into place.');
 
   // Lowering the interval from 60s to 12s is only safe because overlapping
   // requests were already prevented and still are: both entry points bail
