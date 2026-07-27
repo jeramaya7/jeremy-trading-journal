@@ -4599,26 +4599,26 @@ function renderCTraderConnectionCard() {
       <div class="ctrader-card-header">
         <label class="auto-sync-toggle">
           <input type="checkbox" id="autoSyncCTrader" ${isCTraderAutoSyncEnabled ? 'checked' : ''} />
-          <span>Auto Sync ${isCTraderAutoSyncEnabled ? 'ON' : 'OFF'}</span>
+          <span data-auto-sync-label>Auto Sync ${isCTraderAutoSyncEnabled ? 'ON' : 'OFF'}</span>
         </label>
         ${!isCTraderConnected ? `<button class="connect-button" type="button" id="connectCTrader" ${isCheckingCTraderConnection ? 'disabled' : ''}>Connect cTrader</button>` : ''}
       </div>
       <dl class="ctrader-connection-summary" aria-label="cTrader connection summary">
         <div>
           <dt>cTrader</dt>
-          <dd class="connection-${isCTraderConnected ? 'connected' : 'disconnected'}">${isCTraderConnected ? 'Connected' : 'Not Connected'}</dd>
+          <dd data-ctrader-connection-status class="connection-${isCTraderConnected ? 'connected' : 'disconnected'}">${isCTraderConnected ? 'Connected' : 'Not Connected'}</dd>
         </div>
         <div>
           <dt>Selected Account</dt>
-          <dd>${escapeHtml(selectedAccountLabel)}</dd>
+          <dd data-selected-account-label>${escapeHtml(selectedAccountLabel)}</dd>
         </div>
         <div>
           <dt>Account Balance</dt>
-          <dd>${escapeHtml(formatCTraderAccountBalance())}</dd>
+          <dd data-account-balance>${escapeHtml(formatCTraderAccountBalance())}</dd>
         </div>
         <div>
           <dt>Last Sync Time</dt>
-          <dd>${escapeHtml(formatSyncTime(cTraderLastSyncAt))}</dd>
+          <dd data-last-sync-time>${escapeHtml(formatSyncTime(cTraderLastSyncAt))}</dd>
         </div>
       </dl>
       <div class="ctrader-account-selector">
@@ -4630,7 +4630,7 @@ function renderCTraderConnectionCard() {
         </label>
         <button class="secondary-button" type="button" id="refreshCTraderAccounts" ${isLoadingCTraderAccounts ? 'disabled' : ''}>${isLoadingCTraderAccounts ? 'Loading accounts...' : 'Refresh Accounts'}</button>
       </div>
-      ${cTraderSyncStatus ? `<p class="import-status ${escapeHtml(cTraderSyncStatus.tone)}" role="status">${escapeHtml(cTraderSyncStatus.message)}</p>` : ''}
+      <p class="import-status ${escapeHtml(cTraderSyncStatus?.tone || 'pending')}" role="status" data-sync-status${cTraderSyncStatus ? '' : ' hidden'}>${escapeHtml(cTraderSyncStatus?.message || '')}</p>
       <div class="ctrader-card-actions">
         <button class="secondary-button" type="button" id="syncCTrader" ${isSyncingCTrader || isCheckingCTraderConnection ? 'disabled' : ''}>
           ${icon('refresh')} ${isSyncingCTrader ? 'Syncing cTrader...' : 'Sync cTrader'}
@@ -4671,12 +4671,59 @@ function refreshCTraderConnectionCard() {
     return;
   }
 
-  const activeElementId = currentCard.contains(document.activeElement) ? document.activeElement.id : '';
-  currentCard.outerHTML = renderCTraderConnectionCard();
-  bindCTraderConnectionEvents();
+  const selectedAccount = getSelectedCTraderAccount();
+  const selectedAccountLabel = selectedAccount
+    ? formatCTraderAccountLabel(selectedAccount)
+    : (selectedCTraderAccountId ? `Selected account ID ${selectedCTraderAccountId}` : 'No account selected');
+  const options = cTraderAccounts.map((account) => {
+    const accountId = String(getCTraderAccountId(account));
+    return `<option value="${escapeHtml(accountId)}" ${accountId === String(selectedCTraderAccountId) ? 'selected' : ''}>${escapeHtml(formatCTraderAccountLabel(account))}</option>`;
+  }).join('');
+  const connectionStatus = currentCard.querySelector('[data-ctrader-connection-status]');
+  const selectedAccountElement = currentCard.querySelector('[data-selected-account-label]');
+  const accountBalanceElement = currentCard.querySelector('[data-account-balance]');
+  const lastSyncElement = currentCard.querySelector('[data-last-sync-time]');
+  const autoSyncCheckbox = currentCard.querySelector('#autoSyncCTrader');
+  const autoSyncLabel = currentCard.querySelector('[data-auto-sync-label]');
+  const accountSelect = currentCard.querySelector('#cTraderAccountSelect');
+  const syncButton = currentCard.querySelector('#syncCTrader');
+  const refreshAccountsButton = currentCard.querySelector('#refreshCTraderAccounts');
+  const syncStatus = currentCard.querySelector('[data-sync-status]');
+  const connectButton = currentCard.querySelector('#connectCTrader');
+  const expectedAccountOptions = cTraderAccounts.length ? options : '<option value="">Connect cTrader to load accounts</option>';
+  const hasConnectButtonMismatch = Boolean(connectButton) === isCTraderConnected;
 
-  if (activeElementId) {
-    document.querySelector(`#${cssEscape(activeElementId)}`)?.focus();
+  if (!connectionStatus || !selectedAccountElement || !accountBalanceElement || !lastSyncElement || !autoSyncCheckbox || !autoSyncLabel || !accountSelect || !syncButton || !refreshAccountsButton || !syncStatus || hasConnectButtonMismatch || accountSelect.innerHTML.trim() !== expectedAccountOptions.trim()) {
+    const activeElementId = currentCard.contains(document.activeElement) ? document.activeElement.id : '';
+    currentCard.outerHTML = renderCTraderConnectionCard();
+    bindCTraderConnectionEvents();
+    if (activeElementId) {
+      document.querySelector(`#${cssEscape(activeElementId)}`)?.focus();
+    }
+    return;
+  }
+
+  autoSyncCheckbox.checked = isCTraderAutoSyncEnabled;
+  autoSyncLabel.textContent = `Auto Sync ${isCTraderAutoSyncEnabled ? 'ON' : 'OFF'}`;
+  connectionStatus.className = `connection-${isCTraderConnected ? 'connected' : 'disconnected'}`;
+  connectionStatus.textContent = isCTraderConnected ? 'Connected' : 'Not Connected';
+  selectedAccountElement.textContent = selectedAccountLabel;
+  accountBalanceElement.textContent = formatCTraderAccountBalance();
+  lastSyncElement.textContent = formatSyncTime(cTraderLastSyncAt);
+  accountSelect.disabled = isLoadingCTraderAccounts || !cTraderAccounts.length;
+  accountSelect.value = selectedCTraderAccountId;
+  if (connectButton) {
+    connectButton.disabled = isCheckingCTraderConnection;
+  }
+  syncButton.disabled = isSyncingCTrader || isCheckingCTraderConnection;
+  syncButton.innerHTML = `${icon('refresh')} ${isSyncingCTrader ? 'Syncing cTrader...' : 'Sync cTrader'}`;
+  refreshAccountsButton.disabled = isLoadingCTraderAccounts;
+  refreshAccountsButton.textContent = isLoadingCTraderAccounts ? 'Loading accounts...' : 'Refresh Accounts';
+
+  syncStatus.hidden = !cTraderSyncStatus;
+  if (cTraderSyncStatus) {
+    syncStatus.className = `import-status ${cTraderSyncStatus.tone}`;
+    syncStatus.textContent = cTraderSyncStatus.message;
   }
 }
 

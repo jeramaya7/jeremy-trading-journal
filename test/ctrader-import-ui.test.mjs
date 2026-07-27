@@ -96,6 +96,8 @@ test('cTrader Auto Sync keeps syncing while the app is open', () => {
   assertIncludes(source, 'scheduleCTraderAutoSync();', 'The app schedules Auto Sync during startup and preference changes.');
   assertIncludes(source, 'function refreshCTraderConnectionCard()', 'cTrader status refreshes can update only the cTrader card.');
   assertIncludes(source, 'bindCTraderConnectionEvents();', 'Replacing the cTrader card rebinds that card controls.');
+  assertIncludes(source, 'syncStatus.textContent = cTraderSyncStatus.message;', 'Normal cTrader status refreshes update existing status text instead of replacing the card.');
+  assertIncludes(source, 'lastSyncElement.textContent = formatSyncTime(cTraderLastSyncAt);', 'Normal cTrader last-sync refreshes update existing text instead of replacing the card.');
 
   // Lowering the interval from 60s to 12s is only safe because overlapping
   // requests were already prevented and still are: both entry points bail
