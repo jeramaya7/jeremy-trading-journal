@@ -104,6 +104,11 @@ test('cTrader Auto Sync keeps syncing while the app is open', () => {
   assertIncludes(source, 'replaceVisibleSection(\'.workspace-grid\'', 'Newly imported trades can appear in the visible journal without a full app render.');
   assertIncludes(source, 'renderJournalWorkspace(filteredTrades, today, { isTradingMode: true })', 'Trading Mode journal refresh uses the existing Trading Mode journal markup.');
   assertIncludes(source, 'insertBeforeSelector: \'.dna-doctor-panel\'', 'Trading session analytics can be inserted without replacing the DNA Scan panel.');
+  assert.equal(source.includes('Auto Sync checking cTrader trades...'), false, 'No-op Auto Sync ticks should not repaint the cTrader card with a transient checking status.');
+  assert.equal(source.includes('Checking cTrader connection for Auto Sync...'), false, 'No-op Auto Sync connection checks should not repaint the cTrader card with a transient checking status.');
+  assertIncludes(source, 'if (!isAutoSync) {\n    cTraderSyncStatus = { tone: \'pending\', message: \'Syncing cTrader trades...\' };', 'Manual Sync still shows its pending status, but Auto Sync stays visually quiet.');
+  assertIncludes(source, 'if (!isAutoSync || hasVisibleTradeChanges) {', 'Auto Sync only changes the success status when trade data actually changed.');
+  assertIncludes(source, 'if (shouldRefreshCTraderCard) {\n      refreshCTraderConnectionCard();\n    }', 'No-op Auto Sync does not repaint the cTrader card from stale status state.');
   assert.equal(source.includes('replaceVisibleSection(\'.dna-doctor-panel\''), false, 'Auto Sync should not replace the DNA Scan panel.');
   assert.equal(source.includes('preserveDnaDoctorPanel'), false, 'Background sync should avoid unnecessary renders instead of preserving individual panels.');
   const refreshChangedTradeCardsStart = source.indexOf('function refreshChangedTradeCards(tradeIds) {');

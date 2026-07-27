@@ -5065,8 +5065,11 @@ async function syncCTrader(options = {}) {
 
   isSyncingCTrader = true;
   const isAutoSync = options.source === 'auto';
-  cTraderSyncStatus = { tone: 'pending', message: isAutoSync ? 'Auto Sync checking cTrader trades...' : 'Syncing cTrader trades...' };
-  refreshCTraderConnectionCard();
+  let shouldRefreshCTraderCard = !isAutoSync;
+  if (!isAutoSync) {
+    cTraderSyncStatus = { tone: 'pending', message: 'Syncing cTrader trades...' };
+    refreshCTraderConnectionCard();
+  }
 
   try {
     await loadCTraderAccounts();
@@ -5098,16 +5101,20 @@ async function syncCTrader(options = {}) {
     logCTraderSyncDiagnostics({ preview, syncPlan, existingTrades: trades });
 
     const updatedExistingTrades = applyCTraderImportedTradeUpdates(trades, syncPlan.skippedTrades);
-    if (syncPlan.importedTrades.length || updatedExistingTrades.updatedCount > 0) {
+    const hasVisibleTradeChanges = syncPlan.importedTrades.length || updatedExistingTrades.updatedCount > 0;
+    if (hasVisibleTradeChanges) {
       persistTrades([...syncPlan.importedTrades, ...updatedExistingTrades.trades], { refreshVisibleTradeData: isAutoSync });
     }
 
     const syncedAt = new Date().toISOString();
     persistCTraderLastSyncTime(syncedAt);
-    cTraderSyncStatus = {
-      tone: 'success',
-      message: `${isAutoSync ? 'Auto Sync complete.' : 'Sync complete.'} New trades imported: ${syncPlan.importedCount}. Trades skipped: ${syncPlan.skippedCount}. Imported trades updated: ${updatedExistingTrades.updatedCount}. Stop losses updated: ${updatedExistingTrades.stopLossUpdatedCount}.`,
-    };
+    if (!isAutoSync || hasVisibleTradeChanges) {
+      cTraderSyncStatus = {
+        tone: 'success',
+        message: `${isAutoSync ? 'Auto Sync complete.' : 'Sync complete.'} New trades imported: ${syncPlan.importedCount}. Trades skipped: ${syncPlan.skippedCount}. Imported trades updated: ${updatedExistingTrades.updatedCount}. Stop losses updated: ${updatedExistingTrades.stopLossUpdatedCount}.`,
+      };
+      shouldRefreshCTraderCard = true;
+    }
   } catch (error) {
     console.error('[cTrader sync] Frontend request failed', {
       requestUrl: error.url || null,
@@ -5122,9 +5129,12 @@ async function syncCTrader(options = {}) {
       tone: 'error',
       message: error.message || 'cTrader sync failed.',
     };
+    shouldRefreshCTraderCard = true;
   } finally {
     isSyncingCTrader = false;
-    refreshCTraderConnectionCard();
+    if (shouldRefreshCTraderCard) {
+      refreshCTraderConnectionCard();
+    }
   }
 }
 
@@ -5220,8 +5230,7 @@ async function syncCTraderOnStartup() {
   }
 
   isCheckingCTraderConnection = true;
-  cTraderSyncStatus = { tone: 'pending', message: 'Checking cTrader connection for Auto Sync...' };
-  refreshCTraderConnectionCard();
+  let shouldRefreshCTraderCard = false;
 
   try {
     await checkCTraderConnection();
@@ -5232,10 +5241,13 @@ async function syncCTraderOnStartup() {
       tone: 'error',
       message: error.message || 'cTrader is not connected. Connect cTrader to enable Auto Sync.',
     };
+    shouldRefreshCTraderCard = true;
     return;
   } finally {
     isCheckingCTraderConnection = false;
-    refreshCTraderConnectionCard();
+    if (shouldRefreshCTraderCard) {
+      refreshCTraderConnectionCard();
+    }
   }
 
   await syncCTrader({ source: 'auto' });
