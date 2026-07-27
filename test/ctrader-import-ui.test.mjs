@@ -11,7 +11,7 @@ function assertIncludes(text, expected, message) {
 
 test('cTrader sync button calls the journal preview API', () => {
   assertIncludes(source, 'id="syncCTrader"', 'The hero actions render a Sync cTrader button.');
-  assertIncludes(source, "document.querySelector('#syncCTrader').addEventListener('click', () => syncCTrader({ source: 'manual' }));", 'The cTrader sync button is wired to the sync handler.');
+  assertIncludes(source, "document.querySelector('#syncCTrader')?.addEventListener('click', () => syncCTrader({ source: 'manual' }), listenerOptions);", 'The cTrader sync button is wired to the sync handler.');
   assertIncludes(source, 'fetchBackendJson(syncRequestPath)', 'The sync handler fetches newly closed cTrader journal preview trades with a dynamic request path.');
   assertIncludes(source, 'Sync cTrader', 'The button copy uses the one-click synchronization language.');
 });
@@ -19,7 +19,7 @@ test('cTrader sync button calls the journal preview API', () => {
 test('cTrader connect button starts OAuth on the Render backend and checks status after return', () => {
   assertIncludes(source, 'id="connectCTrader"', 'The hero actions render a visible Connect cTrader button.');
   assertIncludes(source, 'Connect cTrader', 'The button copy clearly starts cTrader connection.');
-  assertIncludes(source, "document.querySelector('#connectCTrader')?.addEventListener('click', startCTraderOAuthFlow);", 'The connect button is wired to the OAuth handler.');
+  assertIncludes(source, "document.querySelector('#connectCTrader')?.addEventListener('click', startCTraderOAuthFlow, listenerOptions);", 'The connect button is wired to the OAuth handler.');
   assertIncludes(source, 'buildCTraderOAuthUrl(CTRADER_ENDPOINTS.authStart)', 'The OAuth handler uses the Render auth start URL builder.');
   assertIncludes(source, "authStartUrl.searchParams.set('returnTo', getCTraderOAuthReturnUrl());", 'The OAuth handler asks the backend to return to the frontend after authorization.');
   assertIncludes(source, "currentUrl.searchParams.get('ctrader') !== 'connected'", 'The frontend detects the OAuth return flag.');
@@ -68,7 +68,7 @@ test('cTrader sync skips duplicates by source trade IDs and reports imported/ski
 test('cTrader imports can be bulk deleted without removing manual trades', () => {
   assertIncludes(source, 'id="deleteAllCTraderImports"', 'The hero actions render a Delete All cTrader Imports button.');
   assertIncludes(source, 'Delete All cTrader Imports', 'The delete button uses the requested label.');
-  assertIncludes(source, "document.querySelector('#deleteAllCTraderImports').addEventListener('click', deleteAllCTraderImports);", 'The delete button is wired to its handler.');
+  assertIncludes(source, "document.querySelector('#deleteAllCTraderImports')?.addEventListener('click', deleteAllCTraderImports, listenerOptions);", 'The delete button is wired to its handler.');
   assertIncludes(source, "window.confirm('Delete all imported cTrader trades?')", 'The handler asks for the requested confirmation before deleting.');
   assertIncludes(source, "trades.filter((trade) => trade?.provider !== 'ctrader')", 'Only provider-marked cTrader imports are removed so manual trades remain.');
   assertIncludes(source, 'clearDeletedCTraderSourceKeys();', 'Bulk deleting cTrader imports clears deleted source keys so they can be synced again.');
@@ -80,7 +80,7 @@ test('cTrader Auto Sync runs on startup and exposes settings metadata', () => {
   assertIncludes(source, "const AUTO_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-auto-sync:v1';", 'Auto Sync preference is persisted separately from trades.');
   assertIncludes(source, "const LAST_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-last-sync:v1';", 'Last sync time is persisted separately from trades.');
   assertIncludes(source, 'id="autoSyncCTrader"', 'The hero actions render an Auto Sync checkbox.');
-  assertIncludes(source, "document.querySelector('#autoSyncCTrader').addEventListener('change', changeCTraderAutoSyncSetting);", 'The Auto Sync checkbox updates the saved preference.');
+  assertIncludes(source, "document.querySelector('#autoSyncCTrader')?.addEventListener('change', changeCTraderAutoSyncSetting, listenerOptions);", 'The Auto Sync checkbox updates the saved preference through the reusable cTrader card binding.');
   assertIncludes(source, 'fetchBackendJson(CTRADER_ENDPOINTS.status)', 'Startup Auto Sync checks cTrader connection status before syncing trades.');
   assertIncludes(source, "syncCTrader({ source: 'auto' })", 'Startup Auto Sync imports new cTrader trades without pressing Sync.');
   assertIncludes(source, 'Last Sync Time', 'The UI shows the last cTrader sync time.');
@@ -94,6 +94,8 @@ test('cTrader Auto Sync keeps syncing while the app is open', () => {
   assertIncludes(source, 'clearInterval(cTraderAutoSyncTimer);', 'Changing Auto Sync clears the previous timer to avoid duplicate polling.');
   assertIncludes(source, 'window.setInterval(() => {', 'Auto Sync repeats without requiring the user to press Sync.');
   assertIncludes(source, 'scheduleCTraderAutoSync();', 'The app schedules Auto Sync during startup and preference changes.');
+  assertIncludes(source, 'function refreshCTraderConnectionCard()', 'cTrader status refreshes can update only the cTrader card.');
+  assertIncludes(source, 'bindCTraderConnectionEvents();', 'Replacing the cTrader card rebinds that card controls.');
 
   // Lowering the interval from 60s to 12s is only safe because overlapping
   // requests were already prevented and still are: both entry points bail

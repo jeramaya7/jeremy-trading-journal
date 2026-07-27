@@ -39,7 +39,7 @@ test('Delete All Screenshots button exists in the data actions row, with the req
   assertIncludes(source, 'Delete All Screenshots', 'The button should use the requested label.');
   assertIncludes(
     source,
-    "document.querySelector('#deleteAllScreenshots').addEventListener('click', deleteAllScreenshots, { signal });",
+    "document.querySelector('#deleteAllScreenshots')?.addEventListener('click', deleteAllScreenshots, listenerOptions);",
     'The button should be wired to the deleteAllScreenshots handler.',
   );
 });

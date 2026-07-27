@@ -485,7 +485,7 @@ async function loadCloudAnnotationsAndMerge() {
       return;
     }
 
-    let didMergeAnyTrade = false;
+    const changedTradeIds = new Set();
     const mergedTrades = trades.map((trade) => {
       const tradeKey = String(trade.id);
       if (editingTradeIds.has(tradeKey) || pendingAnnotationPushes.has(tradeKey)) {
@@ -495,14 +495,19 @@ async function loadCloudAnnotationsAndMerge() {
       if (!cloudFields || typeof cloudFields !== 'object') {
         return trade;
       }
-      didMergeAnyTrade = true;
-      return { ...trade, ...extractAnnotationFields(cloudFields) };
+      const annotationFields = extractAnnotationFields(cloudFields);
+      const hasChangedField = Object.entries(annotationFields).some(([field, value]) => trade[field] !== value);
+      if (!hasChangedField) {
+        return trade;
+      }
+      changedTradeIds.add(tradeKey);
+      return { ...trade, ...annotationFields };
     });
 
-    if (didMergeAnyTrade) {
+    if (changedTradeIds.size > 0) {
       trades = normalizeTradeSetups(mergedTrades);
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));
-      render();
+      refreshChangedTradeCards(changedTradeIds);
     }
   } catch (error) {
     console.warn('[DNA] Could not load cloud annotations (using local data only):', error.message);
@@ -542,13 +547,9 @@ async function maybeRefreshCloudAnnotations() {
 // Manual Trade form's Entry/Exit/Symbol/etc. fields are plain uncontrolled
 // <input> elements — their typed values live only in the DOM, not in any
 // JS state — so any render() while the form was open silently wiped
-// whatever the user had typed. This was never specific to the 12s cTrader
-// Auto Sync interval: syncCTrader() calls render() at the start and end of
-// every sync (and persistTrades()/loadCloudAnnotationsAndMerge() call
-// render() too), so the exact same data loss could already happen at the
-// old 60s interval, or from a cloud-annotation refresh, or the app was even
-// just sitting on a slow connection. Shortening the interval only raised
-// how often a render landed while someone was mid-form.
+// whatever the user had typed. cTrader status updates now refresh only the
+// cTrader card, but the edit lock still protects against full renders from
+// real trade-list changes.
 //
 // Fix: the lock now also covers the Manual Trade form. Every render() call
 // already funnels through this one check (see `if (isTradeEditLocked() &&
@@ -618,6 +619,21 @@ function renderTradeCardInPlace(tradeId) {
   const nextTradeCard = getTradeCardElement(tradeId);
   if (nextTradeCard) {
     bindTradeCardEvents(nextTradeCard);
+  }
+}
+
+function refreshChangedTradeCards(tradeIds) {
+  let shouldRender = false;
+  for (const tradeId of tradeIds) {
+    const tradeCard = getTradeCardElement(tradeId);
+    if (!tradeCard) {
+      shouldRender = true;
+      continue;
+    }
+    renderTradeCardInPlace(tradeId);
+  }
+  if (shouldRender) {
+    render();
   }
 }
 
@@ -3832,21 +3848,13 @@ function bindEvents() {
     render();
     document.querySelector('#searchInput').focus();
   });
-  document.querySelector('#autoSyncCTrader').addEventListener('change', changeCTraderAutoSyncSetting, { signal });
-  document.querySelector('#cTraderAccountSelect')?.addEventListener('change', changeCTraderAccountSelection, { signal });
-  document.querySelector('#refreshCTraderAccounts')?.addEventListener('click', () => loadCTraderAccounts({ force: true }));
-  document.querySelector('#connectCTrader')?.addEventListener('click', startCTraderOAuthFlow, { signal });
-  document.querySelector('#syncCTrader').addEventListener('click', () => syncCTrader({ source: 'manual' }));
-  document.querySelector('#deleteAllCTraderImports').addEventListener('click', deleteAllCTraderImports, { signal });
-  document.querySelector('#deleteAllScreenshots').addEventListener('click', deleteAllScreenshots, { signal });
-  document.querySelector('#exportTrades').addEventListener('click', exportTrades, { signal });
+  bindCTraderConnectionEvents(signal);
   // Only present in Trading Mode (see renderTodayKpiStrip) — optional
   // chaining so binding is a no-op in Dashboard Mode, same pattern as
   // #connectCTrader above.
   document.querySelector('#dailyExport')?.addEventListener('click', exportDailyTrades, { signal });
   document.querySelector('#storageWarnExport')?.addEventListener('click', () => { exportTrades(); dismissStorageWarning(); });
   document.querySelector('#storageWarnDismiss')?.addEventListener('click', dismissStorageWarning, { signal });
-  document.querySelector('#importTrades').addEventListener('change', importTrades, { signal });
   document.querySelectorAll('[data-setup-sort-key]').forEach((button) => {
     button.addEventListener('click', () => {
       setupAnalyticsSort = {
@@ -4643,6 +4651,35 @@ function renderCTraderConnectionCard() {
   `;
 }
 
+function bindCTraderConnectionEvents(signal) {
+  const listenerOptions = signal ? { signal } : undefined;
+  document.querySelector('#autoSyncCTrader')?.addEventListener('change', changeCTraderAutoSyncSetting, listenerOptions);
+  document.querySelector('#cTraderAccountSelect')?.addEventListener('change', changeCTraderAccountSelection, listenerOptions);
+  document.querySelector('#refreshCTraderAccounts')?.addEventListener('click', () => loadCTraderAccounts({ force: true }), listenerOptions);
+  document.querySelector('#connectCTrader')?.addEventListener('click', startCTraderOAuthFlow, listenerOptions);
+  document.querySelector('#syncCTrader')?.addEventListener('click', () => syncCTrader({ source: 'manual' }), listenerOptions);
+  document.querySelector('#deleteAllCTraderImports')?.addEventListener('click', deleteAllCTraderImports, listenerOptions);
+  document.querySelector('#deleteAllScreenshots')?.addEventListener('click', deleteAllScreenshots, listenerOptions);
+  document.querySelector('#exportTrades')?.addEventListener('click', exportTrades, listenerOptions);
+  document.querySelector('#importTrades')?.addEventListener('change', importTrades, listenerOptions);
+}
+
+function refreshCTraderConnectionCard() {
+  const currentCard = document.querySelector('.ctrader-connection-card');
+  if (!currentCard) {
+    render();
+    return;
+  }
+
+  const activeElementId = currentCard.contains(document.activeElement) ? document.activeElement.id : '';
+  currentCard.outerHTML = renderCTraderConnectionCard();
+  bindCTraderConnectionEvents();
+
+  if (activeElementId) {
+    document.querySelector(`#${cssEscape(activeElementId)}`)?.focus();
+  }
+}
+
 function describeCTraderConnectionStatus(status) {
   if (status.connected) {
     return `Connected to cTrader.${getSelectedCTraderAccountStatusLabel()}`;
@@ -4820,7 +4857,7 @@ async function loadCTraderAccounts(options = {}) {
   }
 
   isLoadingCTraderAccounts = true;
-  render();
+  refreshCTraderConnectionCard();
   try {
     const { response, body } = await fetchBackendJson(`${CTRADER_ENDPOINTS.accounts}?maxRows=1`);
     if (!response.ok) {
@@ -4837,7 +4874,7 @@ async function loadCTraderAccounts(options = {}) {
     return cTraderAccounts;
   } finally {
     isLoadingCTraderAccounts = false;
-    render();
+    refreshCTraderConnectionCard();
   }
 }
 
@@ -4874,7 +4911,7 @@ async function syncCTrader(options = {}) {
   isSyncingCTrader = true;
   const isAutoSync = options.source === 'auto';
   cTraderSyncStatus = { tone: 'pending', message: isAutoSync ? 'Auto Sync checking cTrader trades...' : 'Syncing cTrader trades...' };
-  render();
+  refreshCTraderConnectionCard();
 
   try {
     await loadCTraderAccounts();
@@ -4932,7 +4969,7 @@ async function syncCTrader(options = {}) {
     };
   } finally {
     isSyncingCTrader = false;
-    render();
+    refreshCTraderConnectionCard();
   }
 }
 
@@ -5019,7 +5056,7 @@ async function syncCTraderOnStartup() {
 
   if (!isCTraderAutoSyncEnabled) {
     cTraderSyncStatus = { tone: 'pending', message: 'Auto Sync is off.' };
-    render();
+    refreshCTraderConnectionCard();
     return;
   }
 
@@ -5029,7 +5066,7 @@ async function syncCTraderOnStartup() {
 
   isCheckingCTraderConnection = true;
   cTraderSyncStatus = { tone: 'pending', message: 'Checking cTrader connection for Auto Sync...' };
-  render();
+  refreshCTraderConnectionCard();
 
   try {
     await checkCTraderConnection();
@@ -5043,7 +5080,7 @@ async function syncCTraderOnStartup() {
     return;
   } finally {
     isCheckingCTraderConnection = false;
-    render();
+    refreshCTraderConnectionCard();
   }
 
   await syncCTrader({ source: 'auto' });

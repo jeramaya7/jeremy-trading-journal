@@ -11,8 +11,8 @@ import test from 'node:test';
 // their typed values live only in the DOM, never in JS state — so any
 // render() while the form was open silently wiped whatever the user had
 // typed. This was never specific to the cTrader Auto Sync interval:
-// syncCTrader() calls render() at the start and end of every sync, and
-// persistTrades()/loadCloudAnnotationsAndMerge() call render() too, so the
+// syncCTrader() used to call render() at the start and end of every sync, and
+// persistTrades()/cloud annotation merges can still redraw changed trades, so the
 // exact same data loss could already happen at the old 60s interval, from a
 // cloud-annotation refresh, or on a slow connection. A shorter interval
 // only raised how often a render landed while someone was mid-form.
@@ -48,13 +48,13 @@ test('cTrader Auto Sync checks the lock before doing any work, so background syn
 
   // The lock check must be the very first thing in the function — before
   // checking the connection, before touching cTraderSyncStatus, before any
-  // render() call — so an open Manual Trade form blocks the network
+  // cTrader card UI update — so an open Manual Trade form blocks the network
   // request itself, not just the render.
   const lockCheckIndex = fnBody.indexOf('if (isTradeEditLocked()) {');
-  const firstRenderIndex = fnBody.indexOf('render();');
+  const firstUiUpdateIndex = fnBody.indexOf('refreshCTraderConnectionCard();');
   const firstStatusIndex = fnBody.indexOf('cTraderSyncStatus =');
   assert.notEqual(lockCheckIndex, -1, 'syncCTraderOnStartup must check the edit lock.');
-  assert.ok(lockCheckIndex < firstRenderIndex, 'The lock check must come before any render() call in this function.');
+  assert.ok(lockCheckIndex < firstUiUpdateIndex, 'The lock check must come before any cTrader card UI update in this function.');
   assert.ok(lockCheckIndex < firstStatusIndex, 'The lock check must come before any status update, i.e. before any sync work starts at all.');
 });
 
@@ -106,5 +106,6 @@ test('the manual "Sync cTrader" button is unaffected — this fix only touches b
   const fnStart = source.indexOf('async function syncCTrader(options = {}) {');
   const fnEnd = source.indexOf('\nfunction buildCTraderSyncRequestPath(');
   const fnBody = source.slice(fnStart, fnEnd);
-  assert.equal(fnBody.includes('isTradeEditLocked'), false, 'syncCTrader() itself still has no lock check — a manual Sync click still runs and updates data; only its render() calls are (correctly) held back while a form is open, same as any other render() during the lock.');
+  assert.equal(fnBody.includes('isTradeEditLocked'), false, 'syncCTrader() itself still has no lock check — a manual Sync click still runs and updates data; only background Auto Sync is gated by the edit lock.');
+  assertIncludes(fnBody, 'refreshCTraderConnectionCard();', 'Manual sync status updates only the cTrader card instead of rebuilding the full app.');
 });
