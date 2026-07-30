@@ -38,6 +38,8 @@ const LEGACY_SETUP_NAME_MAP = {
   // Older typo/alias names (pre-existing entries, repointed at the new list)
   'Elephant Bar': 'Momentum Bar',
   'Buy the Retrace': 'Retrace',
+  GBI: 'RBI / GBI',
+  RBI: 'RBI / GBI',
   'Support/Resistance': 'Support & Resistance',
   'The General Forecast': 'Other',
   // Previous (DNA 25) 12-option Play Book list, migrated to the new 8 options
@@ -202,11 +204,10 @@ const FRIENDLY_ASSET_NAMES = {
 };
 
 const PLAY_BOOK_SETUP_OPTIONS = [
-  'GBI',
   'Hedge',
   'Momentum Bar',
   'Other',
-  'RBI',
+  'RBI / GBI',
   'Retrace',
   'Support & Resistance',
 ];

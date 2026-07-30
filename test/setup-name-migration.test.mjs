@@ -93,11 +93,10 @@ test('the Play Book setup list is exactly the requested options, in order', () =
   // deepEqual would otherwise fail on cross-realm prototype identity even
   // though the contents are identical.
   assert.deepEqual(Array.from(PLAY_BOOK_SETUP_OPTIONS), [
-    'GBI',
     'Hedge',
     'Momentum Bar',
     'Other',
-    'RBI',
+    'RBI / GBI',
     'Retrace',
     'Support & Resistance',
   ]);
@@ -106,11 +105,10 @@ test('the Play Book setup list is exactly the requested options, in order', () =
   assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('Custom'), false, 'Custom lives outside the fixed list, appended separately.');
 });
 
-test('RBI, GBI, and Support & Resistance are real, selectable Play Book setups', () => {
+test('RBI / GBI and Support & Resistance are real, selectable Play Book setups', () => {
   const { isPlayBookSetup } = loadSetupModule();
 
-  assert.equal(isPlayBookSetup('RBI'), true, 'RBI should be recognized as a fixed Play Book option.');
-  assert.equal(isPlayBookSetup('GBI'), true, 'GBI should be recognized as a fixed Play Book option.');
+  assert.equal(isPlayBookSetup('RBI / GBI'), true, 'RBI / GBI should be recognized as a fixed Play Book option.');
   assert.equal(isPlayBookSetup('Support & Resistance'), true, 'Support & Resistance should be recognized as a fixed Play Book option.');
 });
 
@@ -121,6 +119,8 @@ test('clear retired setup names migrate to their new canonical name', () => {
     // Old typo/alias names
     'Elephant Bar': 'Momentum Bar',
     'Buy the Retrace': 'Retrace',
+    GBI: 'RBI / GBI',
+    RBI: 'RBI / GBI',
     'Support/Resistance': 'Support & Resistance',
     'The General Forecast': 'Other',
     // Previous (DNA 25) 12-option Play Book list
@@ -141,7 +141,7 @@ test('setups retired with no clear replacement are left exactly as-is', () => {
   // option when edited (same as any value that was never on the list).
   const { normalizeSetupName, isPlayBookSetup } = loadSetupModule();
 
-  for (const retiredName of ['Trend', 'MA Cross', 'Event Bar', 'Counter Trend', 'MATX', 'MAX', 'Return to 200', 'Trend Line Break', 'Trade Line Break', 'EMA Continuation', 'EMA Bounce', 'EMA Cross', 'RBI / GBI', 'Trend Continuation', 'Trendline Break', 'Wide State Reversal', 'ORB', 'Ride the 🐋', 'Set & Forget', 'TB Retrace', 'Scalp']) {
+  for (const retiredName of ['Trend', 'MA Cross', 'Event Bar', 'Counter Trend', 'MATX', 'MAX', 'Return to 200', 'Trend Line Break', 'Trade Line Break', 'EMA Continuation', 'EMA Bounce', 'EMA Cross', 'Trend Continuation', 'Trendline Break', 'Wide State Reversal', 'ORB', 'Ride the 🐋', 'Set & Forget', 'TB Retrace', 'Scalp']) {
     assert.equal(normalizeSetupName(retiredName), retiredName, `${retiredName} should not be renamed.`);
     assert.equal(isPlayBookSetup(retiredName), false, `${retiredName} is no longer a fixed Play Book option (kept as its own preserved value).`);
   }
@@ -150,7 +150,7 @@ test('setups retired with no clear replacement are left exactly as-is', () => {
 test('normalizeSetupName leaves already-current and unrelated setup names untouched', () => {
   const { normalizeSetupName } = loadSetupModule();
 
-  for (const currentName of ['Momentum Bar', 'RBI', 'GBI', 'Support & Resistance', 'Retrace', 'Hedge', 'Other', 'Custom', '', 'Opening range breakout']) {
+  for (const currentName of ['Momentum Bar', 'RBI / GBI', 'Support & Resistance', 'Retrace', 'Hedge', 'Other', 'Custom', '', 'Opening range breakout']) {
     assert.equal(normalizeSetupName(currentName), currentName);
   }
 });
@@ -201,7 +201,7 @@ test('regression: saving a trade with no setup chosen falls back to Uncategorize
 
   // A real, deliberate selection still saves normally.
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Momentum Bar', setupCustom: '', setup: '' })), 'Momentum Bar');
-  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'RBI', setupCustom: '', setup: '' })), 'RBI');
+  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'RBI / GBI', setupCustom: '', setup: '' })), 'RBI / GBI');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Support & Resistance', setupCustom: '', setup: '' })), 'Support & Resistance');
 
   // Custom behavior is unchanged.
