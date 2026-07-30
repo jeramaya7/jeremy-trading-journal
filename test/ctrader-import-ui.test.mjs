@@ -11,7 +11,7 @@ function assertIncludes(text, expected, message) {
 
 test('cTrader sync button calls the journal preview API', () => {
   assertIncludes(source, 'id="syncCTrader"', 'The hero actions render a Sync cTrader button.');
-  assertIncludes(source, "document.querySelector('#syncCTrader')?.addEventListener('click', () => syncCTrader({ source: 'manual' }), listenerOptions);", 'The cTrader sync button is wired to the sync handler.');
+  assertIncludes(source, "document.querySelector('#syncCTrader').addEventListener('click', () => syncCTrader({ source: 'manual' }));", 'The cTrader sync button is wired to the sync handler.');
   assertIncludes(source, 'fetchBackendJson(syncRequestPath)', 'The sync handler fetches newly closed cTrader journal preview trades with a dynamic request path.');
   assertIncludes(source, 'Sync cTrader', 'The button copy uses the one-click synchronization language.');
 });
@@ -19,7 +19,7 @@ test('cTrader sync button calls the journal preview API', () => {
 test('cTrader connect button starts OAuth on the Render backend and checks status after return', () => {
   assertIncludes(source, 'id="connectCTrader"', 'The hero actions render a visible Connect cTrader button.');
   assertIncludes(source, 'Connect cTrader', 'The button copy clearly starts cTrader connection.');
-  assertIncludes(source, "document.querySelector('#connectCTrader')?.addEventListener('click', startCTraderOAuthFlow, listenerOptions);", 'The connect button is wired to the OAuth handler.');
+  assertIncludes(source, "document.querySelector('#connectCTrader')?.addEventListener('click', startCTraderOAuthFlow);", 'The connect button is wired to the OAuth handler.');
   assertIncludes(source, 'buildCTraderOAuthUrl(CTRADER_ENDPOINTS.authStart)', 'The OAuth handler uses the Render auth start URL builder.');
   assertIncludes(source, "authStartUrl.searchParams.set('returnTo', getCTraderOAuthReturnUrl());", 'The OAuth handler asks the backend to return to the frontend after authorization.');
   assertIncludes(source, "currentUrl.searchParams.get('ctrader') !== 'connected'", 'The frontend detects the OAuth return flag.');
@@ -32,7 +32,7 @@ test('cTrader preview trades are converted into saved journal entries', () => {
   assertIncludes(syncSource, "tags: '',", 'Imported entries leave saved journal tags blank by default.');
   assertIncludes(syncSource, "notes: '',", 'Imported entries leave saved journal notes blank by default.');
   assertIncludes(syncSource, 'importedAt: getImportedAt(options)', 'Imported entries record when they were saved locally.');
-  assertIncludes(source, 'persistTrades([...syncPlan.importedTrades, ...updatedExistingTrades.trades], { refreshVisibleTradeData: isAutoSync })', 'Imported trades are saved to the existing local journal storage path and Auto Sync refreshes visible trade data without a full app render.');
+  assertIncludes(source, 'persistTrades([...syncPlan.importedTrades, ...updatedExistingTrades.trades])', 'Imported trades are saved to the existing local journal storage path.');
   assertIncludes(source, 'applyCTraderImportedTradeUpdates(trades, syncPlan.skippedTrades)', 'Skipped duplicate imports refresh stale local cTrader symbols.');
 });
 
@@ -68,7 +68,7 @@ test('cTrader sync skips duplicates by source trade IDs and reports imported/ski
 test('cTrader imports can be bulk deleted without removing manual trades', () => {
   assertIncludes(source, 'id="deleteAllCTraderImports"', 'The hero actions render a Delete All cTrader Imports button.');
   assertIncludes(source, 'Delete All cTrader Imports', 'The delete button uses the requested label.');
-  assertIncludes(source, "document.querySelector('#deleteAllCTraderImports')?.addEventListener('click', deleteAllCTraderImports, listenerOptions);", 'The delete button is wired to its handler.');
+  assertIncludes(source, "document.querySelector('#deleteAllCTraderImports').addEventListener('click', deleteAllCTraderImports);", 'The delete button is wired to its handler.');
   assertIncludes(source, "window.confirm('Delete all imported cTrader trades?')", 'The handler asks for the requested confirmation before deleting.');
   assertIncludes(source, "trades.filter((trade) => trade?.provider !== 'ctrader')", 'Only provider-marked cTrader imports are removed so manual trades remain.');
   assertIncludes(source, 'clearDeletedCTraderSourceKeys();', 'Bulk deleting cTrader imports clears deleted source keys so they can be synced again.');
@@ -80,7 +80,7 @@ test('cTrader Auto Sync runs on startup and exposes settings metadata', () => {
   assertIncludes(source, "const AUTO_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-auto-sync:v1';", 'Auto Sync preference is persisted separately from trades.');
   assertIncludes(source, "const LAST_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-last-sync:v1';", 'Last sync time is persisted separately from trades.');
   assertIncludes(source, 'id="autoSyncCTrader"', 'The hero actions render an Auto Sync checkbox.');
-  assertIncludes(source, "document.querySelector('#autoSyncCTrader')?.addEventListener('change', changeCTraderAutoSyncSetting, listenerOptions);", 'The Auto Sync checkbox updates the saved preference through the reusable cTrader card binding.');
+  assertIncludes(source, "document.querySelector('#autoSyncCTrader').addEventListener('change', changeCTraderAutoSyncSetting);", 'The Auto Sync checkbox updates the saved preference.');
   assertIncludes(source, 'fetchBackendJson(CTRADER_ENDPOINTS.status)', 'Startup Auto Sync checks cTrader connection status before syncing trades.');
   assertIncludes(source, "syncCTrader({ source: 'auto' })", 'Startup Auto Sync imports new cTrader trades without pressing Sync.');
   assertIncludes(source, 'Last Sync Time', 'The UI shows the last cTrader sync time.');
@@ -94,27 +94,6 @@ test('cTrader Auto Sync keeps syncing while the app is open', () => {
   assertIncludes(source, 'clearInterval(cTraderAutoSyncTimer);', 'Changing Auto Sync clears the previous timer to avoid duplicate polling.');
   assertIncludes(source, 'window.setInterval(() => {', 'Auto Sync repeats without requiring the user to press Sync.');
   assertIncludes(source, 'scheduleCTraderAutoSync();', 'The app schedules Auto Sync during startup and preference changes.');
-  assertIncludes(source, 'function refreshCTraderConnectionCard()', 'cTrader status refreshes can update only the cTrader card.');
-  assertIncludes(source, 'bindCTraderConnectionEvents();', 'Replacing the cTrader card rebinds that card controls.');
-  assertIncludes(source, 'syncStatus.textContent = cTraderSyncStatus.message;', 'Normal cTrader status refreshes update existing status text instead of replacing the card.');
-  assertIncludes(source, 'lastSyncElement.textContent = formatSyncTime(cTraderLastSyncAt);', 'Normal cTrader last-sync refreshes update existing text instead of replacing the card.');
-  assertIncludes(source, 'if (options.refreshVisibleTradeData) {\n    refreshVisibleTradeDataSections();\n    return;\n  }', 'Background Auto Sync refreshes only visible trade-data sections after saving.');
-  assertIncludes(source, 'function refreshVisibleTradeDataSections()', 'Background Auto Sync has a targeted UI refresh path.');
-  assertIncludes(source, 'replaceVisibleSection(\'#shareCapture\'', 'Dashboard KPIs, ROI, reports, and statistics are refreshed in place.');
-  assertIncludes(source, 'replaceVisibleSection(\'.workspace-grid\'', 'Newly imported trades can appear in the visible journal without a full app render.');
-  assertIncludes(source, 'renderJournalWorkspace(filteredTrades, today, { isTradingMode: true })', 'Trading Mode journal refresh uses the existing Trading Mode journal markup.');
-  assertIncludes(source, 'insertBeforeSelector: \'.dna-doctor-panel\'', 'Trading session analytics can be inserted without replacing the DNA Scan panel.');
-  assert.equal(source.includes('Auto Sync checking cTrader trades...'), false, 'No-op Auto Sync ticks should not repaint the cTrader card with a transient checking status.');
-  assert.equal(source.includes('Checking cTrader connection for Auto Sync...'), false, 'No-op Auto Sync connection checks should not repaint the cTrader card with a transient checking status.');
-  assertIncludes(source, 'if (!isAutoSync) {\n    cTraderSyncStatus = { tone: \'pending\', message: \'Syncing cTrader trades...\' };', 'Manual Sync still shows its pending status, but Auto Sync stays visually quiet.');
-  assertIncludes(source, 'if (!isAutoSync || hasVisibleTradeChanges) {', 'Auto Sync only changes the success status when trade data actually changed.');
-  assertIncludes(source, 'if (shouldRefreshCTraderCard) {\n      refreshCTraderConnectionCard();\n    }', 'No-op Auto Sync does not repaint the cTrader card from stale status state.');
-  assert.equal(source.includes('replaceVisibleSection(\'.dna-doctor-panel\''), false, 'Auto Sync should not replace the DNA Scan panel.');
-  assert.equal(source.includes('preserveDnaDoctorPanel'), false, 'Background sync should avoid unnecessary renders instead of preserving individual panels.');
-  const refreshChangedTradeCardsStart = source.indexOf('function refreshChangedTradeCards(tradeIds) {');
-  const refreshChangedTradeCardsEnd = source.indexOf('\nfunction captureTradeScrollAnchor(', refreshChangedTradeCardsStart);
-  const refreshChangedTradeCardsBody = source.slice(refreshChangedTradeCardsStart, refreshChangedTradeCardsEnd);
-  assert.equal(refreshChangedTradeCardsBody.includes('render('), false, 'Supabase annotation refresh should update visible changed cards only, never trigger a full render fallback.');
 
   // Lowering the interval from 60s to 12s is only safe because overlapping
   // requests were already prevented and still are: both entry points bail
@@ -183,10 +162,12 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(source, 'data-edit-trade-form="${escapeHtml(trade.id)}"', 'The edit form keeps a stable trade ID for saving changes.');
   assertIncludes(source, "${field('Setup', renderPlayBookSetupSelect(trade))}", 'The edit form allows setup changes through the Play Book dropdown.');
   assertIncludes(source, 'const PLAY_BOOK_SETUP_OPTIONS = [', 'The Play Book setup dropdown has a fixed setup list.');
-  assertIncludes(source, "'Event Bar'", 'The Play Book setup dropdown includes Event Bar.');
-  assertIncludes(source, "'Counter Trend'", 'The Play Book setup dropdown includes Counter Trend.');
+  assertIncludes(source, "'Momentum Bar'", 'The Play Book setup dropdown includes Momentum Bar.');
+  assertIncludes(source, "'RBI'", 'The Play Book setup dropdown includes RBI.');
+  assertIncludes(source, "'GBI'", 'The Play Book setup dropdown includes GBI.');
+  assertIncludes(source, "'Support & Resistance'", 'The Play Book setup dropdown includes Support & Resistance.');
   assert.ok(!source.includes("  'Trade Line Break',"), 'The Play Book setup dropdown no longer shows the misspelled setup label.');
-  assert.ok(!source.includes("'Elephant Bar',") , 'The retired Elephant Bar label is no longer a selectable Play Book option (migrated to Event Bar instead).');
+  assert.ok(!source.includes("'Elephant Bar',") , 'The retired Elephant Bar label is no longer a selectable Play Book option (migrated to Momentum Bar instead).');
   assert.ok(!source.includes("'Ride the 🐋',"), 'Ride the whale is retired from the Play Book dropdown.');
   assert.ok(!source.includes('>None</option>\n      ${PLAY_BOOK_SETUP_OPTIONS'), 'The Play Book setup dropdown no longer offers a None option.');
 
@@ -243,6 +224,10 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   const setupBody = editFormBody.slice(setupIndex, reviewIndex);
   assert.equal(setupBody.includes("renderPositionTypeSelect"), false, 'Position should no longer render anywhere in the Setup section (removed in DNA 26).');
   assertIncludes(setupBody, "${field('State', renderMarketStateSelect(trade))}", 'State keeps its name.');
+  assert.ok(
+    setupBody.indexOf("${field('State', renderMarketStateSelect(trade))}") < setupBody.indexOf("${field('Setup', renderPlayBookSetupSelect(trade))}"),
+    'State renders before Setup in the Setup section.',
+  );
   assertIncludes(setupBody, "${field('Timeframe', renderTimeframeSelect(trade))}", 'Timeframe is in the Setup section.');
 
   // Trade Review section: Trade Management, Protected (read-only, calculated
@@ -302,22 +287,16 @@ test('legacy setup names migrate to their current canonical name', () => {
   // migrates the same way, wherever a setup is displayed, edited,
   // filtered, analyzed, or reported.
   assertIncludes(source, 'const LEGACY_SETUP_NAME_MAP = {', 'Legacy setup names are retained only for migration, in one shared map.');
-  assertIncludes(source, "'Trade Line Break': 'Counter Trend',", 'The old misspelled Trade Line Break value migrates to Counter Trend.');
-  assertIncludes(source, "'Trend Line Break': 'Counter Trend',", 'The old Trend Line Break value migrates to Counter Trend.');
-  assertIncludes(source, "'Elephant Bar': 'Event Bar',", 'Elephant Bar migrates to Event Bar.');
+  assertIncludes(source, "'Elephant Bar': 'Momentum Bar',", 'Elephant Bar migrates to Momentum Bar.');
   assertIncludes(source, "'Buy the Retrace': 'Retrace',", 'Buy the Retrace migrates to Retrace.');
-  assertIncludes(source, "'MATX': 'MA Cross',", 'MATX migrates to MA Cross.');
-  assertIncludes(source, "'MAX': 'MA Cross',", 'MAX migrates to MA Cross.');
-  assertIncludes(source, "'Return to 200': 'Counter Trend',", 'Return to 200 migrates to Counter Trend.');
-  assertIncludes(source, "'Support & Resistance': 'Support/Resistance',", 'Support & Resistance migrates to Support/Resistance.');
+  assertIncludes(source, "'Support/Resistance': 'Support & Resistance',", 'Support/Resistance migrates to Support & Resistance.');
   assertIncludes(source, "'The General Forecast': 'Other',", 'The General Forecast migrates to Other.');
   // The previous (DNA 25) 12-option Play Book list also migrates now that
   // the Setup dropdown is down to 8 options.
-  assertIncludes(source, "'Trendline Break': 'Counter Trend',", 'The retired Trendline Break option migrates to Counter Trend.');
-  // Support/Resistance is itself the canonical DNA 26 option name (renamed
-  // from the short-lived S&R), so it is no longer a migration entry.
-  assert.ok(!source.includes("'Support/Resistance': "), "Support/Resistance is the canonical option now, not a migration key.");
-  assert.ok(!source.includes("'S&R'"), "S&R has been fully renamed to Support/Resistance.");
+  assertIncludes(source, "'Enter Retrace': 'Retrace',", 'The retired Enter Retrace option migrates to Retrace.');
+  assertIncludes(source, "'General Forecast': 'Other',", 'General Forecast migrates to Other.');
+  assert.ok(!source.includes("'MATX': "), 'MATX is deliberately left unmigrated because there is no clear replacement.');
+  assert.ok(!source.includes("'RBI / GBI': "), 'RBI / GBI is deliberately left unmigrated because it cannot safely choose RBI or GBI.');
   assert.ok(!source.includes("'Scalp': "), 'Scalp is deliberately left unmigrated (kept as its own preserved value), per product decision.');
 
   assertIncludes(source, 'function normalizeSetupName(setup) {', 'Setup normalization is a single shared function.');
@@ -327,6 +306,27 @@ test('legacy setup names migrate to their current canonical name', () => {
   assertIncludes(source, 'window.localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedTrades));', 'Migrated saved journal entries are written back to localStorage.');
   assertIncludes(source, 'trades = normalizeTradeSetups(nextTrades);', 'Imported and saved journal entries are normalized before persistence/export.');
   assertIncludes(source, "setup: normalizeSetupName(String(formData.get('setup')).trim()) || 'Uncategorized setup',", 'Manual entries typed with a legacy setup name are normalized.');
+});
+
+test('market state options are the simplified list and legacy values are preserved or safely mapped', () => {
+  assertIncludes(source, "const MARKET_STATE_OPTIONS = [\n  'Trending',\n  'Channel',\n  'Countertrend',\n];", 'Market State options are exactly the requested list.');
+  assertIncludes(source, "'Trending Down': 'Trending',", 'Trending Down safely migrates to Trending.');
+  assertIncludes(source, "'Trending Up': 'Trending',", 'Trending Up safely migrates to Trending.');
+  assertIncludes(source, "'Choppy': 'Channel',", 'Choppy safely migrates to Channel.');
+  assertIncludes(source, "'Consolidating': 'Channel',", 'Consolidating safely migrates to Channel.');
+  assertIncludes(source, "'Counter Trend': 'Countertrend',", 'Counter Trend safely migrates to Countertrend.');
+  assertIncludes(source, 'const legacyMarketStateOption = current && !MARKET_STATE_OPTIONS.includes(current)', 'Unmapped legacy Market State values are preserved as their own option.');
+});
+
+test('grade dropdown keeps stored values while showing updated descriptions', () => {
+  assertIncludes(source, "const GRADE_OPTIONS = [\n  'A+',\n  'A',\n  'B',\n  'C',\n  'D',\n  'F',\n];", 'Grade stored values stay as the requested A+ through F list.');
+  assertIncludes(source, "'A+': 'A+ — Trade happened exactly as planned.'", 'A+ displays the requested description.');
+  assertIncludes(source, "A: 'A — Great trade.'", 'A displays the requested description.');
+  assertIncludes(source, "B: 'B — Good trade.'", 'B displays the requested description.');
+  assertIncludes(source, "C: 'C — Okay trade.'", 'C displays the requested description.');
+  assertIncludes(source, "D: 'D — Bad trade.'", 'D displays the requested description.');
+  assertIncludes(source, "F: 'F — Total fuck up.'", 'F displays the requested description.');
+  assertIncludes(source, 'renderSelectOptionWithLabel(option, current, GRADE_OPTION_LABELS[option])', 'The Grade dropdown displays descriptions without changing saved option values.');
 });
 
 test('trade edit form changes stay local until the user saves', () => {

@@ -96,7 +96,7 @@ test('v1.1: related fields are paired into two-column rows to fit a 400-450px pa
     ["field('Entry Price'", "field('Exit Price'"],
     ["field('Initial Stop Loss'", "field('Final Stop Loss'"],
     ["field('Initial Take Profit'", "field('Final Take Profit'"],
-    ["field('Setup'", "field('State'"],
+    ["field('State'", "field('Setup'"],
     ["field('Trade Management'", "field('Protected'"],
     ["field('Exit Reason'", "field('Loss Reason'"],
   ];

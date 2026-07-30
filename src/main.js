@@ -36,30 +36,14 @@ const DNA_TIMEFRAME_OPTIONS = [
 // was never on the Play Book list.
 const LEGACY_SETUP_NAME_MAP = {
   // Older typo/alias names (pre-existing entries, repointed at the new list)
-  'Trade Line Break': 'Counter Trend',
-  'Trend Line Break': 'Counter Trend',
-  'Elephant Bar': 'Event Bar',
+  'Elephant Bar': 'Momentum Bar',
   'Buy the Retrace': 'Retrace',
-  'MATX': 'MA Cross',
-  'MAX': 'MA Cross',
-  'Return to 200': 'Counter Trend',
-  'Support & Resistance': 'Support/Resistance',
+  'Support/Resistance': 'Support & Resistance',
   'The General Forecast': 'Other',
-  'EMA Continuation': 'Trend',
   // Previous (DNA 25) 12-option Play Book list, migrated to the new 8 options
-  'EMA Bounce': 'MA Cross',
-  'EMA Cross': 'MA Cross',
   'Enter Retrace': 'Retrace',
   'General Forecast': 'Other',
-  'RBI / GBI': 'Counter Trend',
   'Scalping': 'Other',
-  // 'Support/Resistance' is itself the canonical DNA 26 option name (see
-  // PLAY_BOOK_SETUP_OPTIONS below, renamed from the short-lived S and R
-  // abbreviation) — no migration entry needed since it already equals its
-  // own target.
-  'Trend Continuation': 'Trend',
-  'Trendline Break': 'Counter Trend',
-  'Wide State Reversal': 'Counter Trend',
 };
 // Was 60s. Nothing in this codebase enforces a longer delay — no server-side
 // rate limiter or cache sits in front of /api/ctrader/journal-preview (see
@@ -218,12 +202,11 @@ const FRIENDLY_ASSET_NAMES = {
 };
 
 const PLAY_BOOK_SETUP_OPTIONS = [
-  'Trend',
-  'MA Cross',
-  'Event Bar',
+  'Momentum Bar',
+  'RBI',
+  'GBI',
+  'Support & Resistance',
   'Retrace',
-  'Counter Trend',
-  'Support/Resistance',
   'Hedge',
   'Other',
 ];
@@ -243,18 +226,17 @@ const CLOSE_REASON_OPTIONS = [
   'Other',
 ];
 const MARKET_STATE_OPTIONS = [
-  'Narrow',
   'Trending',
   'Channel',
-  'Wide',
+  'Countertrend',
 ];
 const LEGACY_MARKET_STATE_MAP = {
-  'Choppy': 'Narrow',
-  'Consolidating': 'Narrow',
-  'Flat & Narrow': 'Narrow',
+  'Choppy': 'Channel',
+  'Consolidating': 'Channel',
+  'Flat & Narrow': 'Channel',
   'Trending Down': 'Trending',
   'Trending Up': 'Trending',
-  'Wide State': 'Wide',
+  'Counter Trend': 'Countertrend',
 };
 const TRADE_TIMEFRAME_OPTIONS = [
   '1m',
@@ -275,8 +257,17 @@ const GRADE_OPTIONS = [
   'A',
   'B',
   'C',
+  'D',
   'F',
 ];
+const GRADE_OPTION_LABELS = {
+  'A+': 'A+ — Trade happened exactly as planned.',
+  A: 'A — Great trade.',
+  B: 'B — Good trade.',
+  C: 'C — Okay trade.',
+  D: 'D — Bad trade.',
+  F: 'F — Total fuck up.',
+};
 const TRADE_MANAGEMENT_OPTIONS = [
   'Set & Forget',
   'Trail Stop',
@@ -427,10 +418,6 @@ function persistTrades(nextTrades, options = {}) {
     renderPreservingTradePosition(options.preserveTradeId, options.renderOptions);
     return;
   }
-  if (options.refreshVisibleTradeData) {
-    refreshVisibleTradeDataSections();
-    return;
-  }
   render();
 }
 
@@ -489,7 +476,7 @@ async function loadCloudAnnotationsAndMerge() {
       return;
     }
 
-    const changedTradeIds = new Set();
+    let didMergeAnyTrade = false;
     const mergedTrades = trades.map((trade) => {
       const tradeKey = String(trade.id);
       if (editingTradeIds.has(tradeKey) || pendingAnnotationPushes.has(tradeKey)) {
@@ -499,19 +486,14 @@ async function loadCloudAnnotationsAndMerge() {
       if (!cloudFields || typeof cloudFields !== 'object') {
         return trade;
       }
-      const annotationFields = extractAnnotationFields(cloudFields);
-      const hasChangedField = Object.entries(annotationFields).some(([field, value]) => trade[field] !== value);
-      if (!hasChangedField) {
-        return trade;
-      }
-      changedTradeIds.add(tradeKey);
-      return { ...trade, ...annotationFields };
+      didMergeAnyTrade = true;
+      return { ...trade, ...extractAnnotationFields(cloudFields) };
     });
 
-    if (changedTradeIds.size > 0) {
+    if (didMergeAnyTrade) {
       trades = normalizeTradeSetups(mergedTrades);
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));
-      refreshChangedTradeCards(changedTradeIds);
+      render();
     }
   } catch (error) {
     console.warn('[DNA] Could not load cloud annotations (using local data only):', error.message);
@@ -551,9 +533,13 @@ async function maybeRefreshCloudAnnotations() {
 // Manual Trade form's Entry/Exit/Symbol/etc. fields are plain uncontrolled
 // <input> elements — their typed values live only in the DOM, not in any
 // JS state — so any render() while the form was open silently wiped
-// whatever the user had typed. cTrader status updates now refresh only the
-// cTrader card, but the edit lock still protects against full renders from
-// real trade-list changes.
+// whatever the user had typed. This was never specific to the 12s cTrader
+// Auto Sync interval: syncCTrader() calls render() at the start and end of
+// every sync (and persistTrades()/loadCloudAnnotationsAndMerge() call
+// render() too), so the exact same data loss could already happen at the
+// old 60s interval, or from a cloud-annotation refresh, or the app was even
+// just sitting on a slow connection. Shortening the interval only raised
+// how often a render landed while someone was mid-form.
 //
 // Fix: the lock now also covers the Manual Trade form. Every render() call
 // already funnels through this one check (see `if (isTradeEditLocked() &&
@@ -624,164 +610,6 @@ function renderTradeCardInPlace(tradeId) {
   if (nextTradeCard) {
     bindTradeCardEvents(nextTradeCard);
   }
-}
-
-function refreshChangedTradeCards(tradeIds) {
-  for (const tradeId of tradeIds) {
-    const tradeCard = getTradeCardElement(tradeId);
-    if (!tradeCard) {
-      continue;
-    }
-    renderTradeCardInPlace(tradeId);
-  }
-}
-
-function getFocusRestoreSelector(element) {
-  if (!element || element === document.body) {
-    return '';
-  }
-  if (element.id) {
-    return `#${cssEscape(element.id)}`;
-  }
-  const namedControl = element.closest('[name]');
-  if (namedControl?.name) {
-    return `[name="${cssEscape(namedControl.name)}"]`;
-  }
-  return '';
-}
-
-function replaceVisibleSection(selector, html, options = {}) {
-  const currentElement = document.querySelector(selector);
-  const template = document.createElement('template');
-  template.innerHTML = String(html || '').trim();
-  const nextElement = template.content.querySelector(options.nextSelector || selector);
-
-  if (!currentElement) {
-    const insertBeforeElement = options.insertBeforeSelector
-      ? document.querySelector(options.insertBeforeSelector)
-      : null;
-    if (nextElement && insertBeforeElement?.parentNode) {
-      insertBeforeElement.parentNode.insertBefore(nextElement, insertBeforeElement);
-      return true;
-    }
-    return false;
-  }
-
-  if (!nextElement) {
-    currentElement.remove();
-    return true;
-  }
-
-  if (currentElement.outerHTML === nextElement.outerHTML) {
-    return false;
-  }
-
-  currentElement.replaceWith(nextElement);
-  return true;
-}
-
-function getDashboardCardRows(stats, pnlReports, roiPercent) {
-  const [dailyPnl, weeklyPnl, monthlyPnl, yearlyPnl] = pnlReports;
-  const dashboardCardRows = [
-    {
-      label: 'R Metrics',
-      cards: [
-        renderRoiCard(roiPercent),
-        statCard('trend', 'Biggest Winner', stats.biggestWinner === null ? '—' : currency(stats.biggestWinner)),
-        statCard('trend', 'Biggest Loser', stats.biggestLoser === null ? '—' : currency(stats.biggestLoser), getMoneyTone(stats.biggestLoser)),
-        statCard('chart', 'Protected %', formatPercent(stats.protectedPercent)),
-      ],
-    },
-    {
-      label: 'Risk Metrics',
-      cards: [
-        statCard('trend', 'Average Winner', currency(stats.averageWin)),
-        statCard('trend', 'Average Loser', currency(stats.averageLoss), getMoneyTone(stats.averageLoss)),
-        statCard('target', 'Average Risk $', stats.averageRiskDollars === null ? '—' : currency(stats.averageRiskDollars)),
-        statCard('target', 'Average Risk %', formatRiskPercent(stats.averageRiskPercent)),
-      ],
-    },
-    {
-      label: 'Time Performance',
-      cards: [
-        statCard('calendar', 'Daily P/L', currency(dailyPnl.pnl), getMoneyTone(dailyPnl.pnl)),
-        statCard('calendar', 'Weekly P/L', currency(weeklyPnl.pnl), getMoneyTone(weeklyPnl.pnl)),
-        statCard('calendar', 'Monthly P/L', currency(monthlyPnl.pnl), getMoneyTone(monthlyPnl.pnl)),
-        statCard('calendar', 'Yearly P/L', currency(yearlyPnl.pnl), getMoneyTone(yearlyPnl.pnl)),
-      ],
-    },
-    {
-      label: 'Capital Efficiency',
-      cards: [
-        statCard('line', 'Daily CE', formatCapitalEfficiency(dailyPnl.capitalEfficiency), getPerformanceTone(dailyPnl.capitalEfficiency)),
-        statCard('line', 'Weekly CE', formatCapitalEfficiency(weeklyPnl.capitalEfficiency), getPerformanceTone(weeklyPnl.capitalEfficiency)),
-        statCard('line', 'Monthly CE', formatCapitalEfficiency(monthlyPnl.capitalEfficiency), getPerformanceTone(monthlyPnl.capitalEfficiency)),
-        statCard('line', 'Yearly CE', formatCapitalEfficiency(yearlyPnl.capitalEfficiency), getPerformanceTone(yearlyPnl.capitalEfficiency)),
-      ],
-    },
-  ];
-  return dashboardCardRows;
-}
-
-function refreshVisibleTradeDataSections() {
-  if (isTradeEditLocked()) {
-    return;
-  }
-
-  const scrollY = window.scrollY;
-  const focusSelector = getFocusRestoreSelector(document.activeElement);
-  const dnaReferenceDate = getDnaResultsReferenceDate();
-  const activeTrades = getActiveTrades();
-  const filteredTrades = getFilteredTrades();
-  const today = new Date().toISOString().slice(0, 10);
-  let didUpdate = false;
-
-  if (pageMode === PAGE_MODES.trading) {
-    const todayTrades = filterTradesForPeriod(activeTrades, 'day', dnaReferenceDate);
-    const tradingModeSections = renderTodayKpiStrip(todayTrades, getStats(todayTrades));
-    didUpdate = replaceVisibleSection('.trading-today-actions', tradingModeSections)
-      || didUpdate;
-    didUpdate = replaceVisibleSection('.trading-today-kpi-strip', tradingModeSections)
-      || didUpdate;
-    didUpdate = replaceVisibleSection('.workspace-grid', renderJournalWorkspace(filteredTrades, today, { isTradingMode: true }))
-      || didUpdate;
-  } else {
-    const dnaResultsTrades = getDnaResultsTrades(dnaReferenceDate);
-    const stats = getStats(dnaResultsTrades);
-    const pnlReports = getPnlReports(dnaReferenceDate, activeTrades);
-    const roiAccountBalance = calculateAccountBalanceAtPeriodStart(dnaResultsTimeframe, dnaReferenceDate, activeTrades, startingAccountBalance);
-    const roiPercent = calculateRoiPercent(stats.totalPnl, roiAccountBalance);
-    const dashboardCardRows = getDashboardCardRows(stats, pnlReports, roiPercent);
-    const heroStatsRow = renderHeroStatsRow(stats);
-
-    didUpdate = replaceVisibleSection('.hero-equity-section', `<section class="hero-equity-section" aria-label="Equity curve">${renderEquityCurveCard(dnaResultsTrades)}</section>`)
-      || didUpdate;
-    didUpdate = replaceVisibleSection('#shareCapture', `<div id="shareCapture">${heroStatsRow}${renderDashboardSnapshot(dashboardCardRows)}</div>`)
-      || didUpdate;
-    didUpdate = replaceVisibleSection('.monthly-calendar-panel', renderMonthlyTradingCalendar(monthlyCalendarDate, activeTrades))
-      || didUpdate;
-    didUpdate = replaceVisibleSection('.calendar-review-backdrop', renderCalendarDayReviewPanel())
-      || didUpdate;
-    didUpdate = replaceVisibleSection('[aria-label="Setup Analytics"]', renderSetupAnalytics(dnaResultsTrades))
-      || didUpdate;
-    didUpdate = replaceVisibleSection('[aria-label="Asset Analytics"]', renderAssetAnalytics(dnaResultsTrades))
-      || didUpdate;
-    didUpdate = replaceVisibleSection('[aria-label="Trading Session Analysis"]', renderTimeOfDayAnalytics(dnaResultsTrades), {
-      insertBeforeSelector: '.dna-doctor-panel',
-    }) || didUpdate;
-    didUpdate = replaceVisibleSection('.workspace-grid', renderJournalWorkspace(filteredTrades, today))
-      || didUpdate;
-  }
-
-  if (!didUpdate) {
-    return;
-  }
-
-  bindEvents();
-  if (focusSelector) {
-    document.querySelector(focusSelector)?.focus();
-  }
-  window.scrollTo({ top: scrollY, left: window.scrollX });
 }
 
 function captureTradeScrollAnchor(tradeId) {
@@ -3215,6 +3043,11 @@ function renderSelectOption(option, selectedValue) {
   return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(option)}</option>`;
 }
 
+function renderSelectOptionWithLabel(option, selectedValue, label) {
+  const selected = option === selectedValue ? ' selected' : '';
+  return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(label)}</option>`;
+}
+
 function renderSetupOption(option, selectedValue) {
   return renderSelectOption(option, selectedValue);
 }
@@ -3276,10 +3109,14 @@ function normalizeMarketState(raw) {
 
 function renderMarketStateSelect(trade) {
   const current = normalizeMarketState(trade.state);
+  const legacyMarketStateOption = current && !MARKET_STATE_OPTIONS.includes(current)
+    ? renderSelectOption(current, current)
+    : '';
   return `
     <select name="state" aria-label="Market State">
       <option value="">No state</option>
       ${MARKET_STATE_OPTIONS.map((option) => renderSelectOption(option, current)).join('')}
+      ${legacyMarketStateOption}
     </select>
   `;
 }
@@ -3311,7 +3148,7 @@ function renderGradeSelect(trade) {
   return `
     <select name="grade" aria-label="Grade">
       <option value="">Not Graded</option>
-      ${GRADE_OPTIONS.map((option) => renderSelectOption(option, current)).join('')}
+      ${GRADE_OPTIONS.map((option) => renderSelectOptionWithLabel(option, current, GRADE_OPTION_LABELS[option])).join('')}
     </select>
   `;
 }
@@ -3377,8 +3214,8 @@ function editTradeForm(trade) {
         <div class="edit-form-section">
           <h4 class="edit-form-section-label">Setup</h4>
           <div class="edit-form-row edit-journal-row" aria-label="Setup context">
-            ${field('Setup', renderPlayBookSetupSelect(trade))}
             ${field('State', renderMarketStateSelect(trade))}
+            ${field('Setup', renderPlayBookSetupSelect(trade))}
             ${field('Timeframe', renderTimeframeSelect(trade))}
           </div>
         </div>
@@ -3472,8 +3309,8 @@ function editTradeFormQuickEdit(trade) {
         <div class="edit-form-section quick-edit-section">
           <h4 class="edit-form-section-label">Setup</h4>
           <div class="quick-edit-row">
-            ${field('Setup', renderPlayBookSetupSelect(trade))}
             ${field('State', renderMarketStateSelect(trade))}
+            ${field('Setup', renderPlayBookSetupSelect(trade))}
           </div>
           <div class="quick-edit-row">
             ${field('Timeframe', renderTimeframeSelect(trade))}
@@ -3568,9 +3405,47 @@ function render(options = {}) {
   const dnaResultsTrades = getDnaResultsTrades(dnaReferenceDate);
   const stats = getStats(dnaResultsTrades);
   const pnlReports = getPnlReports(dnaReferenceDate, activeTrades);
+  const [dailyPnl, weeklyPnl, monthlyPnl, yearlyPnl] = pnlReports;
   const roiAccountBalance = calculateAccountBalanceAtPeriodStart(dnaResultsTimeframe, dnaReferenceDate, activeTrades, startingAccountBalance);
   const roiPercent = calculateRoiPercent(stats.totalPnl, roiAccountBalance);
-  const dashboardCardRows = getDashboardCardRows(stats, pnlReports, roiPercent);
+  const dashboardCardRows = [
+    {
+      label: 'R Metrics',
+      cards: [
+        renderRoiCard(roiPercent),
+        statCard('trend', 'Biggest Winner', stats.biggestWinner === null ? '—' : currency(stats.biggestWinner)),
+        statCard('trend', 'Biggest Loser', stats.biggestLoser === null ? '—' : currency(stats.biggestLoser), getMoneyTone(stats.biggestLoser)),
+        statCard('chart', 'Protected %', formatPercent(stats.protectedPercent)),
+      ],
+    },
+    {
+      label: 'Risk Metrics',
+      cards: [
+        statCard('trend', 'Average Winner', currency(stats.averageWin)),
+        statCard('trend', 'Average Loser', currency(stats.averageLoss), getMoneyTone(stats.averageLoss)),
+        statCard('target', 'Average Risk $', stats.averageRiskDollars === null ? '—' : currency(stats.averageRiskDollars)),
+        statCard('target', 'Average Risk %', formatRiskPercent(stats.averageRiskPercent)),
+      ],
+    },
+    {
+      label: 'Time Performance',
+      cards: [
+        statCard('calendar', 'Daily P/L', currency(dailyPnl.pnl), getMoneyTone(dailyPnl.pnl)),
+        statCard('calendar', 'Weekly P/L', currency(weeklyPnl.pnl), getMoneyTone(weeklyPnl.pnl)),
+        statCard('calendar', 'Monthly P/L', currency(monthlyPnl.pnl), getMoneyTone(monthlyPnl.pnl)),
+        statCard('calendar', 'Yearly P/L', currency(yearlyPnl.pnl), getMoneyTone(yearlyPnl.pnl)),
+      ],
+    },
+    {
+      label: 'Capital Efficiency',
+      cards: [
+        statCard('line', 'Daily CE', formatCapitalEfficiency(dailyPnl.capitalEfficiency), getPerformanceTone(dailyPnl.capitalEfficiency)),
+        statCard('line', 'Weekly CE', formatCapitalEfficiency(weeklyPnl.capitalEfficiency), getPerformanceTone(weeklyPnl.capitalEfficiency)),
+        statCard('line', 'Monthly CE', formatCapitalEfficiency(monthlyPnl.capitalEfficiency), getPerformanceTone(monthlyPnl.capitalEfficiency)),
+        statCard('line', 'Yearly CE', formatCapitalEfficiency(yearlyPnl.capitalEfficiency), getPerformanceTone(yearlyPnl.capitalEfficiency)),
+      ],
+    },
+  ];
   const filteredTrades = getFilteredTrades();
   const monthlyTradingCalendarSection = renderMonthlyTradingCalendar(monthlyCalendarDate, activeTrades);
   const setupAnalyticsSection = renderSetupAnalytics(dnaResultsTrades);
@@ -3675,6 +3550,7 @@ function render(options = {}) {
 
   bindEvents();
 }
+
 
 function renderDashboardSnapshot(dashboardCardRows) {
   return `
@@ -3956,13 +3832,21 @@ function bindEvents() {
     render();
     document.querySelector('#searchInput').focus();
   });
-  bindCTraderConnectionEvents(signal);
+  document.querySelector('#autoSyncCTrader').addEventListener('change', changeCTraderAutoSyncSetting, { signal });
+  document.querySelector('#cTraderAccountSelect')?.addEventListener('change', changeCTraderAccountSelection, { signal });
+  document.querySelector('#refreshCTraderAccounts')?.addEventListener('click', () => loadCTraderAccounts({ force: true }));
+  document.querySelector('#connectCTrader')?.addEventListener('click', startCTraderOAuthFlow, { signal });
+  document.querySelector('#syncCTrader').addEventListener('click', () => syncCTrader({ source: 'manual' }));
+  document.querySelector('#deleteAllCTraderImports').addEventListener('click', deleteAllCTraderImports, { signal });
+  document.querySelector('#deleteAllScreenshots').addEventListener('click', deleteAllScreenshots, { signal });
+  document.querySelector('#exportTrades').addEventListener('click', exportTrades, { signal });
   // Only present in Trading Mode (see renderTodayKpiStrip) — optional
   // chaining so binding is a no-op in Dashboard Mode, same pattern as
   // #connectCTrader above.
   document.querySelector('#dailyExport')?.addEventListener('click', exportDailyTrades, { signal });
   document.querySelector('#storageWarnExport')?.addEventListener('click', () => { exportTrades(); dismissStorageWarning(); });
   document.querySelector('#storageWarnDismiss')?.addEventListener('click', dismissStorageWarning, { signal });
+  document.querySelector('#importTrades').addEventListener('change', importTrades, { signal });
   document.querySelectorAll('[data-setup-sort-key]').forEach((button) => {
     button.addEventListener('click', () => {
       setupAnalyticsSort = {
@@ -4707,26 +4591,26 @@ function renderCTraderConnectionCard() {
       <div class="ctrader-card-header">
         <label class="auto-sync-toggle">
           <input type="checkbox" id="autoSyncCTrader" ${isCTraderAutoSyncEnabled ? 'checked' : ''} />
-          <span data-auto-sync-label>Auto Sync ${isCTraderAutoSyncEnabled ? 'ON' : 'OFF'}</span>
+          <span>Auto Sync ${isCTraderAutoSyncEnabled ? 'ON' : 'OFF'}</span>
         </label>
         ${!isCTraderConnected ? `<button class="connect-button" type="button" id="connectCTrader" ${isCheckingCTraderConnection ? 'disabled' : ''}>Connect cTrader</button>` : ''}
       </div>
       <dl class="ctrader-connection-summary" aria-label="cTrader connection summary">
         <div>
           <dt>cTrader</dt>
-          <dd data-ctrader-connection-status class="connection-${isCTraderConnected ? 'connected' : 'disconnected'}">${isCTraderConnected ? 'Connected' : 'Not Connected'}</dd>
+          <dd class="connection-${isCTraderConnected ? 'connected' : 'disconnected'}">${isCTraderConnected ? 'Connected' : 'Not Connected'}</dd>
         </div>
         <div>
           <dt>Selected Account</dt>
-          <dd data-selected-account-label>${escapeHtml(selectedAccountLabel)}</dd>
+          <dd>${escapeHtml(selectedAccountLabel)}</dd>
         </div>
         <div>
           <dt>Account Balance</dt>
-          <dd data-account-balance>${escapeHtml(formatCTraderAccountBalance())}</dd>
+          <dd>${escapeHtml(formatCTraderAccountBalance())}</dd>
         </div>
         <div>
           <dt>Last Sync Time</dt>
-          <dd data-last-sync-time>${escapeHtml(formatSyncTime(cTraderLastSyncAt))}</dd>
+          <dd>${escapeHtml(formatSyncTime(cTraderLastSyncAt))}</dd>
         </div>
       </dl>
       <div class="ctrader-account-selector">
@@ -4738,7 +4622,7 @@ function renderCTraderConnectionCard() {
         </label>
         <button class="secondary-button" type="button" id="refreshCTraderAccounts" ${isLoadingCTraderAccounts ? 'disabled' : ''}>${isLoadingCTraderAccounts ? 'Loading accounts...' : 'Refresh Accounts'}</button>
       </div>
-      <p class="import-status ${escapeHtml(cTraderSyncStatus?.tone || 'pending')}" role="status" data-sync-status${cTraderSyncStatus ? '' : ' hidden'}>${escapeHtml(cTraderSyncStatus?.message || '')}</p>
+      ${cTraderSyncStatus ? `<p class="import-status ${escapeHtml(cTraderSyncStatus.tone)}" role="status">${escapeHtml(cTraderSyncStatus.message)}</p>` : ''}
       <div class="ctrader-card-actions">
         <button class="secondary-button" type="button" id="syncCTrader" ${isSyncingCTrader || isCheckingCTraderConnection ? 'disabled' : ''}>
           ${icon('refresh')} ${isSyncingCTrader ? 'Syncing cTrader...' : 'Sync cTrader'}
@@ -4757,82 +4641,6 @@ function renderCTraderConnectionCard() {
       </div>
     </section>
   `;
-}
-
-function bindCTraderConnectionEvents(signal) {
-  const listenerOptions = signal ? { signal } : undefined;
-  document.querySelector('#autoSyncCTrader')?.addEventListener('change', changeCTraderAutoSyncSetting, listenerOptions);
-  document.querySelector('#cTraderAccountSelect')?.addEventListener('change', changeCTraderAccountSelection, listenerOptions);
-  document.querySelector('#refreshCTraderAccounts')?.addEventListener('click', () => loadCTraderAccounts({ force: true }), listenerOptions);
-  document.querySelector('#connectCTrader')?.addEventListener('click', startCTraderOAuthFlow, listenerOptions);
-  document.querySelector('#syncCTrader')?.addEventListener('click', () => syncCTrader({ source: 'manual' }), listenerOptions);
-  document.querySelector('#deleteAllCTraderImports')?.addEventListener('click', deleteAllCTraderImports, listenerOptions);
-  document.querySelector('#deleteAllScreenshots')?.addEventListener('click', deleteAllScreenshots, listenerOptions);
-  document.querySelector('#exportTrades')?.addEventListener('click', exportTrades, listenerOptions);
-  document.querySelector('#importTrades')?.addEventListener('change', importTrades, listenerOptions);
-}
-
-function refreshCTraderConnectionCard() {
-  const currentCard = document.querySelector('.ctrader-connection-card');
-  if (!currentCard) {
-    render();
-    return;
-  }
-
-  const selectedAccount = getSelectedCTraderAccount();
-  const selectedAccountLabel = selectedAccount
-    ? formatCTraderAccountLabel(selectedAccount)
-    : (selectedCTraderAccountId ? `Selected account ID ${selectedCTraderAccountId}` : 'No account selected');
-  const options = cTraderAccounts.map((account) => {
-    const accountId = String(getCTraderAccountId(account));
-    return `<option value="${escapeHtml(accountId)}" ${accountId === String(selectedCTraderAccountId) ? 'selected' : ''}>${escapeHtml(formatCTraderAccountLabel(account))}</option>`;
-  }).join('');
-  const connectionStatus = currentCard.querySelector('[data-ctrader-connection-status]');
-  const selectedAccountElement = currentCard.querySelector('[data-selected-account-label]');
-  const accountBalanceElement = currentCard.querySelector('[data-account-balance]');
-  const lastSyncElement = currentCard.querySelector('[data-last-sync-time]');
-  const autoSyncCheckbox = currentCard.querySelector('#autoSyncCTrader');
-  const autoSyncLabel = currentCard.querySelector('[data-auto-sync-label]');
-  const accountSelect = currentCard.querySelector('#cTraderAccountSelect');
-  const syncButton = currentCard.querySelector('#syncCTrader');
-  const refreshAccountsButton = currentCard.querySelector('#refreshCTraderAccounts');
-  const syncStatus = currentCard.querySelector('[data-sync-status]');
-  const connectButton = currentCard.querySelector('#connectCTrader');
-  const expectedAccountOptions = cTraderAccounts.length ? options : '<option value="">Connect cTrader to load accounts</option>';
-  const hasConnectButtonMismatch = Boolean(connectButton) === isCTraderConnected;
-
-  if (!connectionStatus || !selectedAccountElement || !accountBalanceElement || !lastSyncElement || !autoSyncCheckbox || !autoSyncLabel || !accountSelect || !syncButton || !refreshAccountsButton || !syncStatus || hasConnectButtonMismatch || accountSelect.innerHTML.trim() !== expectedAccountOptions.trim()) {
-    const activeElementId = currentCard.contains(document.activeElement) ? document.activeElement.id : '';
-    currentCard.outerHTML = renderCTraderConnectionCard();
-    bindCTraderConnectionEvents();
-    if (activeElementId) {
-      document.querySelector(`#${cssEscape(activeElementId)}`)?.focus();
-    }
-    return;
-  }
-
-  autoSyncCheckbox.checked = isCTraderAutoSyncEnabled;
-  autoSyncLabel.textContent = `Auto Sync ${isCTraderAutoSyncEnabled ? 'ON' : 'OFF'}`;
-  connectionStatus.className = `connection-${isCTraderConnected ? 'connected' : 'disconnected'}`;
-  connectionStatus.textContent = isCTraderConnected ? 'Connected' : 'Not Connected';
-  selectedAccountElement.textContent = selectedAccountLabel;
-  accountBalanceElement.textContent = formatCTraderAccountBalance();
-  lastSyncElement.textContent = formatSyncTime(cTraderLastSyncAt);
-  accountSelect.disabled = isLoadingCTraderAccounts || !cTraderAccounts.length;
-  accountSelect.value = selectedCTraderAccountId;
-  if (connectButton) {
-    connectButton.disabled = isCheckingCTraderConnection;
-  }
-  syncButton.disabled = isSyncingCTrader || isCheckingCTraderConnection;
-  syncButton.innerHTML = `${icon('refresh')} ${isSyncingCTrader ? 'Syncing cTrader...' : 'Sync cTrader'}`;
-  refreshAccountsButton.disabled = isLoadingCTraderAccounts;
-  refreshAccountsButton.textContent = isLoadingCTraderAccounts ? 'Loading accounts...' : 'Refresh Accounts';
-
-  syncStatus.hidden = !cTraderSyncStatus;
-  if (cTraderSyncStatus) {
-    syncStatus.className = `import-status ${cTraderSyncStatus.tone}`;
-    syncStatus.textContent = cTraderSyncStatus.message;
-  }
 }
 
 function describeCTraderConnectionStatus(status) {
@@ -5012,7 +4820,7 @@ async function loadCTraderAccounts(options = {}) {
   }
 
   isLoadingCTraderAccounts = true;
-  refreshCTraderConnectionCard();
+  render();
   try {
     const { response, body } = await fetchBackendJson(`${CTRADER_ENDPOINTS.accounts}?maxRows=1`);
     if (!response.ok) {
@@ -5029,7 +4837,7 @@ async function loadCTraderAccounts(options = {}) {
     return cTraderAccounts;
   } finally {
     isLoadingCTraderAccounts = false;
-    refreshCTraderConnectionCard();
+    render();
   }
 }
 
@@ -5065,11 +4873,8 @@ async function syncCTrader(options = {}) {
 
   isSyncingCTrader = true;
   const isAutoSync = options.source === 'auto';
-  let shouldRefreshCTraderCard = !isAutoSync;
-  if (!isAutoSync) {
-    cTraderSyncStatus = { tone: 'pending', message: 'Syncing cTrader trades...' };
-    refreshCTraderConnectionCard();
-  }
+  cTraderSyncStatus = { tone: 'pending', message: isAutoSync ? 'Auto Sync checking cTrader trades...' : 'Syncing cTrader trades...' };
+  render();
 
   try {
     await loadCTraderAccounts();
@@ -5101,20 +4906,16 @@ async function syncCTrader(options = {}) {
     logCTraderSyncDiagnostics({ preview, syncPlan, existingTrades: trades });
 
     const updatedExistingTrades = applyCTraderImportedTradeUpdates(trades, syncPlan.skippedTrades);
-    const hasVisibleTradeChanges = syncPlan.importedTrades.length || updatedExistingTrades.updatedCount > 0;
-    if (hasVisibleTradeChanges) {
-      persistTrades([...syncPlan.importedTrades, ...updatedExistingTrades.trades], { refreshVisibleTradeData: isAutoSync });
+    if (syncPlan.importedTrades.length || updatedExistingTrades.updatedCount > 0) {
+      persistTrades([...syncPlan.importedTrades, ...updatedExistingTrades.trades]);
     }
 
     const syncedAt = new Date().toISOString();
     persistCTraderLastSyncTime(syncedAt);
-    if (!isAutoSync || hasVisibleTradeChanges) {
-      cTraderSyncStatus = {
-        tone: 'success',
-        message: `${isAutoSync ? 'Auto Sync complete.' : 'Sync complete.'} New trades imported: ${syncPlan.importedCount}. Trades skipped: ${syncPlan.skippedCount}. Imported trades updated: ${updatedExistingTrades.updatedCount}. Stop losses updated: ${updatedExistingTrades.stopLossUpdatedCount}.`,
-      };
-      shouldRefreshCTraderCard = true;
-    }
+    cTraderSyncStatus = {
+      tone: 'success',
+      message: `${isAutoSync ? 'Auto Sync complete.' : 'Sync complete.'} New trades imported: ${syncPlan.importedCount}. Trades skipped: ${syncPlan.skippedCount}. Imported trades updated: ${updatedExistingTrades.updatedCount}. Stop losses updated: ${updatedExistingTrades.stopLossUpdatedCount}.`,
+    };
   } catch (error) {
     console.error('[cTrader sync] Frontend request failed', {
       requestUrl: error.url || null,
@@ -5129,12 +4930,9 @@ async function syncCTrader(options = {}) {
       tone: 'error',
       message: error.message || 'cTrader sync failed.',
     };
-    shouldRefreshCTraderCard = true;
   } finally {
     isSyncingCTrader = false;
-    if (shouldRefreshCTraderCard) {
-      refreshCTraderConnectionCard();
-    }
+    render();
   }
 }
 
@@ -5221,7 +5019,7 @@ async function syncCTraderOnStartup() {
 
   if (!isCTraderAutoSyncEnabled) {
     cTraderSyncStatus = { tone: 'pending', message: 'Auto Sync is off.' };
-    refreshCTraderConnectionCard();
+    render();
     return;
   }
 
@@ -5230,7 +5028,8 @@ async function syncCTraderOnStartup() {
   }
 
   isCheckingCTraderConnection = true;
-  let shouldRefreshCTraderCard = false;
+  cTraderSyncStatus = { tone: 'pending', message: 'Checking cTrader connection for Auto Sync...' };
+  render();
 
   try {
     await checkCTraderConnection();
@@ -5241,13 +5040,10 @@ async function syncCTraderOnStartup() {
       tone: 'error',
       message: error.message || 'cTrader is not connected. Connect cTrader to enable Auto Sync.',
     };
-    shouldRefreshCTraderCard = true;
     return;
   } finally {
     isCheckingCTraderConnection = false;
-    if (shouldRefreshCTraderCard) {
-      refreshCTraderConnectionCard();
-    }
+    render();
   }
 
   await syncCTrader({ source: 'auto' });
