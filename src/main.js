@@ -202,13 +202,13 @@ const FRIENDLY_ASSET_NAMES = {
 };
 
 const PLAY_BOOK_SETUP_OPTIONS = [
-  'Momentum Bar',
-  'RBI',
   'GBI',
-  'Support & Resistance',
-  'Retrace',
   'Hedge',
+  'Momentum Bar',
   'Other',
+  'RBI',
+  'Retrace',
+  'Support & Resistance',
 ];
 const CUSTOM_SETUP_OPTION = 'Custom';
 const LOSS_REASON_OPTIONS = [
@@ -226,9 +226,9 @@ const CLOSE_REASON_OPTIONS = [
   'Other',
 ];
 const MARKET_STATE_OPTIONS = [
-  'Trending',
   'Channel',
   'Countertrend',
+  'Trending',
 ];
 const LEGACY_MARKET_STATE_MAP = {
   'Choppy': 'Channel',

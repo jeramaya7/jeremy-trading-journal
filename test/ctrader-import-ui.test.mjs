@@ -309,7 +309,7 @@ test('legacy setup names migrate to their current canonical name', () => {
 });
 
 test('market state options are the simplified list and legacy values are preserved or safely mapped', () => {
-  assertIncludes(source, "const MARKET_STATE_OPTIONS = [\n  'Trending',\n  'Channel',\n  'Countertrend',\n];", 'Market State options are exactly the requested list.');
+  assertIncludes(source, "const MARKET_STATE_OPTIONS = [\n  'Channel',\n  'Countertrend',\n  'Trending',\n];", 'Market State options are exactly the requested list.');
   assertIncludes(source, "'Trending Down': 'Trending',", 'Trending Down safely migrates to Trending.');
   assertIncludes(source, "'Trending Up': 'Trending',", 'Trending Up safely migrates to Trending.');
   assertIncludes(source, "'Choppy': 'Channel',", 'Choppy safely migrates to Channel.');
