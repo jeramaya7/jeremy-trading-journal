@@ -93,22 +93,22 @@ test('the Play Book setup list is exactly the requested options, in order', () =
   // deepEqual would otherwise fail on cross-realm prototype identity even
   // though the contents are identical.
   assert.deepEqual(Array.from(PLAY_BOOK_SETUP_OPTIONS), [
+    'GBI / RBI',
     'Hedge',
     'Momentum Bar',
-    'Other',
-    'RBI / GBI',
     'Retrace',
     'Support & Resistance',
+    'Other',
   ]);
   assert.equal(CUSTOM_SETUP_OPTION, 'Custom', 'Custom is appended after the fixed list, so it always renders last.');
   assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('None'), false, 'None is not a Play Book option.');
   assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('Custom'), false, 'Custom lives outside the fixed list, appended separately.');
 });
 
-test('RBI / GBI and Support & Resistance are real, selectable Play Book setups', () => {
+test('GBI / RBI and Support & Resistance are real, selectable Play Book setups', () => {
   const { isPlayBookSetup } = loadSetupModule();
 
-  assert.equal(isPlayBookSetup('RBI / GBI'), true, 'RBI / GBI should be recognized as a fixed Play Book option.');
+  assert.equal(isPlayBookSetup('GBI / RBI'), true, 'GBI / RBI should be recognized as a fixed Play Book option.');
   assert.equal(isPlayBookSetup('Support & Resistance'), true, 'Support & Resistance should be recognized as a fixed Play Book option.');
 });
 
@@ -119,8 +119,8 @@ test('clear retired setup names migrate to their new canonical name', () => {
     // Old typo/alias names
     'Elephant Bar': 'Momentum Bar',
     'Buy the Retrace': 'Retrace',
-    GBI: 'RBI / GBI',
-    RBI: 'RBI / GBI',
+    GBI: 'GBI / RBI',
+    RBI: 'GBI / RBI',
     'Support/Resistance': 'Support & Resistance',
     'The General Forecast': 'Other',
     // Previous (DNA 25) 12-option Play Book list
@@ -150,7 +150,7 @@ test('setups retired with no clear replacement are left exactly as-is', () => {
 test('normalizeSetupName leaves already-current and unrelated setup names untouched', () => {
   const { normalizeSetupName } = loadSetupModule();
 
-  for (const currentName of ['Momentum Bar', 'RBI / GBI', 'Support & Resistance', 'Retrace', 'Hedge', 'Other', 'Custom', '', 'Opening range breakout']) {
+  for (const currentName of ['Momentum Bar', 'GBI / RBI', 'Support & Resistance', 'Retrace', 'Hedge', 'Other', 'Custom', '', 'Opening range breakout']) {
     assert.equal(normalizeSetupName(currentName), currentName);
   }
 });
@@ -201,7 +201,7 @@ test('regression: saving a trade with no setup chosen falls back to Uncategorize
 
   // A real, deliberate selection still saves normally.
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Momentum Bar', setupCustom: '', setup: '' })), 'Momentum Bar');
-  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'RBI / GBI', setupCustom: '', setup: '' })), 'RBI / GBI');
+  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'GBI / RBI', setupCustom: '', setup: '' })), 'GBI / RBI');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Support & Resistance', setupCustom: '', setup: '' })), 'Support & Resistance');
 
   // Custom behavior is unchanged.
@@ -212,13 +212,14 @@ test('the blank setup placeholder option is hidden and disabled, and never label
   const renderPlayBookSetupSelectSource = extractFunction('renderPlayBookSetupSelect');
 
   assert.ok(
-    /<option value=""\$\{currentSetup === '' \? ' selected' : ''\} hidden disabled><\/option>/.test(renderPlayBookSetupSelectSource),
+    /<option value=""\$\{selectedSetup === '' \? ' selected' : ''\} hidden disabled><\/option>/.test(renderPlayBookSetupSelectSource),
     'The blank placeholder option should be hidden and disabled, with no visible label.',
   );
   assert.equal(renderPlayBookSetupSelectSource.includes('>None<'), false, 'The word "None" must not appear anywhere in the Setup dropdown markup.');
 
   const { PLAY_BOOK_SETUP_OPTIONS } = loadSetupModule();
   assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('None'), false, 'None must never become a real, selectable Play Book/analytics setup value.');
+  assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('Uncategorized setup'), false, 'Uncategorized setup must not be a visible Play Book option.');
 });
 
 test('the edit form no longer offers a free-text Setup Description / custom setup input — legacy setup names are preserved as their own option instead', () => {

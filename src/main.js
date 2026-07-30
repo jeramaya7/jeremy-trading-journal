@@ -38,8 +38,8 @@ const LEGACY_SETUP_NAME_MAP = {
   // Older typo/alias names (pre-existing entries, repointed at the new list)
   'Elephant Bar': 'Momentum Bar',
   'Buy the Retrace': 'Retrace',
-  GBI: 'RBI / GBI',
-  RBI: 'RBI / GBI',
+  GBI: 'GBI / RBI',
+  RBI: 'GBI / RBI',
   'Support/Resistance': 'Support & Resistance',
   'The General Forecast': 'Other',
   // Previous (DNA 25) 12-option Play Book list, migrated to the new 8 options
@@ -204,12 +204,12 @@ const FRIENDLY_ASSET_NAMES = {
 };
 
 const PLAY_BOOK_SETUP_OPTIONS = [
+  'GBI / RBI',
   'Hedge',
   'Momentum Bar',
-  'Other',
-  'RBI / GBI',
   'Retrace',
   'Support & Resistance',
+  'Other',
 ];
 const CUSTOM_SETUP_OPTION = 'Custom';
 const LOSS_REASON_OPTIONS = [
@@ -3059,17 +3059,18 @@ function isPlayBookSetup(setup) {
 
 function renderPlayBookSetupSelect(trade) {
   const currentSetup = String(trade.setup || '').trim();
+  const selectedSetup = currentSetup === 'Uncategorized setup' ? '' : normalizeSetupName(currentSetup);
   // Trades saved with a legacy/custom setup name (not one of the fixed Play
   // Book options) keep that exact value as its own selectable option, so
   // opening and saving the edit form can never silently overwrite it —
   // there is no free-text "Setup Description" field to re-enter it in.
-  const legacySetupOption = currentSetup && !isPlayBookSetup(currentSetup)
-    ? renderSetupOption(currentSetup, currentSetup)
+  const legacySetupOption = selectedSetup && !isPlayBookSetup(selectedSetup)
+    ? renderSetupOption(selectedSetup, selectedSetup)
     : '';
   return `
     <select name="setupChoice" aria-label="Play Book setup">
-      <option value=""${currentSetup === '' ? ' selected' : ''} hidden disabled></option>
-      ${PLAY_BOOK_SETUP_OPTIONS.map((option) => renderSetupOption(option, currentSetup)).join('')}
+      <option value=""${selectedSetup === '' ? ' selected' : ''} hidden disabled></option>
+      ${PLAY_BOOK_SETUP_OPTIONS.map((option) => renderSetupOption(option, selectedSetup)).join('')}
       ${legacySetupOption}
     </select>
   `;

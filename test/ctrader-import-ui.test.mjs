@@ -163,7 +163,7 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(source, "${field('Setup', renderPlayBookSetupSelect(trade))}", 'The edit form allows setup changes through the Play Book dropdown.');
   assertIncludes(source, 'const PLAY_BOOK_SETUP_OPTIONS = [', 'The Play Book setup dropdown has a fixed setup list.');
   assertIncludes(source, "'Momentum Bar'", 'The Play Book setup dropdown includes Momentum Bar.');
-  assertIncludes(source, "'RBI / GBI'", 'The Play Book setup dropdown includes RBI / GBI.');
+  assertIncludes(source, "'GBI / RBI'", 'The Play Book setup dropdown includes GBI / RBI.');
   assertIncludes(source, "'Support & Resistance'", 'The Play Book setup dropdown includes Support & Resistance.');
   assert.ok(!source.includes("  'Trade Line Break',"), 'The Play Book setup dropdown no longer shows the misspelled setup label.');
   assert.ok(!source.includes("'Elephant Bar',") , 'The retired Elephant Bar label is no longer a selectable Play Book option (migrated to Momentum Bar instead).');
@@ -288,8 +288,8 @@ test('legacy setup names migrate to their current canonical name', () => {
   assertIncludes(source, 'const LEGACY_SETUP_NAME_MAP = {', 'Legacy setup names are retained only for migration, in one shared map.');
   assertIncludes(source, "'Elephant Bar': 'Momentum Bar',", 'Elephant Bar migrates to Momentum Bar.');
   assertIncludes(source, "'Buy the Retrace': 'Retrace',", 'Buy the Retrace migrates to Retrace.');
-  assertIncludes(source, "GBI: 'RBI / GBI',", 'GBI migrates to RBI / GBI.');
-  assertIncludes(source, "RBI: 'RBI / GBI',", 'RBI migrates to RBI / GBI.');
+  assertIncludes(source, "GBI: 'GBI / RBI',", 'GBI migrates to GBI / RBI.');
+  assertIncludes(source, "RBI: 'GBI / RBI',", 'RBI migrates to GBI / RBI.');
   assertIncludes(source, "'Support/Resistance': 'Support & Resistance',", 'Support/Resistance migrates to Support & Resistance.');
   assertIncludes(source, "'The General Forecast': 'Other',", 'The General Forecast migrates to Other.');
   // The previous (DNA 25) 12-option Play Book list also migrates now that
