@@ -261,14 +261,6 @@ const GRADE_OPTIONS = [
   'D',
   'F',
 ];
-const GRADE_OPTION_LABELS = {
-  'A+': 'A+ — Trade happened exactly as planned.',
-  A: 'A — Great trade.',
-  B: 'B — Good trade.',
-  C: 'C — Okay trade.',
-  D: 'D — Bad trade.',
-  F: 'F — Total fuck up.',
-};
 const TRADE_MANAGEMENT_OPTIONS = [
   'Set & Forget',
   'Trail Stop',
@@ -3044,11 +3036,6 @@ function renderSelectOption(option, selectedValue) {
   return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(option)}</option>`;
 }
 
-function renderSelectOptionWithLabel(option, selectedValue, label) {
-  const selected = option === selectedValue ? ' selected' : '';
-  return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(label)}</option>`;
-}
-
 function renderSetupOption(option, selectedValue) {
   return renderSelectOption(option, selectedValue);
 }
@@ -3150,7 +3137,7 @@ function renderGradeSelect(trade) {
   return `
     <select name="grade" aria-label="Grade">
       <option value="">Not Graded</option>
-      ${GRADE_OPTIONS.map((option) => renderSelectOptionWithLabel(option, current, GRADE_OPTION_LABELS[option])).join('')}
+      ${GRADE_OPTIONS.map((option) => renderSelectOption(option, current)).join('')}
     </select>
   `;
 }

@@ -318,15 +318,10 @@ test('market state options are the simplified list and legacy values are preserv
   assertIncludes(source, 'const legacyMarketStateOption = current && !MARKET_STATE_OPTIONS.includes(current)', 'Unmapped legacy Market State values are preserved as their own option.');
 });
 
-test('grade dropdown keeps stored values while showing updated descriptions', () => {
+test('grade dropdown keeps stored values and shows simple labels', () => {
   assertIncludes(source, "const GRADE_OPTIONS = [\n  'A+',\n  'A',\n  'B',\n  'C',\n  'D',\n  'F',\n];", 'Grade stored values stay as the requested A+ through F list.');
-  assertIncludes(source, "'A+': 'A+ — Trade happened exactly as planned.'", 'A+ displays the requested description.');
-  assertIncludes(source, "A: 'A — Great trade.'", 'A displays the requested description.');
-  assertIncludes(source, "B: 'B — Good trade.'", 'B displays the requested description.');
-  assertIncludes(source, "C: 'C — Okay trade.'", 'C displays the requested description.');
-  assertIncludes(source, "D: 'D — Bad trade.'", 'D displays the requested description.');
-  assertIncludes(source, "F: 'F — Total fuck up.'", 'F displays the requested description.');
-  assertIncludes(source, 'renderSelectOptionWithLabel(option, current, GRADE_OPTION_LABELS[option])', 'The Grade dropdown displays descriptions without changing saved option values.');
+  assertIncludes(source, 'GRADE_OPTIONS.map((option) => renderSelectOption(option, current)).join(\'\')', 'The Grade dropdown displays the stored values directly.');
+  assert.equal(source.includes('GRADE_OPTION_LABELS'), false, 'Grade descriptions are no longer rendered in the dropdown.');
 });
 
 test('trade edit form changes stay local until the user saves', () => {
