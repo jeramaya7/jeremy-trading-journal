@@ -302,6 +302,9 @@ function getCtraderOrderTakeProfit(order) {
     order?.takeProfit,
     order?.takeProfitPrice,
     absoluteTakeProfitFromRelative(order?.relativeTakeProfit, order),
+    order?.tradeData?.takeProfit,
+    order?.tradeData?.takeProfitPrice,
+    absoluteTakeProfitFromRelative(order?.tradeData?.relativeTakeProfit, order),
     order?.tpPrice,
     order?.tp,
     order?.position?.takeProfit,
@@ -380,6 +383,8 @@ function getCtraderProtectionEntryPrice(deal, openingDeal = null) {
   return toFiniteNumber(
     deal?.closePositionDetail?.entryPrice
       ?? deal?.entryPrice
+      ?? deal?.tradeData?.entryPrice
+      ?? deal?.tradeData?.executionPrice
       ?? deal?.position?.entryPrice
       ?? openingDeal?.executionPrice
       ?? openingDeal?.entryPrice
@@ -547,5 +552,4 @@ function cryptoSafeId(options = {}) {
   }
   return randomBytes(16).toString('hex');
 }
-
 

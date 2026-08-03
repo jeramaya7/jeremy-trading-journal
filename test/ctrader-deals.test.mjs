@@ -1147,6 +1147,65 @@ test('uses cTrader order history stop loss and take profit when deal fields are 
   assert.equal(trade.adjustedTakeProfit, undefined);
 });
 
+test('uses cTrader opening order tradeData relative take profit as Initial Take Profit', () => {
+  const [previewTrade] = mapCtraderDealsToJournalTrades({
+    deal: [
+      {
+        dealId: 440,
+        positionId: 540,
+        symbolName: 'EURUSD',
+        tradeSide: 'BUY',
+        executionPrice: 1.1,
+        executionTimestamp: 1_699_000_000_000,
+        filledVolume: 10000000,
+      },
+      {
+        dealId: 441,
+        positionId: 540,
+        symbolName: 'EURUSD',
+        tradeSide: 'SELL',
+        executionPrice: 1.12,
+        executionTimestamp: 1_700_000_000_000,
+        closePositionDetail: {
+          entryPrice: 1.1,
+          closedVolume: 10000000,
+        },
+      },
+    ],
+  }, {
+    symbolMetadata: { lotSize: 10000000 },
+    ordersByPositionId: {
+      540: [
+        {
+          orderId: 7101,
+          orderType: 1,
+          closingOrder: false,
+          executionPrice: 1.1,
+          tradeData: {
+            relativeTakeProfit: 1500,
+          },
+          positionId: 540,
+        },
+        {
+          orderId: 7102,
+          orderType: 2,
+          closingOrder: true,
+          limitPrice: 1.12,
+          positionId: 540,
+        },
+      ],
+    },
+  });
+  const journalTrade = convertCTraderPreviewTradeToJournalEntry(previewTrade, {
+    now: () => Date.parse('2026-06-12T15:00:00.000Z'),
+  });
+
+  assert.equal(previewTrade.takeProfit, 1.115);
+  assert.equal(previewTrade.adjustedTakeProfit, undefined);
+  assert.equal(journalTrade.takeProfit, 1.115);
+  assert.equal(journalTrade.adjustedTakeProfit, 1.115);
+});
+
 test('uses a numeric cTrader order type (STOP_LIMIT) closing order as the stop loss', () => {
   // Real production example: cTrader reported the protective stop as an
   // order with orderType: 4 (STOP_LIMIT) and closingOrder: true, not as a
