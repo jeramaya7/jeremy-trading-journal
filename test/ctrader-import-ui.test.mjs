@@ -162,10 +162,10 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(source, 'data-edit-trade-form="${escapeHtml(trade.id)}"', 'The edit form keeps a stable trade ID for saving changes.');
   assertIncludes(source, "${field('Setup', renderPlayBookSetupSelect(trade))}", 'The edit form allows setup changes through the Play Book dropdown.');
   assertIncludes(source, 'const PLAY_BOOK_SETUP_OPTIONS = [', 'The Play Book setup dropdown has a fixed setup list.');
+  assertIncludes(source, "'Confirmation'", 'The Play Book setup dropdown includes Confirmation.');
   assertIncludes(source, "'Momentum'", 'The Play Book setup dropdown includes Momentum.');
   assertIncludes(source, "'RBI / GBI'", 'The Play Book setup dropdown includes RBI / GBI.');
   assertIncludes(source, "'S&R'", 'The Play Book setup dropdown includes S&R.');
-  assertIncludes(source, "'X Confirm'", 'The Play Book setup dropdown includes X Confirm.');
   assert.ok(!source.includes("  'Trade Line Break',"), 'The Play Book setup dropdown no longer shows the misspelled setup label.');
   assert.ok(!source.includes("'Elephant Bar',") , 'The retired Elephant Bar label is no longer a selectable Play Book option (migrated to Momentum instead).');
   assert.ok(!source.includes("'Ride the 🐋',"), 'Ride the whale is retired from the Play Book dropdown.');
@@ -294,6 +294,7 @@ test('legacy setup names migrate to their current canonical name', () => {
   assertIncludes(source, "'Support & Resistance': 'S&R',", 'Support & Resistance migrates to S&R.');
   assertIncludes(source, "'Support/Resistance': 'S&R',", 'Support/Resistance migrates to S&R.');
   assertIncludes(source, "'The General Forecast': 'Other',", 'The General Forecast migrates to Other.');
+  assertIncludes(source, "'X Confirm': 'Confirmation',", 'X Confirm migrates to Confirmation.');
   // The previous (DNA 25) 12-option Play Book list also migrates now that
   // the Setup dropdown is down to 8 options.
   assertIncludes(source, "'Enter Retrace': 'Retrace',", 'The retired Enter Retrace option migrates to Retrace.');
@@ -320,15 +321,11 @@ test('market state options are the simplified list and legacy values are preserv
   assertIncludes(source, 'const legacyMarketStateOption = current && !MARKET_STATE_OPTIONS.includes(current)', 'Unmapped legacy Market State values are preserved as their own option.');
 });
 
-test('grade dropdown keeps stored values while showing updated descriptions', () => {
+test('grade dropdown keeps stored values and displays simple labels', () => {
   assertIncludes(source, "const GRADE_OPTIONS = [\n  'A+',\n  'A',\n  'B',\n  'C',\n  'D',\n  'F',\n];", 'Grade stored values stay as the requested A+ through F list.');
-  assertIncludes(source, "'A+': 'A+ — Trade happened exactly as planned.'", 'A+ displays the requested description.');
-  assertIncludes(source, "A: 'A — Great trade.'", 'A displays the requested description.');
-  assertIncludes(source, "B: 'B — Good trade.'", 'B displays the requested description.');
-  assertIncludes(source, "C: 'C — Okay trade.'", 'C displays the requested description.');
-  assertIncludes(source, "D: 'D — Bad trade.'", 'D displays the requested description.');
-  assertIncludes(source, "F: 'F — Total fuck up.'", 'F displays the requested description.');
-  assertIncludes(source, 'renderSelectOptionWithLabel(option, current, GRADE_OPTION_LABELS[option])', 'The Grade dropdown displays descriptions without changing saved option values.');
+  assert.ok(!source.includes('GRADE_OPTION_LABELS'), 'Grade descriptions are no longer used for visible dropdown labels.');
+  assert.ok(!source.includes('renderSelectOptionWithLabel'), 'Grade uses the normal select option renderer.');
+  assertIncludes(source, 'GRADE_OPTIONS.map((option) => renderSelectOption(option, current)).join(\'\')', 'The Grade dropdown displays the stored values as simple labels.');
 });
 
 test('trade edit form changes stay local until the user saves', () => {

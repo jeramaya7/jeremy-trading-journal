@@ -45,6 +45,7 @@ const LEGACY_SETUP_NAME_MAP = {
   'Support & Resistance': 'S&R',
   'Support/Resistance': 'S&R',
   'The General Forecast': 'Other',
+  'X Confirm': 'Confirmation',
   // Previous (DNA 25) 12-option Play Book list, migrated to the new 8 options
   'Enter Retrace': 'Retrace',
   'General Forecast': 'Other',
@@ -207,10 +208,10 @@ const FRIENDLY_ASSET_NAMES = {
 };
 
 const PLAY_BOOK_SETUP_OPTIONS = [
+  'Confirmation',
   'Momentum',
   'RBI / GBI',
   'S&R',
-  'X Confirm',
   'Other',
 ];
 const CUSTOM_SETUP_OPTION = 'Custom';
@@ -263,14 +264,6 @@ const GRADE_OPTIONS = [
   'D',
   'F',
 ];
-const GRADE_OPTION_LABELS = {
-  'A+': 'A+ — Trade happened exactly as planned.',
-  A: 'A — Great trade.',
-  B: 'B — Good trade.',
-  C: 'C — Okay trade.',
-  D: 'D — Bad trade.',
-  F: 'F — Total fuck up.',
-};
 const TRADE_MANAGEMENT_OPTIONS = [
   'Set & Forget',
   'Trail Stop',
@@ -3046,11 +3039,6 @@ function renderSelectOption(option, selectedValue) {
   return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(option)}</option>`;
 }
 
-function renderSelectOptionWithLabel(option, selectedValue, label) {
-  const selected = option === selectedValue ? ' selected' : '';
-  return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(label)}</option>`;
-}
-
 function renderSetupOption(option, selectedValue) {
   return renderSelectOption(option, selectedValue);
 }
@@ -3152,7 +3140,7 @@ function renderGradeSelect(trade) {
   return `
     <select name="grade" aria-label="Grade">
       <option value="">Not Graded</option>
-      ${GRADE_OPTIONS.map((option) => renderSelectOptionWithLabel(option, current, GRADE_OPTION_LABELS[option])).join('')}
+      ${GRADE_OPTIONS.map((option) => renderSelectOption(option, current)).join('')}
     </select>
   `;
 }

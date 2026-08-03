@@ -93,10 +93,10 @@ test('the Play Book setup list is exactly the requested options, in order', () =
   // deepEqual would otherwise fail on cross-realm prototype identity even
   // though the contents are identical.
   assert.deepEqual(Array.from(PLAY_BOOK_SETUP_OPTIONS), [
+    'Confirmation',
     'Momentum',
     'RBI / GBI',
     'S&R',
-    'X Confirm',
     'Other',
   ]);
   assert.equal(CUSTOM_SETUP_OPTION, 'Custom', 'Custom is appended after the fixed list, so it always renders last.');
@@ -104,12 +104,12 @@ test('the Play Book setup list is exactly the requested options, in order', () =
   assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('Custom'), false, 'Custom lives outside the fixed list, appended separately.');
 });
 
-test('RBI / GBI, S&R, and X Confirm are real, selectable Play Book setups', () => {
+test('Confirmation, RBI / GBI, and S&R are real, selectable Play Book setups', () => {
   const { isPlayBookSetup } = loadSetupModule();
 
+  assert.equal(isPlayBookSetup('Confirmation'), true, 'Confirmation should be recognized as a fixed Play Book option.');
   assert.equal(isPlayBookSetup('RBI / GBI'), true, 'RBI / GBI should be recognized as a fixed Play Book option.');
   assert.equal(isPlayBookSetup('S&R'), true, 'S&R should be recognized as a fixed Play Book option.');
-  assert.equal(isPlayBookSetup('X Confirm'), true, 'X Confirm should be recognized as a fixed Play Book option.');
 });
 
 test('clear retired setup names migrate to their new canonical name', () => {
@@ -126,6 +126,7 @@ test('clear retired setup names migrate to their new canonical name', () => {
     'Support & Resistance': 'S&R',
     'Support/Resistance': 'S&R',
     'The General Forecast': 'Other',
+    'X Confirm': 'Confirmation',
     // Previous (DNA 25) 12-option Play Book list
     'Enter Retrace': 'Retrace',
     'General Forecast': 'Other',
@@ -153,7 +154,7 @@ test('setups retired with no clear replacement are left exactly as-is', () => {
 test('normalizeSetupName leaves already-current and unrelated setup names untouched', () => {
   const { normalizeSetupName } = loadSetupModule();
 
-  for (const currentName of ['Momentum', 'RBI / GBI', 'S&R', 'X Confirm', 'Other', 'Custom', '', 'Opening range breakout']) {
+  for (const currentName of ['Confirmation', 'Momentum', 'RBI / GBI', 'S&R', 'Other', 'Custom', '', 'Opening range breakout']) {
     assert.equal(normalizeSetupName(currentName), currentName);
   }
 });
@@ -203,6 +204,7 @@ test('regression: saving a trade with no setup chosen falls back to Uncategorize
   assert.notEqual(getSetupFormValue(makeFormData({ setupChoice: '', setupCustom: '', setup: '' })), 'Trend');
 
   // A real, deliberate selection still saves normally.
+  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Confirmation', setupCustom: '', setup: '' })), 'Confirmation');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Momentum', setupCustom: '', setup: '' })), 'Momentum');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'RBI / GBI', setupCustom: '', setup: '' })), 'RBI / GBI');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'S&R', setupCustom: '', setup: '' })), 'S&R');
