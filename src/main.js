@@ -36,11 +36,14 @@ const DNA_TIMEFRAME_OPTIONS = [
 // was never on the Play Book list.
 const LEGACY_SETUP_NAME_MAP = {
   // Older typo/alias names (pre-existing entries, repointed at the new list)
-  'Elephant Bar': 'Momentum Bar',
+  'Elephant Bar': 'Momentum',
   'Buy the Retrace': 'Retrace',
-  GBI: 'GBI / RBI',
-  RBI: 'GBI / RBI',
-  'Support/Resistance': 'Support & Resistance',
+  GBI: 'RBI / GBI',
+  'GBI / RBI': 'RBI / GBI',
+  'Momentum Bar': 'Momentum',
+  RBI: 'RBI / GBI',
+  'Support & Resistance': 'S&R',
+  'Support/Resistance': 'S&R',
   'The General Forecast': 'Other',
   // Previous (DNA 25) 12-option Play Book list, migrated to the new 8 options
   'Enter Retrace': 'Retrace',
@@ -204,11 +207,10 @@ const FRIENDLY_ASSET_NAMES = {
 };
 
 const PLAY_BOOK_SETUP_OPTIONS = [
-  'GBI / RBI',
-  'Hedge',
-  'Momentum Bar',
-  'Retrace',
-  'Support & Resistance',
+  'Momentum',
+  'RBI / GBI',
+  'S&R',
+  'X Confirm',
   'Other',
 ];
 const CUSTOM_SETUP_OPTION = 'Custom';
@@ -261,6 +263,14 @@ const GRADE_OPTIONS = [
   'D',
   'F',
 ];
+const GRADE_OPTION_LABELS = {
+  'A+': 'A+ — Trade happened exactly as planned.',
+  A: 'A — Great trade.',
+  B: 'B — Good trade.',
+  C: 'C — Okay trade.',
+  D: 'D — Bad trade.',
+  F: 'F — Total fuck up.',
+};
 const TRADE_MANAGEMENT_OPTIONS = [
   'Set & Forget',
   'Trail Stop',
@@ -3036,6 +3046,11 @@ function renderSelectOption(option, selectedValue) {
   return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(option)}</option>`;
 }
 
+function renderSelectOptionWithLabel(option, selectedValue, label) {
+  const selected = option === selectedValue ? ' selected' : '';
+  return `<option value="${escapeHtml(option)}"${selected}>${escapeHtml(label)}</option>`;
+}
+
 function renderSetupOption(option, selectedValue) {
   return renderSelectOption(option, selectedValue);
 }
@@ -3137,7 +3152,7 @@ function renderGradeSelect(trade) {
   return `
     <select name="grade" aria-label="Grade">
       <option value="">Not Graded</option>
-      ${GRADE_OPTIONS.map((option) => renderSelectOption(option, current)).join('')}
+      ${GRADE_OPTIONS.map((option) => renderSelectOptionWithLabel(option, current, GRADE_OPTION_LABELS[option])).join('')}
     </select>
   `;
 }
