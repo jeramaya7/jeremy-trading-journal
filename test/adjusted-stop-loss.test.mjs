@@ -21,7 +21,7 @@ test('final stop loss persists through reload using the existing journal storage
   assertIncludes(source, "const STORAGE_KEY = 'jeremy-trading-journal:v1';", 'Journal entries continue to use the existing local storage key.');
   assertIncludes(source, 'window.localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));', 'Persisted trades serialize the full trade object, including adjustedStopLoss.');
   assertIncludes(source, 'parsedTrades = JSON.parse(savedTrades);', 'Reloaded trades are parsed from local storage.');
-  assertIncludes(source, 'const migratedTrades = shouldMigrateSavedTrades ? normalizeTradeSetups(parsedTrades) : parsedTrades;', 'Reload keeps persisted trade fields instead of remapping cTrader import data.');
+  assertIncludes(source, 'const migratedTrades = shouldMigrateSavedTrades\n    ? normalizeTradeMarketStates(normalizeTradeSetups(parsedTrades))\n    : parsedTrades;', 'Reload keeps persisted trade fields instead of remapping cTrader import data.');
   assertIncludes(source, "${field('Final Stop Loss', `<input name=\"adjustedStopLoss\"", 'Edit forms label the editable stop field as Final Stop Loss.');
   assertIncludes(source, 'value="${escapeHtml(trade.adjustedStopLoss ?? \'\')}"', 'Re-opened edit forms hydrate the saved final stop loss value.');
 });

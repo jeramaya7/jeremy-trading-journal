@@ -304,21 +304,23 @@ test('legacy setup names migrate to their current canonical name', () => {
 
   assertIncludes(source, 'function normalizeSetupName(setup) {', 'Setup normalization is a single shared function.');
   assertIncludes(source, 'return Object.prototype.hasOwnProperty.call(LEGACY_SETUP_NAME_MAP, setup) ? LEGACY_SETUP_NAME_MAP[setup] : setup;', 'Setup normalization looks up the shared legacy map instead of a single hardcoded pair.');
-  assertIncludes(source, 'const shouldMigrateSavedTrades = hasLegacySetupName(parsedTrades);', 'Saved journal entries are checked for legacy setup names when loaded from localStorage.');
-  assertIncludes(source, 'const migratedTrades = shouldMigrateSavedTrades ? normalizeTradeSetups(parsedTrades) : parsedTrades;', 'Saved journal entries are normalized when migration is needed.');
+  assertIncludes(source, 'const shouldMigrateSavedTrades = hasLegacySetupName(parsedTrades) || hasMigratableMarketState(parsedTrades);', 'Saved journal entries are checked for legacy setup names and required Market State cleanup when loaded from localStorage.');
+  assertIncludes(source, 'const migratedTrades = shouldMigrateSavedTrades\n    ? normalizeTradeMarketStates(normalizeTradeSetups(parsedTrades))\n    : parsedTrades;', 'Saved journal entries are normalized when migration is needed.');
   assertIncludes(source, 'window.localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedTrades));', 'Migrated saved journal entries are written back to localStorage.');
-  assertIncludes(source, 'trades = normalizeTradeSetups(nextTrades);', 'Imported and saved journal entries are normalized before persistence/export.');
+  assertIncludes(source, 'trades = normalizeTradeMarketStates(normalizeTradeSetups(nextTrades));', 'Imported and saved journal entries are normalized before persistence/export.');
   assertIncludes(source, "setup: normalizeSetupName(String(formData.get('setup')).trim()) || 'Uncategorized setup',", 'Manual entries typed with a legacy setup name are normalized.');
 });
 
 test('market state options are the simplified list and legacy values are preserved or safely mapped', () => {
-  assertIncludes(source, "const MARKET_STATE_OPTIONS = [\n  'Channel',\n  'Countertrend',\n  'Trending',\n];", 'Market State options are exactly the requested list.');
+  assertIncludes(source, "const MARKET_STATE_OPTIONS = [\n  'Trending',\n  'Countertrend',\n  'Channel',\n  'Compressed',\n];", 'Market State options are exactly the requested list and order.');
+  assertIncludes(source, 'const DEFAULT_MARKET_STATE = MARKET_STATE_OPTIONS[0];', 'Blank Market State values safely migrate to the first required state.');
   assertIncludes(source, "'Trending Down': 'Trending',", 'Trending Down safely migrates to Trending.');
   assertIncludes(source, "'Trending Up': 'Trending',", 'Trending Up safely migrates to Trending.');
   assertIncludes(source, "'Choppy': 'Channel',", 'Choppy safely migrates to Channel.');
   assertIncludes(source, "'Consolidating': 'Channel',", 'Consolidating safely migrates to Channel.');
   assertIncludes(source, "'Counter Trend': 'Countertrend',", 'Counter Trend safely migrates to Countertrend.');
   assertIncludes(source, 'const legacyMarketStateOption = current && !MARKET_STATE_OPTIONS.includes(current)', 'Unmapped legacy Market State values are preserved as their own option.');
+  assert.ok(!source.includes('<option value="">No state</option>'), 'Market State dropdown no longer allows a blank option.');
 });
 
 test('grade dropdown keeps stored values and displays simple labels', () => {

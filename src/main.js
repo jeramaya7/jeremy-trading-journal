@@ -230,10 +230,12 @@ const CLOSE_REASON_OPTIONS = [
   'Other',
 ];
 const MARKET_STATE_OPTIONS = [
-  'Channel',
-  'Countertrend',
   'Trending',
+  'Countertrend',
+  'Channel',
+  'Compressed',
 ];
+const DEFAULT_MARKET_STATE = MARKET_STATE_OPTIONS[0];
 const LEGACY_MARKET_STATE_MAP = {
   'Choppy': 'Channel',
   'Consolidating': 'Channel',
@@ -334,10 +336,26 @@ function normalizeTradeSetups(nextTrades) {
   ));
 }
 
+function normalizeMarketState(raw) {
+  const trimmed = String(raw || '').trim();
+  return LEGACY_MARKET_STATE_MAP[trimmed] ?? (trimmed || DEFAULT_MARKET_STATE);
+}
+
+function hasMigratableMarketState(nextTrades) {
+  return nextTrades.some((trade) => normalizeMarketState(trade?.state) !== trade?.state);
+}
+
+function normalizeTradeMarketStates(nextTrades) {
+  return nextTrades.map((trade) => {
+    const state = normalizeMarketState(trade?.state);
+    return state === trade?.state ? trade : { ...trade, state };
+  });
+}
+
 function loadTrades() {
   const savedTrades = window.localStorage.getItem(STORAGE_KEY);
   if (!savedTrades) {
-    return starterTrades;
+    return normalizeTradeMarketStates(starterTrades);
   }
 
   let parsedTrades;
@@ -345,14 +363,16 @@ function loadTrades() {
     parsedTrades = JSON.parse(savedTrades);
   } catch {
     console.error('[DNA] localStorage trade data is corrupted and could not be parsed. Falling back to starter trades.');
-    return starterTrades;
+    return normalizeTradeMarketStates(starterTrades);
   }
   if (!Array.isArray(parsedTrades)) {
-    return starterTrades;
+    return normalizeTradeMarketStates(starterTrades);
   }
 
-  const shouldMigrateSavedTrades = hasLegacySetupName(parsedTrades);
-  const migratedTrades = shouldMigrateSavedTrades ? normalizeTradeSetups(parsedTrades) : parsedTrades;
+  const shouldMigrateSavedTrades = hasLegacySetupName(parsedTrades) || hasMigratableMarketState(parsedTrades);
+  const migratedTrades = shouldMigrateSavedTrades
+    ? normalizeTradeMarketStates(normalizeTradeSetups(parsedTrades))
+    : parsedTrades;
   if (shouldMigrateSavedTrades) {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedTrades));
   }
@@ -408,7 +428,7 @@ function saveTodaySessionNote(text) {
 }
 
 function persistTrades(nextTrades, options = {}) {
-  trades = normalizeTradeSetups(nextTrades);
+  trades = normalizeTradeMarketStates(normalizeTradeSetups(nextTrades));
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));
   if (options.preserveTradeId) {
     renderPreservingTradePosition(options.preserveTradeId, options.renderOptions);
@@ -487,7 +507,7 @@ async function loadCloudAnnotationsAndMerge() {
     });
 
     if (didMergeAnyTrade) {
-      trades = normalizeTradeSetups(mergedTrades);
+      trades = normalizeTradeMarketStates(normalizeTradeSetups(mergedTrades));
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));
       render();
     }
@@ -3094,11 +3114,6 @@ function renderCloseReasonSelect(trade) {
   `;
 }
 
-function normalizeMarketState(raw) {
-  const trimmed = String(raw || '').trim();
-  return LEGACY_MARKET_STATE_MAP[trimmed] ?? trimmed;
-}
-
 function renderMarketStateSelect(trade) {
   const current = normalizeMarketState(trade.state);
   const legacyMarketStateOption = current && !MARKET_STATE_OPTIONS.includes(current)
@@ -3106,7 +3121,6 @@ function renderMarketStateSelect(trade) {
     : '';
   return `
     <select name="state" aria-label="Market State">
-      <option value="">No state</option>
       ${MARKET_STATE_OPTIONS.map((option) => renderSelectOption(option, current)).join('')}
       ${legacyMarketStateOption}
     </select>
@@ -4343,7 +4357,7 @@ async function saveAllEditedTrades() {
   // saved/closed above) may still hold the edit lock, and a plain render()
   // would otherwise silently no-op and leave the just-saved cards showing
   // their stale edit forms.
-  trades = normalizeTradeSetups(nextTrades);
+  trades = normalizeTradeMarketStates(normalizeTradeSetups(nextTrades));
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(trades));
   render({ force: true });
 
