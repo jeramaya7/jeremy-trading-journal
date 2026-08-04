@@ -25,31 +25,27 @@ const DNA_TIMEFRAME_OPTIONS = [
 ];
 
 // Legacy Setup names (renamed or retired from the current Play Book list)
-// mapped to their current canonical name. Existing trades tagged with any
-// of these old names are transparently migrated to the new name wherever a
-// setup is displayed, edited, filtered, analyzed, or reported. This map
-// covers both the old pre-DNA-26 typos/aliases and the entire previous
-// 12-option Play Book list, all pointed directly at their closest match in
-// the simplified 8-option list (DNA 26). Setup names that were retired with
-// no sensible replacement fall through to their own preserved custom value
-// via renderPlayBookSetupSelect's legacySetupOption, same as any value that
-// was never on the Play Book list.
+// mapped to their current canonical name. Unknown legacy/custom setup values
+// fall through unchanged and render as Custom... so saved data is preserved.
 const LEGACY_SETUP_NAME_MAP = {
   // Older typo/alias names (pre-existing entries, repointed at the new list)
-  'Elephant Bar': 'Momentum',
+  'Elephant Bar': 'Breakout',
   'Buy the Retrace': 'Retrace',
-  GBI: 'RBI / GBI',
-  'GBI / RBI': 'RBI / GBI',
-  'Momentum Bar': 'Momentum',
-  RBI: 'RBI / GBI',
-  'Support & Resistance': 'S&R',
-  'Support/Resistance': 'S&R',
+  GBI: 'Retrace',
+  'GBI / RBI': 'Retrace',
+  'Momentum Bar': 'Breakout',
+  RBI: 'Retrace',
+  'Support/Resistance': 'Support & Resistance',
   'The General Forecast': 'Other',
-  'X Confirm': 'Confirmation',
+  'X Confirm': 'Breakout',
   // Previous (DNA 25) 12-option Play Book list, migrated to the new 8 options
   'Enter Retrace': 'Retrace',
   'General Forecast': 'Other',
   'Scalping': 'Other',
+  Momentum: 'Breakout',
+  Confirmation: 'Breakout',
+  'RBI / GBI': 'Retrace',
+  'S&R': 'Support & Resistance',
 };
 const MARKET_STATE_OPTIONS = [
   'Trending',
@@ -223,13 +219,11 @@ const FRIENDLY_ASSET_NAMES = {
 };
 
 const PLAY_BOOK_SETUP_OPTIONS = [
-  'Confirmation',
-  'Momentum',
-  'RBI / GBI',
-  'S&R',
-  'Other',
+  'Breakout',
+  'Retrace',
+  'Support & Resistance',
 ];
-const CUSTOM_SETUP_OPTION = 'Custom';
+const CUSTOM_SETUP_OPTION = 'Custom...';
 const LOSS_REASON_OPTIONS = [
   'Normal Loss',
   'Stop Too Tight',
@@ -3070,19 +3064,15 @@ function isPlayBookSetup(setup) {
 function renderPlayBookSetupSelect(trade) {
   const currentSetup = String(trade.setup || '').trim();
   const selectedSetup = currentSetup === 'Uncategorized setup' ? '' : normalizeSetupName(currentSetup);
-  // Trades saved with a legacy/custom setup name (not one of the fixed Play
-  // Book options) keep that exact value as its own selectable option, so
-  // opening and saving the edit form can never silently overwrite it —
-  // there is no free-text "Setup Description" field to re-enter it in.
-  const legacySetupOption = selectedSetup && !isPlayBookSetup(selectedSetup)
-    ? renderSetupOption(selectedSetup, selectedSetup)
-    : '';
+  const isCustomSetup = selectedSetup && !isPlayBookSetup(selectedSetup);
+  const selectedChoice = isCustomSetup ? CUSTOM_SETUP_OPTION : selectedSetup;
   return `
     <select name="setupChoice" aria-label="Play Book setup">
-      <option value=""${selectedSetup === '' ? ' selected' : ''} hidden disabled></option>
-      ${PLAY_BOOK_SETUP_OPTIONS.map((option) => renderSetupOption(option, selectedSetup)).join('')}
-      ${legacySetupOption}
+      <option value=""${selectedChoice === '' ? ' selected' : ''} hidden disabled></option>
+      ${PLAY_BOOK_SETUP_OPTIONS.map((option) => renderSetupOption(option, selectedChoice)).join('')}
+      ${renderSetupOption(CUSTOM_SETUP_OPTION, selectedChoice)}
     </select>
+    <input name="setupCustom" data-custom-setup placeholder="Custom setup" value="${escapeHtml(isCustomSetup ? selectedSetup : '')}"${isCustomSetup ? '' : ' hidden'} />
   `;
 }
 
@@ -3190,6 +3180,13 @@ function getSetupFormValue(formData) {
   }
 
   return normalizeSetupName(String(formData.get('setup') || '').trim() || setupChoice) || 'Uncategorized setup';
+}
+
+function toggleCustomSetupInput(select) {
+  const customInput = select.closest('form')?.querySelector('[data-custom-setup]');
+  if (customInput) {
+    customInput.hidden = select.value !== CUSTOM_SETUP_OPTION;
+  }
 }
 
 function editTradeForm(trade) {
@@ -3950,6 +3947,12 @@ function bindTradeCardEvents(tradeCardElement) {
     const tradeId = form.dataset.editTradeForm;
     form.addEventListener('input', () => markTradeEditDirty(tradeId));
     form.addEventListener('change', () => markTradeEditDirty(tradeId));
+  });
+
+  tradeCardElement.querySelectorAll('select[name="setupChoice"]').forEach((select) => {
+    select.addEventListener('change', () => {
+      toggleCustomSetupInput(select);
+    });
   });
 
   // Smart Protected: whenever Trade Management changes in an open edit

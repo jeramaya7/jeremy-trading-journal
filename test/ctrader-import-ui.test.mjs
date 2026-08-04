@@ -162,28 +162,19 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(source, 'data-edit-trade-form="${escapeHtml(trade.id)}"', 'The edit form keeps a stable trade ID for saving changes.');
   assertIncludes(source, "${field('Setup', renderPlayBookSetupSelect(trade))}", 'The edit form allows setup changes through the Play Book dropdown.');
   assertIncludes(source, 'const PLAY_BOOK_SETUP_OPTIONS = [', 'The Play Book setup dropdown has a fixed setup list.');
-  assertIncludes(source, "'Confirmation'", 'The Play Book setup dropdown includes Confirmation.');
-  assertIncludes(source, "'Momentum'", 'The Play Book setup dropdown includes Momentum.');
-  assertIncludes(source, "'RBI / GBI'", 'The Play Book setup dropdown includes RBI / GBI.');
-  assertIncludes(source, "'S&R'", 'The Play Book setup dropdown includes S&R.');
+  assertIncludes(source, "'Breakout'", 'The Play Book setup dropdown includes Breakout.');
+  assertIncludes(source, "'Retrace'", 'The Play Book setup dropdown includes Retrace.');
+  assertIncludes(source, "'Support & Resistance'", 'The Play Book setup dropdown includes Support & Resistance.');
+  assertIncludes(source, "const CUSTOM_SETUP_OPTION = 'Custom...';", 'The Play Book setup dropdown includes Custom... after the fixed list.');
   assert.ok(!source.includes("  'Trade Line Break',"), 'The Play Book setup dropdown no longer shows the misspelled setup label.');
-  assert.ok(!source.includes("'Elephant Bar',") , 'The retired Elephant Bar label is no longer a selectable Play Book option (migrated to Momentum instead).');
-  assert.ok(!source.includes("'Ride the 🐋',"), 'Ride the whale is retired from the Play Book dropdown.');
+  assert.ok(!source.includes("'Elephant Bar',") , 'The retired Elephant Bar label is no longer a selectable Play Book option (migrated to Breakout instead).');
   assert.ok(!source.includes('>None</option>\n      ${PLAY_BOOK_SETUP_OPTIONS'), 'The Play Book setup dropdown no longer offers a None option.');
 
-  // Cleanup: the free-text "Setup Description" / custom setup input is
-  // fully removed from the Setup dropdown's own markup. Legacy non-Play-Book
-  // setup values are preserved as their own selectable option instead (see
-  // setup-name-migration.test.mjs for the dedicated coverage). Note:
-  // getSetupFormValue() still legitimately reads formData.get('setupCustom')
-  // — that's shared, tested logic left untouched, just unreachable from the
-  // real form now — so this check is scoped to renderPlayBookSetupSelect
-  // only, not the whole file.
   const setupSelectStart = source.indexOf('function renderPlayBookSetupSelect(trade)');
   const setupSelectEnd = source.indexOf('\nfunction ', setupSelectStart + 1);
   const setupSelectBody = source.slice(setupSelectStart, setupSelectEnd);
-  assert.equal(setupSelectBody.includes('setupCustom'), false, 'The Setup dropdown should no longer render a free-text custom setup input.');
-  assert.equal(setupSelectBody.includes('data-custom-setup'), false, 'The custom setup input hook should be fully removed.');
+  assert.equal(setupSelectBody.includes('setupCustom'), true, 'The Setup dropdown renders a free-text custom setup input.');
+  assert.equal(setupSelectBody.includes('data-custom-setup'), true, 'The custom setup input hook is present.');
 
   // Cleanup: Tags is fully removed from the edit form (still present on
   // the manual "Add Trade" panel, which is a different form).
@@ -287,18 +278,21 @@ test('legacy setup names migrate to their current canonical name', () => {
   // migrates the same way, wherever a setup is displayed, edited,
   // filtered, analyzed, or reported.
   assertIncludes(source, 'const LEGACY_SETUP_NAME_MAP = {', 'Legacy setup names are retained only for migration, in one shared map.');
-  assertIncludes(source, "'Elephant Bar': 'Momentum',", 'Elephant Bar migrates to Momentum.');
+  assertIncludes(source, "'Elephant Bar': 'Breakout',", 'Elephant Bar migrates to Breakout.');
   assertIncludes(source, "'Buy the Retrace': 'Retrace',", 'Buy the Retrace migrates to Retrace.');
-  assertIncludes(source, "GBI: 'RBI / GBI',", 'GBI migrates to RBI / GBI.');
-  assertIncludes(source, "RBI: 'RBI / GBI',", 'RBI migrates to RBI / GBI.');
-  assertIncludes(source, "'Support & Resistance': 'S&R',", 'Support & Resistance migrates to S&R.');
-  assertIncludes(source, "'Support/Resistance': 'S&R',", 'Support/Resistance migrates to S&R.');
+  assertIncludes(source, "GBI: 'Retrace',", 'GBI migrates to Retrace.');
+  assertIncludes(source, "RBI: 'Retrace',", 'RBI migrates to Retrace.');
+  assertIncludes(source, "'Support/Resistance': 'Support & Resistance',", 'Support/Resistance migrates to Support & Resistance.');
   assertIncludes(source, "'The General Forecast': 'Other',", 'The General Forecast migrates to Other.');
-  assertIncludes(source, "'X Confirm': 'Confirmation',", 'X Confirm migrates to Confirmation.');
+  assertIncludes(source, "'X Confirm': 'Breakout',", 'X Confirm migrates to Breakout.');
   // The previous (DNA 25) 12-option Play Book list also migrates now that
   // the Setup dropdown is down to 8 options.
   assertIncludes(source, "'Enter Retrace': 'Retrace',", 'The retired Enter Retrace option migrates to Retrace.');
   assertIncludes(source, "'General Forecast': 'Other',", 'General Forecast migrates to Other.');
+  assertIncludes(source, "Momentum: 'Breakout',", 'Momentum migrates to Breakout.');
+  assertIncludes(source, "Confirmation: 'Breakout',", 'Confirmation migrates to Breakout.');
+  assertIncludes(source, "'RBI / GBI': 'Retrace',", 'RBI / GBI migrates to Retrace.');
+  assertIncludes(source, "'S&R': 'Support & Resistance',", 'S&R migrates to Support & Resistance.');
   assert.ok(!source.includes("'MATX': "), 'MATX is deliberately left unmigrated because there is no clear replacement.');
   assert.ok(!source.includes("'Scalp': "), 'Scalp is deliberately left unmigrated (kept as its own preserved value), per product decision.');
 

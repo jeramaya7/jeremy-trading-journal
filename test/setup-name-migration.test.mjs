@@ -93,23 +93,21 @@ test('the Play Book setup list is exactly the requested options, in order', () =
   // deepEqual would otherwise fail on cross-realm prototype identity even
   // though the contents are identical.
   assert.deepEqual(Array.from(PLAY_BOOK_SETUP_OPTIONS), [
-    'Confirmation',
-    'Momentum',
-    'RBI / GBI',
-    'S&R',
-    'Other',
+    'Breakout',
+    'Retrace',
+    'Support & Resistance',
   ]);
-  assert.equal(CUSTOM_SETUP_OPTION, 'Custom', 'Custom is appended after the fixed list, so it always renders last.');
+  assert.equal(CUSTOM_SETUP_OPTION, 'Custom...', 'Custom... is appended after the fixed list, so it always renders last.');
   assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('None'), false, 'None is not a Play Book option.');
-  assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('Custom'), false, 'Custom lives outside the fixed list, appended separately.');
+  assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('Custom...'), false, 'Custom... lives outside the fixed list, appended separately.');
 });
 
-test('Confirmation, RBI / GBI, and S&R are real, selectable Play Book setups', () => {
+test('Breakout, Retrace, and Support & Resistance are real, selectable Play Book setups', () => {
   const { isPlayBookSetup } = loadSetupModule();
 
-  assert.equal(isPlayBookSetup('Confirmation'), true, 'Confirmation should be recognized as a fixed Play Book option.');
-  assert.equal(isPlayBookSetup('RBI / GBI'), true, 'RBI / GBI should be recognized as a fixed Play Book option.');
-  assert.equal(isPlayBookSetup('S&R'), true, 'S&R should be recognized as a fixed Play Book option.');
+  assert.equal(isPlayBookSetup('Breakout'), true, 'Breakout should be recognized as a fixed Play Book option.');
+  assert.equal(isPlayBookSetup('Retrace'), true, 'Retrace should be recognized as a fixed Play Book option.');
+  assert.equal(isPlayBookSetup('Support & Resistance'), true, 'Support & Resistance should be recognized as a fixed Play Book option.');
 });
 
 test('clear retired setup names migrate to their new canonical name', () => {
@@ -117,20 +115,23 @@ test('clear retired setup names migrate to their new canonical name', () => {
 
   const expectedMigrations = {
     // Old typo/alias names
-    'Elephant Bar': 'Momentum',
+    'Elephant Bar': 'Breakout',
     'Buy the Retrace': 'Retrace',
-    GBI: 'RBI / GBI',
-    'GBI / RBI': 'RBI / GBI',
-    'Momentum Bar': 'Momentum',
-    RBI: 'RBI / GBI',
-    'Support & Resistance': 'S&R',
-    'Support/Resistance': 'S&R',
+    GBI: 'Retrace',
+    'GBI / RBI': 'Retrace',
+    'Momentum Bar': 'Breakout',
+    RBI: 'Retrace',
+    'Support/Resistance': 'Support & Resistance',
     'The General Forecast': 'Other',
-    'X Confirm': 'Confirmation',
+    'X Confirm': 'Breakout',
     // Previous (DNA 25) 12-option Play Book list
     'Enter Retrace': 'Retrace',
     'General Forecast': 'Other',
     'Scalping': 'Other',
+    Momentum: 'Breakout',
+    Confirmation: 'Breakout',
+    'RBI / GBI': 'Retrace',
+    'S&R': 'Support & Resistance',
   };
 
   for (const [oldName, newName] of Object.entries(expectedMigrations)) {
@@ -154,7 +155,7 @@ test('setups retired with no clear replacement are left exactly as-is', () => {
 test('normalizeSetupName leaves already-current and unrelated setup names untouched', () => {
   const { normalizeSetupName } = loadSetupModule();
 
-  for (const currentName of ['Confirmation', 'Momentum', 'RBI / GBI', 'S&R', 'Other', 'Custom', '', 'Opening range breakout']) {
+  for (const currentName of ['Breakout', 'Retrace', 'Support & Resistance', 'Other', 'Custom...', '', 'Opening range breakout']) {
     assert.equal(normalizeSetupName(currentName), currentName);
   }
 });
@@ -172,7 +173,7 @@ test('normalizeTradeSetups migrates legacy setup names across a full trade list 
   assert.equal(hasLegacySetupName(trades), true, 'A trade list containing clear legacy setup names should be flagged for migration.');
 
   const migrated = normalizeTradeSetups(trades);
-  assert.deepEqual(migrated.map((t) => t.setup), ['Momentum', 'S&R', 'Scalp', 'Other']);
+  assert.deepEqual(migrated.map((t) => t.setup), ['Breakout', 'Support & Resistance', 'Scalp', 'Other']);
 
   // Every other field on every trade must be untouched — no data loss.
   assert.equal(migrated[0].id, 'a');
@@ -204,20 +205,19 @@ test('regression: saving a trade with no setup chosen falls back to Uncategorize
   assert.notEqual(getSetupFormValue(makeFormData({ setupChoice: '', setupCustom: '', setup: '' })), 'Trend');
 
   // A real, deliberate selection still saves normally.
-  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Confirmation', setupCustom: '', setup: '' })), 'Confirmation');
-  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Momentum', setupCustom: '', setup: '' })), 'Momentum');
-  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'RBI / GBI', setupCustom: '', setup: '' })), 'RBI / GBI');
-  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'S&R', setupCustom: '', setup: '' })), 'S&R');
+  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Breakout', setupCustom: '', setup: '' })), 'Breakout');
+  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Retrace', setupCustom: '', setup: '' })), 'Retrace');
+  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Support & Resistance', setupCustom: '', setup: '' })), 'Support & Resistance');
 
   // Custom behavior is unchanged.
-  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Custom', setupCustom: 'My own setup', setup: '' })), 'My own setup');
+  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Custom...', setupCustom: 'My own setup', setup: '' })), 'My own setup');
 });
 
 test('the blank setup placeholder option is hidden and disabled, and never labeled None', () => {
   const renderPlayBookSetupSelectSource = extractFunction('renderPlayBookSetupSelect');
 
   assert.ok(
-    /<option value=""\$\{selectedSetup === '' \? ' selected' : ''\} hidden disabled><\/option>/.test(renderPlayBookSetupSelectSource),
+    /<option value=""\$\{selectedChoice === '' \? ' selected' : ''\} hidden disabled><\/option>/.test(renderPlayBookSetupSelectSource),
     'The blank placeholder option should be hidden and disabled, with no visible label.',
   );
   assert.equal(renderPlayBookSetupSelectSource.includes('>None<'), false, 'The word "None" must not appear anywhere in the Setup dropdown markup.');
@@ -227,10 +227,11 @@ test('the blank setup placeholder option is hidden and disabled, and never label
   assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('Uncategorized setup'), false, 'Uncategorized setup must not be a visible Play Book option.');
 });
 
-test('the edit form no longer offers a free-text Setup Description / custom setup input — legacy setup names are preserved as their own option instead', () => {
+test('the edit form shows a custom setup input for saved custom setup names', () => {
   const renderPlayBookSetupSelectSource = extractFunction('renderPlayBookSetupSelect');
 
-  assert.equal(renderPlayBookSetupSelectSource.includes('setupCustom'), false, 'The Setup dropdown should no longer render a free-text custom setup input.');
-  assert.equal(renderPlayBookSetupSelectSource.includes('data-custom-setup'), false, 'The custom setup input hook should be fully removed.');
-  assert.ok(renderPlayBookSetupSelectSource.includes('legacySetupOption'), 'A trade already saved with a non-Play-Book setup name should still render as its own selectable option, so its value is never silently lost or overwritten on save.');
+  assert.ok(renderPlayBookSetupSelectSource.includes('setupCustom'), 'The Setup field renders a free-text custom setup input.');
+  assert.ok(renderPlayBookSetupSelectSource.includes('data-custom-setup'), 'The custom setup input has a scoped hook for show/hide behavior.');
+  assert.ok(renderPlayBookSetupSelectSource.includes('const isCustomSetup = selectedSetup && !isPlayBookSetup(selectedSetup)'), 'Existing saved custom setup values select Custom... automatically.');
+  assert.ok(renderPlayBookSetupSelectSource.includes('value="${escapeHtml(isCustomSetup ? selectedSetup : \'\')}"'), 'Existing saved custom setup values populate the text input.');
 });
