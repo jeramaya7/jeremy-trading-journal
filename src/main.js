@@ -51,6 +51,21 @@ const LEGACY_SETUP_NAME_MAP = {
   'General Forecast': 'Other',
   'Scalping': 'Other',
 };
+const MARKET_STATE_OPTIONS = [
+  'Trending',
+  'Countertrend',
+  'Channel',
+  'Compressed',
+];
+const DEFAULT_MARKET_STATE = MARKET_STATE_OPTIONS[0];
+const LEGACY_MARKET_STATE_MAP = {
+  'Choppy': 'Channel',
+  'Consolidating': 'Channel',
+  'Flat & Narrow': 'Channel',
+  'Trending Down': 'Trending',
+  'Trending Up': 'Trending',
+  'Counter Trend': 'Countertrend',
+};
 // Was 60s. Nothing in this codebase enforces a longer delay — no server-side
 // rate limiter or cache sits in front of /api/ctrader/journal-preview (see
 // getCtraderJournalPreview in src/server.js), and the access-token cache
@@ -229,21 +244,6 @@ const CLOSE_REASON_OPTIONS = [
   'Manual Exit',
   'Other',
 ];
-const MARKET_STATE_OPTIONS = [
-  'Trending',
-  'Countertrend',
-  'Channel',
-  'Compressed',
-];
-const DEFAULT_MARKET_STATE = MARKET_STATE_OPTIONS[0];
-const LEGACY_MARKET_STATE_MAP = {
-  'Choppy': 'Channel',
-  'Consolidating': 'Channel',
-  'Flat & Narrow': 'Channel',
-  'Trending Down': 'Trending',
-  'Trending Up': 'Trending',
-  'Counter Trend': 'Countertrend',
-};
 const TRADE_TIMEFRAME_OPTIONS = [
   '1m',
   '2m',
