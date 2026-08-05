@@ -29,22 +29,24 @@ const DNA_TIMEFRAME_OPTIONS = [
 // fall through unchanged and render as Custom... so saved data is preserved.
 const LEGACY_SETUP_NAME_MAP = {
   // Older typo/alias names (pre-existing entries, repointed at the new list)
-  'Elephant Bar': 'Breakout',
-  'Buy the Retrace': 'Retrace',
-  GBI: 'Retrace',
-  'GBI / RBI': 'Retrace',
-  'Momentum Bar': 'Breakout',
-  RBI: 'Retrace',
+  'Elephant Bar': 'Momentum / Breakout',
+  'Buy the Retrace': 'RBI / GBI Retrace',
+  GBI: 'RBI / GBI Retrace',
+  'GBI / RBI': 'RBI / GBI Retrace',
+  'Momentum Bar': 'Momentum / Breakout',
+  RBI: 'RBI / GBI Retrace',
   'Support/Resistance': 'Support & Resistance',
   'The General Forecast': 'Other',
-  'X Confirm': 'Breakout',
+  'X Confirm': 'Momentum / Breakout',
   // Previous (DNA 25) 12-option Play Book list, migrated to the new 8 options
-  'Enter Retrace': 'Retrace',
+  'Enter Retrace': 'RBI / GBI Retrace',
   'General Forecast': 'Other',
   'Scalping': 'Other',
-  Momentum: 'Breakout',
-  Confirmation: 'Breakout',
-  'RBI / GBI': 'Retrace',
+  Breakout: 'Momentum / Breakout',
+  Momentum: 'Momentum / Breakout',
+  Confirmation: 'Momentum / Breakout',
+  Retrace: 'RBI / GBI Retrace',
+  'RBI / GBI': 'RBI / GBI Retrace',
   'S&R': 'Support & Resistance',
 };
 const MARKET_STATE_OPTIONS = [
@@ -219,9 +221,11 @@ const FRIENDLY_ASSET_NAMES = {
 };
 
 const PLAY_BOOK_SETUP_OPTIONS = [
-  'Breakout',
-  'Retrace',
+  'Trend Continuation',
+  'Momentum / Breakout',
+  'RBI / GBI Retrace',
   'Support & Resistance',
+  'Scalp',
 ];
 const CUSTOM_SETUP_OPTION = 'Custom...';
 const LOSS_REASON_OPTIONS = [

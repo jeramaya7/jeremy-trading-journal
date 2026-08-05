@@ -93,21 +93,25 @@ test('the Play Book setup list is exactly the requested options, in order', () =
   // deepEqual would otherwise fail on cross-realm prototype identity even
   // though the contents are identical.
   assert.deepEqual(Array.from(PLAY_BOOK_SETUP_OPTIONS), [
-    'Breakout',
-    'Retrace',
+    'Trend Continuation',
+    'Momentum / Breakout',
+    'RBI / GBI Retrace',
     'Support & Resistance',
+    'Scalp',
   ]);
   assert.equal(CUSTOM_SETUP_OPTION, 'Custom...', 'Custom... is appended after the fixed list, so it always renders last.');
   assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('None'), false, 'None is not a Play Book option.');
   assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('Custom...'), false, 'Custom... lives outside the fixed list, appended separately.');
 });
 
-test('Breakout, Retrace, and Support & Resistance are real, selectable Play Book setups', () => {
+test('the requested fixed setup names are real, selectable Play Book setups', () => {
   const { isPlayBookSetup } = loadSetupModule();
 
-  assert.equal(isPlayBookSetup('Breakout'), true, 'Breakout should be recognized as a fixed Play Book option.');
-  assert.equal(isPlayBookSetup('Retrace'), true, 'Retrace should be recognized as a fixed Play Book option.');
+  assert.equal(isPlayBookSetup('Trend Continuation'), true, 'Trend Continuation should be recognized as a fixed Play Book option.');
+  assert.equal(isPlayBookSetup('Momentum / Breakout'), true, 'Momentum / Breakout should be recognized as a fixed Play Book option.');
+  assert.equal(isPlayBookSetup('RBI / GBI Retrace'), true, 'RBI / GBI Retrace should be recognized as a fixed Play Book option.');
   assert.equal(isPlayBookSetup('Support & Resistance'), true, 'Support & Resistance should be recognized as a fixed Play Book option.');
+  assert.equal(isPlayBookSetup('Scalp'), true, 'Scalp should be recognized as a fixed Play Book option.');
 });
 
 test('clear retired setup names migrate to their new canonical name', () => {
@@ -115,22 +119,24 @@ test('clear retired setup names migrate to their new canonical name', () => {
 
   const expectedMigrations = {
     // Old typo/alias names
-    'Elephant Bar': 'Breakout',
-    'Buy the Retrace': 'Retrace',
-    GBI: 'Retrace',
-    'GBI / RBI': 'Retrace',
-    'Momentum Bar': 'Breakout',
-    RBI: 'Retrace',
+    'Elephant Bar': 'Momentum / Breakout',
+    'Buy the Retrace': 'RBI / GBI Retrace',
+    GBI: 'RBI / GBI Retrace',
+    'GBI / RBI': 'RBI / GBI Retrace',
+    'Momentum Bar': 'Momentum / Breakout',
+    RBI: 'RBI / GBI Retrace',
     'Support/Resistance': 'Support & Resistance',
     'The General Forecast': 'Other',
-    'X Confirm': 'Breakout',
+    'X Confirm': 'Momentum / Breakout',
     // Previous (DNA 25) 12-option Play Book list
-    'Enter Retrace': 'Retrace',
+    'Enter Retrace': 'RBI / GBI Retrace',
     'General Forecast': 'Other',
     'Scalping': 'Other',
-    Momentum: 'Breakout',
-    Confirmation: 'Breakout',
-    'RBI / GBI': 'Retrace',
+    Breakout: 'Momentum / Breakout',
+    Momentum: 'Momentum / Breakout',
+    Confirmation: 'Momentum / Breakout',
+    Retrace: 'RBI / GBI Retrace',
+    'RBI / GBI': 'RBI / GBI Retrace',
     'S&R': 'Support & Resistance',
   };
 
@@ -146,7 +152,7 @@ test('setups retired with no clear replacement are left exactly as-is', () => {
   // option when edited (same as any value that was never on the list).
   const { normalizeSetupName, isPlayBookSetup } = loadSetupModule();
 
-  for (const retiredName of ['Trend', 'MA Cross', 'Event Bar', 'Counter Trend', 'MATX', 'MAX', 'Return to 200', 'Trend Line Break', 'Trade Line Break', 'EMA Continuation', 'EMA Bounce', 'EMA Cross', 'Trend Continuation', 'Trendline Break', 'Wide State Reversal', 'ORB', 'Ride the 🐋', 'Set & Forget', 'TB Retrace', 'Scalp', 'Hedge']) {
+  for (const retiredName of ['Trend', 'MA Cross', 'Event Bar', 'Counter Trend', 'MATX', 'MAX', 'Return to 200', 'Trend Line Break', 'Trade Line Break', 'EMA Continuation', 'EMA Bounce', 'EMA Cross', 'Trendline Break', 'Wide State Reversal', 'ORB', 'Ride the 🐋', 'Set & Forget', 'TB Retrace', 'Hedge']) {
     assert.equal(normalizeSetupName(retiredName), retiredName, `${retiredName} should not be renamed.`);
     assert.equal(isPlayBookSetup(retiredName), false, `${retiredName} is no longer a fixed Play Book option (kept as its own preserved value).`);
   }
@@ -155,7 +161,7 @@ test('setups retired with no clear replacement are left exactly as-is', () => {
 test('normalizeSetupName leaves already-current and unrelated setup names untouched', () => {
   const { normalizeSetupName } = loadSetupModule();
 
-  for (const currentName of ['Breakout', 'Retrace', 'Support & Resistance', 'Other', 'Custom...', '', 'Opening range breakout']) {
+  for (const currentName of ['Trend Continuation', 'Momentum / Breakout', 'RBI / GBI Retrace', 'Support & Resistance', 'Scalp', 'Other', 'Custom...', '', 'Opening range breakout']) {
     assert.equal(normalizeSetupName(currentName), currentName);
   }
 });
@@ -173,7 +179,7 @@ test('normalizeTradeSetups migrates legacy setup names across a full trade list 
   assert.equal(hasLegacySetupName(trades), true, 'A trade list containing clear legacy setup names should be flagged for migration.');
 
   const migrated = normalizeTradeSetups(trades);
-  assert.deepEqual(migrated.map((t) => t.setup), ['Breakout', 'Support & Resistance', 'Scalp', 'Other']);
+  assert.deepEqual(migrated.map((t) => t.setup), ['Momentum / Breakout', 'Support & Resistance', 'Scalp', 'Other']);
 
   // Every other field on every trade must be untouched — no data loss.
   assert.equal(migrated[0].id, 'a');
@@ -205,9 +211,11 @@ test('regression: saving a trade with no setup chosen falls back to Uncategorize
   assert.notEqual(getSetupFormValue(makeFormData({ setupChoice: '', setupCustom: '', setup: '' })), 'Trend');
 
   // A real, deliberate selection still saves normally.
-  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Breakout', setupCustom: '', setup: '' })), 'Breakout');
-  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Retrace', setupCustom: '', setup: '' })), 'Retrace');
+  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Trend Continuation', setupCustom: '', setup: '' })), 'Trend Continuation');
+  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Momentum / Breakout', setupCustom: '', setup: '' })), 'Momentum / Breakout');
+  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'RBI / GBI Retrace', setupCustom: '', setup: '' })), 'RBI / GBI Retrace');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Support & Resistance', setupCustom: '', setup: '' })), 'Support & Resistance');
+  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Scalp', setupCustom: '', setup: '' })), 'Scalp');
 
   // Custom behavior is unchanged.
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Custom...', setupCustom: 'My own setup', setup: '' })), 'My own setup');
