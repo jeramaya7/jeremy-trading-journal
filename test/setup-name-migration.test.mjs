@@ -95,7 +95,8 @@ test('the Play Book setup list is exactly the requested options, in order', () =
   assert.deepEqual(Array.from(PLAY_BOOK_SETUP_OPTIONS), [
     'Trend Continuation',
     'Momentum / Breakout',
-    'RBI / GBI Retrace',
+    'RBI / GBI',
+    'Retrace / Bounce',
     'Support & Resistance',
     'Scalp',
   ]);
@@ -109,7 +110,8 @@ test('the requested fixed setup names are real, selectable Play Book setups', ()
 
   assert.equal(isPlayBookSetup('Trend Continuation'), true, 'Trend Continuation should be recognized as a fixed Play Book option.');
   assert.equal(isPlayBookSetup('Momentum / Breakout'), true, 'Momentum / Breakout should be recognized as a fixed Play Book option.');
-  assert.equal(isPlayBookSetup('RBI / GBI Retrace'), true, 'RBI / GBI Retrace should be recognized as a fixed Play Book option.');
+  assert.equal(isPlayBookSetup('RBI / GBI'), true, 'RBI / GBI should be recognized as a fixed Play Book option.');
+  assert.equal(isPlayBookSetup('Retrace / Bounce'), true, 'Retrace / Bounce should be recognized as a fixed Play Book option.');
   assert.equal(isPlayBookSetup('Support & Resistance'), true, 'Support & Resistance should be recognized as a fixed Play Book option.');
   assert.equal(isPlayBookSetup('Scalp'), true, 'Scalp should be recognized as a fixed Play Book option.');
 });
@@ -120,23 +122,23 @@ test('clear retired setup names migrate to their new canonical name', () => {
   const expectedMigrations = {
     // Old typo/alias names
     'Elephant Bar': 'Momentum / Breakout',
-    'Buy the Retrace': 'RBI / GBI Retrace',
-    GBI: 'RBI / GBI Retrace',
-    'GBI / RBI': 'RBI / GBI Retrace',
+    'Buy the Retrace': 'Retrace / Bounce',
+    GBI: 'RBI / GBI',
+    'GBI / RBI': 'RBI / GBI',
     'Momentum Bar': 'Momentum / Breakout',
-    RBI: 'RBI / GBI Retrace',
+    RBI: 'RBI / GBI',
     'Support/Resistance': 'Support & Resistance',
     'The General Forecast': 'Other',
     'X Confirm': 'Momentum / Breakout',
     // Previous (DNA 25) 12-option Play Book list
-    'Enter Retrace': 'RBI / GBI Retrace',
+    'Enter Retrace': 'Retrace / Bounce',
     'General Forecast': 'Other',
     'Scalping': 'Other',
     Breakout: 'Momentum / Breakout',
     Momentum: 'Momentum / Breakout',
     Confirmation: 'Momentum / Breakout',
-    Retrace: 'RBI / GBI Retrace',
-    'RBI / GBI': 'RBI / GBI Retrace',
+    Retrace: 'Retrace / Bounce',
+    Bounce: 'Retrace / Bounce',
     'S&R': 'Support & Resistance',
   };
 
@@ -161,7 +163,7 @@ test('setups retired with no clear replacement are left exactly as-is', () => {
 test('normalizeSetupName leaves already-current and unrelated setup names untouched', () => {
   const { normalizeSetupName } = loadSetupModule();
 
-  for (const currentName of ['Trend Continuation', 'Momentum / Breakout', 'RBI / GBI Retrace', 'Support & Resistance', 'Scalp', 'Other', 'Custom...', '', 'Opening range breakout']) {
+  for (const currentName of ['Trend Continuation', 'Momentum / Breakout', 'RBI / GBI', 'Retrace / Bounce', 'Support & Resistance', 'Scalp', 'Other', 'Custom...', '', 'Opening range breakout']) {
     assert.equal(normalizeSetupName(currentName), currentName);
   }
 });
@@ -213,7 +215,8 @@ test('regression: saving a trade with no setup chosen falls back to Uncategorize
   // A real, deliberate selection still saves normally.
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Trend Continuation', setupCustom: '', setup: '' })), 'Trend Continuation');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Momentum / Breakout', setupCustom: '', setup: '' })), 'Momentum / Breakout');
-  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'RBI / GBI Retrace', setupCustom: '', setup: '' })), 'RBI / GBI Retrace');
+  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'RBI / GBI', setupCustom: '', setup: '' })), 'RBI / GBI');
+  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Retrace / Bounce', setupCustom: '', setup: '' })), 'Retrace / Bounce');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Support & Resistance', setupCustom: '', setup: '' })), 'Support & Resistance');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Scalp', setupCustom: '', setup: '' })), 'Scalp');
 

@@ -164,7 +164,8 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(source, 'const PLAY_BOOK_SETUP_OPTIONS = [', 'The Play Book setup dropdown has a fixed setup list.');
   assertIncludes(source, "'Trend Continuation'", 'The Play Book setup dropdown includes Trend Continuation.');
   assertIncludes(source, "'Momentum / Breakout'", 'The Play Book setup dropdown includes Momentum / Breakout.');
-  assertIncludes(source, "'RBI / GBI Retrace'", 'The Play Book setup dropdown includes RBI / GBI Retrace.');
+  assertIncludes(source, "'RBI / GBI'", 'The Play Book setup dropdown includes RBI / GBI.');
+  assertIncludes(source, "'Retrace / Bounce'", 'The Play Book setup dropdown includes Retrace / Bounce.');
   assertIncludes(source, "'Support & Resistance'", 'The Play Book setup dropdown includes Support & Resistance.');
   assertIncludes(source, "'Scalp'", 'The Play Book setup dropdown includes Scalp.');
   assertIncludes(source, "const CUSTOM_SETUP_OPTION = 'Custom...';", 'The Play Book setup dropdown includes Custom... after the fixed list.');
@@ -281,21 +282,21 @@ test('legacy setup names migrate to their current canonical name', () => {
   // filtered, analyzed, or reported.
   assertIncludes(source, 'const LEGACY_SETUP_NAME_MAP = {', 'Legacy setup names are retained only for migration, in one shared map.');
   assertIncludes(source, "'Elephant Bar': 'Momentum / Breakout',", 'Elephant Bar migrates to Momentum / Breakout.');
-  assertIncludes(source, "'Buy the Retrace': 'RBI / GBI Retrace',", 'Buy the Retrace migrates to RBI / GBI Retrace.');
-  assertIncludes(source, "GBI: 'RBI / GBI Retrace',", 'GBI migrates to RBI / GBI Retrace.');
-  assertIncludes(source, "RBI: 'RBI / GBI Retrace',", 'RBI migrates to RBI / GBI Retrace.');
+  assertIncludes(source, "'Buy the Retrace': 'Retrace / Bounce',", 'Buy the Retrace migrates to Retrace / Bounce.');
+  assertIncludes(source, "GBI: 'RBI / GBI',", 'GBI migrates to RBI / GBI.');
+  assertIncludes(source, "RBI: 'RBI / GBI',", 'RBI migrates to RBI / GBI.');
   assertIncludes(source, "'Support/Resistance': 'Support & Resistance',", 'Support/Resistance migrates to Support & Resistance.');
   assertIncludes(source, "'The General Forecast': 'Other',", 'The General Forecast migrates to Other.');
   assertIncludes(source, "'X Confirm': 'Momentum / Breakout',", 'X Confirm migrates to Momentum / Breakout.');
   // The previous (DNA 25) 12-option Play Book list also migrates now that
   // the Setup dropdown is down to 8 options.
-  assertIncludes(source, "'Enter Retrace': 'RBI / GBI Retrace',", 'The retired Enter Retrace option migrates to RBI / GBI Retrace.');
+  assertIncludes(source, "'Enter Retrace': 'Retrace / Bounce',", 'The retired Enter Retrace option migrates to Retrace / Bounce.');
   assertIncludes(source, "'General Forecast': 'Other',", 'General Forecast migrates to Other.');
   assertIncludes(source, "Breakout: 'Momentum / Breakout',", 'Breakout migrates to Momentum / Breakout.');
   assertIncludes(source, "Momentum: 'Momentum / Breakout',", 'Momentum migrates to Momentum / Breakout.');
   assertIncludes(source, "Confirmation: 'Momentum / Breakout',", 'Confirmation migrates to Momentum / Breakout.');
-  assertIncludes(source, "Retrace: 'RBI / GBI Retrace',", 'Retrace migrates to RBI / GBI Retrace.');
-  assertIncludes(source, "'RBI / GBI': 'RBI / GBI Retrace',", 'RBI / GBI migrates to RBI / GBI Retrace.');
+  assertIncludes(source, "Retrace: 'Retrace / Bounce',", 'Retrace migrates to Retrace / Bounce.');
+  assertIncludes(source, "Bounce: 'Retrace / Bounce',", 'Bounce migrates to Retrace / Bounce.');
   assertIncludes(source, "'S&R': 'Support & Resistance',", 'S&R migrates to Support & Resistance.');
   assert.ok(!source.includes("'MATX': "), 'MATX is deliberately left unmigrated because there is no clear replacement.');
   assert.ok(!source.includes("'Scalp': "), 'Scalp is deliberately left unmigrated (kept as its own preserved value), per product decision.');
