@@ -96,13 +96,14 @@ test('the Play Book setup list is exactly the requested options, in order', () =
     'Trend Continuation',
     'Countertrend Continuation',
     'Momentum / Breakout',
-    'RBI / GBI Retrace',
+    'RBI / GBI',
+    'Retrace / Bounce',
     'Support & Resistance',
     'Scalp',
   ]);
-  assert.equal(CUSTOM_SETUP_OPTION, 'Custom', 'Custom is appended after the fixed list, so it always renders last.');
+  assert.equal(CUSTOM_SETUP_OPTION, 'Custom...', 'Custom... is appended after the fixed list, so it always renders last.');
   assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('None'), false, 'None is not a Play Book option.');
-  assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('Custom'), false, 'Custom lives outside the fixed list, appended separately.');
+  assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('Custom...'), false, 'Custom... lives outside the fixed list, appended separately.');
 });
 
 test('the requested fixed setup names are real, selectable Play Book setups', () => {
@@ -111,7 +112,8 @@ test('the requested fixed setup names are real, selectable Play Book setups', ()
   assert.equal(isPlayBookSetup('Trend Continuation'), true, 'Trend Continuation should be recognized as a fixed Play Book option.');
   assert.equal(isPlayBookSetup('Countertrend Continuation'), true, 'Countertrend Continuation should be recognized as a fixed Play Book option.');
   assert.equal(isPlayBookSetup('Momentum / Breakout'), true, 'Momentum / Breakout should be recognized as a fixed Play Book option.');
-  assert.equal(isPlayBookSetup('RBI / GBI Retrace'), true, 'RBI / GBI Retrace should be recognized as a fixed Play Book option.');
+  assert.equal(isPlayBookSetup('RBI / GBI'), true, 'RBI / GBI should be recognized as a fixed Play Book option.');
+  assert.equal(isPlayBookSetup('Retrace / Bounce'), true, 'Retrace / Bounce should be recognized as a fixed Play Book option.');
   assert.equal(isPlayBookSetup('Support & Resistance'), true, 'Support & Resistance should be recognized as a fixed Play Book option.');
   assert.equal(isPlayBookSetup('Scalp'), true, 'Scalp should be recognized as a fixed Play Book option.');
 });
@@ -163,7 +165,7 @@ test('setups retired with no clear replacement are left exactly as-is', () => {
 test('normalizeSetupName leaves already-current and unrelated setup names untouched', () => {
   const { normalizeSetupName } = loadSetupModule();
 
-  for (const currentName of ['Trend Continuation', 'Countertrend Continuation', 'Momentum / Breakout', 'RBI / GBI Retrace', 'Support & Resistance', 'Scalp', 'Other', 'Custom', '', 'Opening range breakout']) {
+  for (const currentName of ['Trend Continuation', 'Countertrend Continuation', 'Momentum / Breakout', 'RBI / GBI', 'Retrace / Bounce', 'Support & Resistance', 'Scalp', 'Other', 'Custom...', '', 'Opening range breakout']) {
     assert.equal(normalizeSetupName(currentName), currentName);
   }
 });
@@ -216,12 +218,13 @@ test('regression: saving a trade with no setup chosen falls back to Uncategorize
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Trend Continuation', setupCustom: '', setup: '' })), 'Trend Continuation');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Countertrend Continuation', setupCustom: '', setup: '' })), 'Countertrend Continuation');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Momentum / Breakout', setupCustom: '', setup: '' })), 'Momentum / Breakout');
-  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'RBI / GBI Retrace', setupCustom: '', setup: '' })), 'RBI / GBI Retrace');
+  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'RBI / GBI', setupCustom: '', setup: '' })), 'RBI / GBI');
+  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Retrace / Bounce', setupCustom: '', setup: '' })), 'Retrace / Bounce');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Support & Resistance', setupCustom: '', setup: '' })), 'Support & Resistance');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Scalp', setupCustom: '', setup: '' })), 'Scalp');
 
   // Custom behavior is unchanged.
-  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Custom', setupCustom: 'My own setup', setup: '' })), 'My own setup');
+  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Custom...', setupCustom: 'My own setup', setup: '' })), 'My own setup');
 });
 
 test('the blank setup placeholder option is hidden and disabled, and never labeled None', () => {

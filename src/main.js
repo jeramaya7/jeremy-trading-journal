@@ -224,11 +224,12 @@ const PLAY_BOOK_SETUP_OPTIONS = [
   'Trend Continuation',
   'Countertrend Continuation',
   'Momentum / Breakout',
-  'RBI / GBI Retrace',
+  'RBI / GBI',
+  'Retrace / Bounce',
   'Support & Resistance',
   'Scalp',
 ];
-const CUSTOM_SETUP_OPTION = 'Custom';
+const CUSTOM_SETUP_OPTION = 'Custom...';
 const LOSS_REASON_OPTIONS = [
   'Normal Loss',
   'Stop Too Tight',
