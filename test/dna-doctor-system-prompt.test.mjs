@@ -24,7 +24,7 @@ test('the DNA Doctor system prompt uses the new evidence-based coaching style', 
   assert.ok(prompt.includes('Communication Style'), 'The system prompt should include a Communication Style section.');
   assert.ok(prompt.includes('Speak like a professional trading coach.'), 'Tone should be a professional trading coach.');
   assert.ok(prompt.includes('Use simple English with the vocabulary of a typical 15-year-old.'), 'Vocabulary should be simple, not jargon-heavy.');
-  assert.ok(prompt.includes('State the facts before giving opinions.'), 'Facts must come before opinions.');
+  assert.ok(prompt.includes('Blend the facts naturally into your coaching. Never label sentences as "Fact", "Opinion", or "Recommendation".'), 'Facts should be blended naturally into the coaching.');
   assert.ok(prompt.includes('Base every conclusion on evidence from the trading journal.'), 'Every conclusion must be evidence-based.');
   assert.ok(prompt.includes('Match the strength of the language to the strength of the evidence.'), 'Language strength should scale with evidence strength.');
   assert.ok(prompt.includes('A single mistake should receive a gentle suggestion.'), 'A single mistake gets a gentle suggestion, not a warning.');
@@ -52,10 +52,10 @@ test('the JSON response schema and grading scale are unchanged', () => {
   assert.ok(prompt.includes('Respond ONLY with valid JSON matching this exact schema — no markdown, no explanation outside the JSON:'), 'The JSON-only response instruction must be unchanged.');
   assert.ok(prompt.includes('"score": number (0-100)'), 'The 0-100 score field must be unchanged.');
   assert.ok(prompt.includes('"grade": "string (A+/A/B+/B/C+/C/D/F)"'), 'The A+ through F grading scale must be unchanged.');
-  assert.ok(prompt.includes('"scoreExplanation": "string — 1-2 sentences explaining the score"'), 'The score explanation field must be unchanged.');
-  assert.ok(prompt.includes('"diagnosis": "string — 2-4 sentence summary of this trader"'), 'The diagnosis field must be unchanged.');
-  assert.ok(prompt.includes('"strengths": ["string"]'), 'The strengths field must be unchanged.');
-  assert.ok(prompt.includes('"weaknesses": ["string"]'), 'The weaknesses field must be unchanged.');
-  assert.ok(prompt.includes('"prescription": ["string"]'), 'The prescription field must be unchanged.');
-  assert.ok(prompt.includes('"riskFactors": ["string"]'), 'The riskFactors field must be unchanged.');
+  assert.ok(prompt.includes('"scoreExplanation": "string"'), 'The score explanation field must be unchanged.');
+  assert.ok(prompt.includes('"diagnosis": "string"'), 'The diagnosis field must be unchanged.');
+  assert.ok(prompt.includes('"strengths": ["Maximum 3 concise bullet points"]'), 'The strengths field must be unchanged.');
+  assert.ok(prompt.includes('"weaknesses": ["Maximum 3 concise bullet points"]'), 'The weaknesses field must be unchanged.');
+  assert.ok(prompt.includes('"prescription": ["Maximum 2 concise bullet points"]'), 'The prescription field must be unchanged.');
+  assert.ok(prompt.includes('"tomorrowsFocus": "One sentence starting with'), 'The tomorrow focus field must be unchanged.');
 });
