@@ -40,6 +40,12 @@ test('the DNA Doctor system prompt uses the new evidence-based coaching style', 
   assert.ok(prompt.includes('Follow this report structure: Overall Grade, Biggest Strength, Biggest Weakness, Best Trade, Worst Trade, Risk Review, Psychology Review, Three Things Done Well, Three Improvements, Goal for Tomorrow, Quote of the Day.'), 'Prompt should request the Aug 7 report structure.');
   assert.ok(prompt.includes('Keep language simple, calm, direct, neutral, and professional.'), 'Prompt should keep the report language calm and professional.');
   assert.ok(prompt.includes('Process and discipline matter more than P&L alone.'), 'Prompt should prioritize process and discipline.');
+  assert.ok(prompt.includes('Overall Grade Scoring'), 'Prompt should include explicit Overall Grade scoring guidance.');
+  assert.ok(prompt.includes('Grade the trading process first, then the financial result.'), 'Overall Grade should prioritize process before outcome.');
+  assert.ok(prompt.includes('Risk control, selectivity, rule-following, execution, and behavior matter more than net P&L.'), 'Overall Grade should weigh process factors more than net P&L.');
+  assert.ok(prompt.includes('A profitable day with poor process, weak discipline, oversized risk, or broken rules can receive a low grade.'), 'Profitable bad-process days can receive low grades.');
+  assert.ok(prompt.includes('A losing day with strong discipline, clean execution, controlled risk, and good rule-following can receive a high grade.'), 'Losing disciplined days can receive high grades.');
+  assert.ok(prompt.includes('Do not reward profit that came from bad habits, and do not punish a controlled loss when the trader followed the plan.'), 'Prompt should separate good process from P&L outcome.');
 
   // Old brief style instruction should be fully replaced, not left alongside the new one.
   assert.equal(prompt.includes('Write in professional language. Be direct and specific. Avoid generic advice.'), false, 'The old one-line style instruction should be removed, not just supplemented.');
