@@ -39,7 +39,7 @@ function postJson(path, body) {
   });
 }
 
-function makeOpenAiResponse(text) {
+function makeOpenAiResponse(text, overrides = {}) {
   return {
     ok: true,
     status: 200,
@@ -48,6 +48,7 @@ function makeOpenAiResponse(text) {
       output: [{
         content: [{ type: 'output_text', text }],
       }],
+      ...overrides,
     }),
   };
 }
@@ -81,10 +82,23 @@ test('DNA Doctor retries exactly once when the first model response is invalid J
 
 test('DNA Doctor preserves 502 behavior when the retry is also empty or invalid', async () => {
   const originalFetch = globalThis.fetch;
+  const originalConsoleError = console.error;
   const fetchCalls = [];
+  const diagnosticLogs = [];
   globalThis.fetch = async (url, options) => {
     fetchCalls.push({ url, body: JSON.parse(options.body) });
-    return makeOpenAiResponse('');
+    return makeOpenAiResponse('', {
+      status: 'incomplete',
+      incomplete_details: { reason: 'max_tokens' },
+      usage: { output_tokens: 2048 },
+      error: null,
+      output: [{ type: 'message', status: 'incomplete', content: [] }],
+    });
+  };
+  console.error = (...args) => {
+    if (args[0] === '[DNA Doctor] OpenAI response diagnostic:') {
+      diagnosticLogs.push(args[1]);
+    }
   };
 
   try {
@@ -94,7 +108,20 @@ test('DNA Doctor preserves 502 behavior when the retry is also empty or invalid'
     assert.equal(fetchCalls.length, 2, 'Empty model output should retry exactly once.');
     assert.match(result.body.error, /Claude returned invalid JSON: Unexpected end of JSON input/);
     assert.equal(result.body.rawResponse, '');
+    assert.equal(diagnosticLogs.length, 2, 'Each failed attempt should log safe response diagnostics.');
+    assert.deepEqual(diagnosticLogs[0], {
+      attempt: 1,
+      failureReason: 'empty_output',
+      httpStatus: null,
+      responseStatus: 'incomplete',
+      incompleteDetails: { reason: 'max_tokens' },
+      usage: { output_tokens: 2048 },
+      error: null,
+      outputTextLength: 0,
+      outputItemTypes: [{ type: 'message', status: 'incomplete', contentTypes: [] }],
+    });
   } finally {
     globalThis.fetch = originalFetch;
+    console.error = originalConsoleError;
   }
 });

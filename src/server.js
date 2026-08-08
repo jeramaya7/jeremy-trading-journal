@@ -1686,6 +1686,7 @@ Retry instruction: return valid JSON only. Match the existing schema exactly. Do
       if (!openaiResponse.ok) {
         clearTimeout(timeout);
         const err = await openaiResponse.json().catch(() => ({}));
+        console.error('[DNA Doctor] OpenAI API error diagnostic:', getDnaDoctorResponseDiagnostic(err, '', attempt, 'api_error', openaiResponse.status));
         const msg = err.error?.message || `OpenAI API error ${openaiResponse.status}`;
         sendJson(response, 502, { error: msg });
         return;
@@ -1697,6 +1698,9 @@ Retry instruction: return valid JSON only. Match the existing schema exactly. Do
         .find(item => item.type === 'output_text')?.text || '';
 
       console.log('[DNA Doctor] Raw OpenAI response length:', text.length, '| status:', data.status, '| attempt:', attempt + 1);
+      if (data.status === 'incomplete') {
+        console.warn('[DNA Doctor] Incomplete OpenAI response diagnostic:', getDnaDoctorResponseDiagnostic(data, text, attempt, 'incomplete_response'));
+      }
 
       // Strip markdown fences if present
       const clean = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
@@ -1716,7 +1720,7 @@ Retry instruction: return valid JSON only. Match the existing schema exactly. Do
       }
 
       console.error('[DNA Doctor] JSON parse failed:', lastParseError.message);
-      console.error('[DNA Doctor] Raw text (first 500 chars):', text.slice(0, 500));
+      console.error('[DNA Doctor] OpenAI response diagnostic:', getDnaDoctorResponseDiagnostic(data, text, attempt, clean ? 'invalid_json' : 'empty_output'));
     }
 
     clearTimeout(timeout);
@@ -1732,6 +1736,27 @@ Retry instruction: return valid JSON only. Match the existing schema exactly. Do
       sendJson(response, 502, { error: `Claude unavailable: ${error.message}` });
     }
   }
+}
+
+function getDnaDoctorResponseDiagnostic(data, text, attempt, failureReason, httpStatus = null) {
+  const output = Array.isArray(data?.output) ? data.output : [];
+  return {
+    attempt: attempt + 1,
+    failureReason,
+    httpStatus,
+    responseStatus: data?.status ?? null,
+    incompleteDetails: data?.incomplete_details ?? null,
+    usage: data?.usage ?? null,
+    error: data?.error ?? null,
+    outputTextLength: text.length,
+    outputItemTypes: output.map((item) => ({
+      type: item?.type ?? null,
+      status: item?.status ?? null,
+      contentTypes: Array.isArray(item?.content)
+        ? item.content.map((contentItem) => contentItem?.type ?? null)
+        : [],
+    })),
+  };
 }
 
 
