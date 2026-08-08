@@ -1768,6 +1768,13 @@ function renderDnaDoctorReport(report, fullReportOpen = false) {
         <p>${escapeHtml(report.worstTrade || '')}</p>
       </div>
 
+      <div class="dna-doctor-section dna-doctor-psychology-review">
+        <div class="dna-doctor-section-label">
+          <span class="dna-doctor-section-icon">🧠</span><h4>Psychology Review</h4>
+        </div>
+        <p>${escapeHtml(report.psychologyReview || '')}</p>
+      </div>
+
       <div class="dna-doctor-section dna-doctor-strengths">
         <div class="dna-doctor-section-label">
           <span class="dna-doctor-section-icon">✅</span><h4>Healthy Habits</h4>

@@ -173,3 +173,11 @@ test('DNA Doctor report renders Best Trade and Worst Trade sections', () => {
   assert.ok(source.includes('<span class="dna-doctor-section-icon">⚠️</span><h4>Worst Trade</h4>'), 'Report should render a Worst Trade section.');
   assert.ok(source.includes('<p>${escapeHtml(report.worstTrade || \'\')}</p>'), 'Worst Trade should render from report.worstTrade.');
 });
+
+test('DNA Doctor payload and report support behavior analysis from existing journal context', () => {
+  for (const field of ['notes', 'emotion', 'tradeManagement', 'closeReason', 'lossReason']) {
+    assert.ok(source.includes(`'${field}',`), `Trade payload should include existing ${field} field when present.`);
+  }
+  assert.ok(source.includes('<span class="dna-doctor-section-icon">🧠</span><h4>Psychology Review</h4>'), 'Report should render a Psychology Review section.');
+  assert.ok(source.includes('<p>${escapeHtml(report.psychologyReview || \'\')}</p>'), 'Psychology Review should render from report.psychologyReview.');
+});

@@ -1570,6 +1570,8 @@ Communication Style
 - Focus on improving the next trade, not criticizing the last one.
 - Best Trade and Worst Trade must consider process and execution, not only P&L.
 - If the trade data is not enough to support a clear Best Trade or Worst Trade, say that instead of inventing one.
+- Use notes, emotion, tradeManagement, closeReason, and lossReason only when those fields are present to inform behavior and discipline analysis.
+- Psychology Review must use only supported evidence from the trade data. If the data is insufficient, say so clearly.
 
 Examples of the desired tone:
 Instead of: "Your evening trading is terrible. Stop doing it."
@@ -1586,6 +1588,7 @@ Respond ONLY with valid JSON matching this exact schema — no markdown, no expl
 "diagnosis": "string",
 "bestTrade": "Short plain-language summary using only available trade data",
 "worstTrade": "Short plain-language summary using only available trade data",
+"psychologyReview": "Short plain-language behavior and discipline review using only supported trade data, or a clear insufficient-data statement",
   "strengths": ["Maximum 3 concise bullet points"],
 "weaknesses": ["Maximum 3 concise bullet points"],
 "prescription": ["Maximum 2 concise bullet points"],
