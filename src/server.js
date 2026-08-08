@@ -1670,7 +1670,7 @@ Retry instruction: return valid JSON only. Match the existing schema exactly. Do
         body: JSON.stringify({
           model: 'gpt-5-mini',
           store: false,
-          max_output_tokens: 2048,
+          max_output_tokens: 4096,
           input: [
             { role: 'system', content: attempt === 0 ? systemPrompt : retrySystemPrompt },
             { role: 'user', content: userPrompt }
