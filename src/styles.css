@@ -3990,9 +3990,12 @@ h2,
 /* Loading — more prominent */
 .dna-doctor-loading {
   align-items: center;
+  background: #ffffff;
+  contain: layout paint;
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
+  min-height: 7.5rem;
   padding: 2rem 1rem 1.5rem;
 }
 
