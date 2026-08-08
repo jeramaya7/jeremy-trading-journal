@@ -66,8 +66,11 @@ function buildPayload(trades) {
       profitFactor: 2,
       biggestWinner: 20,
       biggestLoser: -10,
+      protectedPercent: 75,
       averageRiskDollars: 5,
       averageRiskPercent: 1,
+      biggestRisk: 15,
+      capitalEfficiency: 1.25,
     }),
     getAssetAnalytics: () => [],
     getSetupAnalytics: () => [],
@@ -116,6 +119,9 @@ test('DNA Doctor payload includes selected trades without screenshots or invente
   ]);
 
   assert.equal(payload.tradeCount, 1);
+  assert.equal(payload.protectedPercent, 75);
+  assert.equal(payload.biggestRisk, 15);
+  assert.equal(payload.capitalEfficiency, 1.25);
   assert.deepEqual(JSON.parse(JSON.stringify(payload.trades)), [{
     date: '2026-08-08',
     openTime: '2026-08-08T13:00:00.000Z',
@@ -153,6 +159,12 @@ test('DNA Doctor payload includes selected trades without screenshots or invente
 test('DNA Doctor backend includes individual trades in the data sent to the model', () => {
   assert.ok(serverSource.includes('Individual Trades:'), 'User prompt data should include an Individual Trades section.');
   assert.ok(serverSource.includes('JSON.stringify(payload.trades || [], null, 2)'), 'Individual trades should be passed through as JSON data.');
+});
+
+test('DNA Doctor backend includes risk and process metrics in the model data', () => {
+  assert.ok(serverSource.includes('Protected Trades %: ${payload.protectedPercent != null ? Number(payload.protectedPercent).toFixed(1) + \'%\' : \'N/A\'}'), 'User prompt data should include protected trade percentage.');
+  assert.ok(serverSource.includes('Biggest Risk $: ${payload.biggestRisk != null ? \'$\' + Number(payload.biggestRisk).toFixed(2) : \'N/A\'}'), 'User prompt data should include biggest risk dollars.');
+  assert.ok(serverSource.includes('Capital Efficiency: ${payload.capitalEfficiency != null ? Number(payload.capitalEfficiency).toFixed(2) + \'x\' : \'N/A\'}'), 'User prompt data should include capital efficiency.');
 });
 
 test('DNA Doctor report renders Best Trade and Worst Trade sections', () => {

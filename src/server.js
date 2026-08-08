@@ -1603,8 +1603,11 @@ Average R: ${payload.averageR != null ? Number(payload.averageR).toFixed(2) + 'R
 Profit Factor: ${payload.profitFactor != null && isFinite(payload.profitFactor) ? Number(payload.profitFactor).toFixed(2) : 'N/A'}
 Biggest Winner: ${payload.biggestWinner != null ? '$' + Number(payload.biggestWinner).toFixed(2) : 'N/A'}
 Biggest Loser: ${payload.biggestLoser != null ? '$' + Number(payload.biggestLoser).toFixed(2) : 'N/A'}
+Protected Trades %: ${payload.protectedPercent != null ? Number(payload.protectedPercent).toFixed(1) + '%' : 'N/A'}
 Average Risk $: ${payload.averageRiskDollars != null ? '$' + Number(payload.averageRiskDollars).toFixed(2) : 'N/A'}
 Average Risk %: ${payload.averageRiskPercent != null ? Number(payload.averageRiskPercent).toFixed(2) + '%' : 'N/A'}
+Biggest Risk $: ${payload.biggestRisk != null ? '$' + Number(payload.biggestRisk).toFixed(2) : 'N/A'}
+Capital Efficiency: ${payload.capitalEfficiency != null ? Number(payload.capitalEfficiency).toFixed(2) + 'x' : 'N/A'}
 
 By Asset:
 ${(payload.assets || []).map((a) => `${a.symbol}: ${a.trades} trades, ${Number(a.winRate).toFixed(1)}% WR, $${Number(a.netPnl).toFixed(2)} P&L, ${a.averageR != null ? Number(a.averageR).toFixed(2) + 'R' : 'N/A'} avg R`).join('\n') || 'No asset data'}
