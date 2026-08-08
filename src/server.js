@@ -1699,6 +1699,7 @@ Retry instruction: return valid JSON only. Match the existing schema exactly. Do
 
       console.log('[DNA Doctor] Raw OpenAI response length:', text.length, '| status:', data.status, '| attempt:', attempt + 1);
       if (data.status === 'incomplete') {
+        console.warn(getDnaDoctorIncompleteSummary(data, text, attempt));
         console.warn('[DNA Doctor] Incomplete OpenAI response diagnostic:', getDnaDoctorResponseDiagnostic(data, text, attempt, 'incomplete_response'));
       }
 
@@ -1757,6 +1758,14 @@ function getDnaDoctorResponseDiagnostic(data, text, attempt, failureReason, http
         : [],
     })),
   };
+}
+
+function getDnaDoctorIncompleteSummary(data, text, attempt) {
+  const usage = data?.usage || {};
+  const inputTokens = usage.input_tokens ?? usage.prompt_tokens ?? 'unknown';
+  const outputTokens = usage.output_tokens ?? usage.completion_tokens ?? 'unknown';
+  const totalTokens = usage.total_tokens ?? 'unknown';
+  return `[DNA Doctor] Incomplete summary | status=${data?.status ?? 'unknown'} | reason=${data?.incomplete_details?.reason ?? 'unknown'} | inputTokens=${inputTokens} | outputTokens=${outputTokens} | totalTokens=${totalTokens} | outputLength=${text.length} | attempt=${attempt + 1}`;
 }
 
 

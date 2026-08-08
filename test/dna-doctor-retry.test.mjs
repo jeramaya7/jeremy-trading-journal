@@ -83,14 +83,16 @@ test('DNA Doctor retries exactly once when the first model response is invalid J
 test('DNA Doctor preserves 502 behavior when the retry is also empty or invalid', async () => {
   const originalFetch = globalThis.fetch;
   const originalConsoleError = console.error;
+  const originalConsoleWarn = console.warn;
   const fetchCalls = [];
   const diagnosticLogs = [];
+  const incompleteSummaries = [];
   globalThis.fetch = async (url, options) => {
     fetchCalls.push({ url, body: JSON.parse(options.body) });
     return makeOpenAiResponse('', {
       status: 'incomplete',
       incomplete_details: { reason: 'max_tokens' },
-      usage: { output_tokens: 2048 },
+      usage: { input_tokens: 1200, output_tokens: 2048, total_tokens: 3248 },
       error: null,
       output: [{ type: 'message', status: 'incomplete', content: [] }],
     });
@@ -98,6 +100,11 @@ test('DNA Doctor preserves 502 behavior when the retry is also empty or invalid'
   console.error = (...args) => {
     if (args[0] === '[DNA Doctor] OpenAI response diagnostic:') {
       diagnosticLogs.push(args[1]);
+    }
+  };
+  console.warn = (...args) => {
+    if (typeof args[0] === 'string' && args[0].startsWith('[DNA Doctor] Incomplete summary |')) {
+      incompleteSummaries.push(args[0]);
     }
   };
 
@@ -108,6 +115,11 @@ test('DNA Doctor preserves 502 behavior when the retry is also empty or invalid'
     assert.equal(fetchCalls.length, 2, 'Empty model output should retry exactly once.');
     assert.match(result.body.error, /Claude returned invalid JSON: Unexpected end of JSON input/);
     assert.equal(result.body.rawResponse, '');
+    assert.equal(incompleteSummaries.length, 2, 'Each incomplete response should log one readable summary line.');
+    assert.equal(
+      incompleteSummaries[0],
+      '[DNA Doctor] Incomplete summary | status=incomplete | reason=max_tokens | inputTokens=1200 | outputTokens=2048 | totalTokens=3248 | outputLength=0 | attempt=1'
+    );
     assert.equal(diagnosticLogs.length, 2, 'Each failed attempt should log safe response diagnostics.');
     assert.deepEqual(diagnosticLogs[0], {
       attempt: 1,
@@ -115,7 +127,7 @@ test('DNA Doctor preserves 502 behavior when the retry is also empty or invalid'
       httpStatus: null,
       responseStatus: 'incomplete',
       incompleteDetails: { reason: 'max_tokens' },
-      usage: { output_tokens: 2048 },
+      usage: { input_tokens: 1200, output_tokens: 2048, total_tokens: 3248 },
       error: null,
       outputTextLength: 0,
       outputItemTypes: [{ type: 'message', status: 'incomplete', contentTypes: [] }],
@@ -123,5 +135,6 @@ test('DNA Doctor preserves 502 behavior when the retry is also empty or invalid'
   } finally {
     globalThis.fetch = originalFetch;
     console.error = originalConsoleError;
+    console.warn = originalConsoleWarn;
   }
 });
