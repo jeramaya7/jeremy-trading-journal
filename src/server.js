@@ -1569,9 +1569,15 @@ Communication Style
 - Always explain why a recommendation is being made.
 - Focus on improving the next trade, not criticizing the last one.
 - Best Trade and Worst Trade must consider process and execution, not only P&L.
+- Describe Best Trade and Worst Trade as best/worst by available data unless notes, grade, or tradeManagement clearly support a stronger conclusion.
+- Do not call a trade high-quality or poor-quality from P&L alone.
+- Do not infer execution quality without supporting journal data.
 - If the trade data is not enough to support a clear Best Trade or Worst Trade, say that instead of inventing one.
+- If protection data is missing or unavailable, say "no documented protection data".
+- Do not treat missing protected fields as confirmed 0% protected behavior.
 - Use notes, emotion, tradeManagement, closeReason, and lossReason only when those fields are present to inform behavior and discipline analysis.
 - Psychology Review must use only supported evidence from the trade data. If the data is insufficient, say so clearly.
+- Do not infer focus, emotion, discipline, or mindset from session performance alone.
 - Follow this report structure: Overall Grade, Biggest Strength, Biggest Weakness, Best Trade, Worst Trade, Risk Review, Psychology Review, Three Things Done Well, Three Improvements, Goal for Tomorrow, Quote of the Day.
 - Keep language simple, calm, direct, neutral, and professional.
 - Process and discipline matter more than P&L alone.
@@ -1642,63 +1648,79 @@ ${JSON.stringify(payload.trades || [], null, 2)}`;
   const TIMEOUT_MS = 30_000;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const retrySystemPrompt = `${systemPrompt}
+
+Retry instruction: return valid JSON only. Match the existing schema exactly. Do not include markdown or extra text.`;
 
   try {
- const openaiResponse = await fetchImpl('https://api.openai.com/v1/responses', {
-  method: 'POST',
-  signal: controller.signal,
-  headers: {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${apiKey}`,
-  },
-  body: JSON.stringify({
-    model: 'gpt-5-mini',
-    store: false,
-    max_output_tokens: 2048,
-    input: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt }
-    ],
-    text: {
-      format: {
-        type: 'json_object'
-      }
-    }
-  })
-});
+    let lastParseError = null;
+    let lastRawText = '';
 
-clearTimeout(timeout);
-
-if (!openaiResponse.ok) {
-  const err = await openaiResponse.json().catch(() => ({}));
-  const msg = err.error?.message || `OpenAI API error ${openaiResponse.status}`;
-  sendJson(response, 502, { error: msg });
-  return;
-}
-
-const data = await openaiResponse.json();
-const text = (data.output || [])
-  .flatMap(item => item.content || [])
-  .find(item => item.type === 'output_text')?.text || '';
-
-console.log('[DNA Doctor] Raw OpenAI response length:', text.length, '| status:', data.status);
-
-    // Strip markdown fences if present
-    const clean = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
-
-    let report;
-    try {
-      report = JSON.parse(clean);
-    } catch (parseError) {
-      console.error('[DNA Doctor] JSON parse failed:', parseError.message);
-      console.error('[DNA Doctor] Raw text (first 500 chars):', text.slice(0, 500));
-      sendJson(response, 502, {
-        error: `Claude returned invalid JSON: ${parseError.message}`,
-        rawResponse: text.slice(0, 1000),
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const openaiResponse = await fetchImpl('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-5-mini',
+          store: false,
+          max_output_tokens: 2048,
+          input: [
+            { role: 'system', content: attempt === 0 ? systemPrompt : retrySystemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          text: {
+            format: {
+              type: 'json_object'
+            }
+          }
+        })
       });
-      return;
+
+      if (!openaiResponse.ok) {
+        clearTimeout(timeout);
+        const err = await openaiResponse.json().catch(() => ({}));
+        const msg = err.error?.message || `OpenAI API error ${openaiResponse.status}`;
+        sendJson(response, 502, { error: msg });
+        return;
+      }
+
+      const data = await openaiResponse.json();
+      const text = (data.output || [])
+        .flatMap(item => item.content || [])
+        .find(item => item.type === 'output_text')?.text || '';
+
+      console.log('[DNA Doctor] Raw OpenAI response length:', text.length, '| status:', data.status, '| attempt:', attempt + 1);
+
+      // Strip markdown fences if present
+      const clean = text.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+      lastRawText = text;
+
+      if (!clean) {
+        lastParseError = new Error('Unexpected end of JSON input');
+      } else {
+        try {
+          const report = JSON.parse(clean);
+          clearTimeout(timeout);
+          sendJson(response, 200, report);
+          return;
+        } catch (parseError) {
+          lastParseError = parseError;
+        }
+      }
+
+      console.error('[DNA Doctor] JSON parse failed:', lastParseError.message);
+      console.error('[DNA Doctor] Raw text (first 500 chars):', text.slice(0, 500));
     }
-    sendJson(response, 200, report);
+
+    clearTimeout(timeout);
+    sendJson(response, 502, {
+      error: `Claude returned invalid JSON: ${lastParseError.message}`,
+      rawResponse: lastRawText.slice(0, 1000),
+    });
   } catch (error) {
     clearTimeout(timeout);
     if (error.name === 'AbortError') {

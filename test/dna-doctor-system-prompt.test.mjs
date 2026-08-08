@@ -34,9 +34,15 @@ test('the DNA Doctor system prompt uses the new evidence-based coaching style', 
   assert.ok(prompt.includes('Never exaggerate or invent certainty.'), 'The coach must never overstate certainty.');
   assert.ok(prompt.includes('Focus on improving the next trade, not criticizing the last one.'), 'The focus should be forward-looking, not blame-focused.');
   assert.ok(prompt.includes('Best Trade and Worst Trade must consider process and execution, not only P&L.'), 'Best/Worst Trade should consider execution, not only P&L.');
+  assert.ok(prompt.includes('Describe Best Trade and Worst Trade as best/worst by available data unless notes, grade, or tradeManagement clearly support a stronger conclusion.'), 'Best/Worst Trade should not overstate available evidence.');
+  assert.ok(prompt.includes('Do not call a trade high-quality or poor-quality from P&L alone.'), 'Best/Worst Trade should not infer quality from P&L alone.');
+  assert.ok(prompt.includes('Do not infer execution quality without supporting journal data.'), 'Best/Worst Trade should not infer execution quality without journal evidence.');
   assert.ok(prompt.includes('If the trade data is not enough to support a clear Best Trade or Worst Trade, say that instead of inventing one.'), 'Best/Worst Trade should acknowledge unclear data.');
+  assert.ok(prompt.includes('If protection data is missing or unavailable, say "no documented protection data".'), 'Missing protection data should be described accurately.');
+  assert.ok(prompt.includes('Do not treat missing protected fields as confirmed 0% protected behavior.'), 'Missing protected fields should not be treated as confirmed behavior.');
   assert.ok(prompt.includes('Use notes, emotion, tradeManagement, closeReason, and lossReason only when those fields are present to inform behavior and discipline analysis.'), 'Behavior analysis should use existing journal context only when present.');
   assert.ok(prompt.includes('Psychology Review must use only supported evidence from the trade data. If the data is insufficient, say so clearly.'), 'Psychology Review should be evidence-based and clear when data is insufficient.');
+  assert.ok(prompt.includes('Do not infer focus, emotion, discipline, or mindset from session performance alone.'), 'Psychology Review should not infer mindset from session performance alone.');
   assert.ok(prompt.includes('Follow this report structure: Overall Grade, Biggest Strength, Biggest Weakness, Best Trade, Worst Trade, Risk Review, Psychology Review, Three Things Done Well, Three Improvements, Goal for Tomorrow, Quote of the Day.'), 'Prompt should request the Aug 7 report structure.');
   assert.ok(prompt.includes('Keep language simple, calm, direct, neutral, and professional.'), 'Prompt should keep the report language calm and professional.');
   assert.ok(prompt.includes('Process and discipline matter more than P&L alone.'), 'Prompt should prioritize process and discipline.');
