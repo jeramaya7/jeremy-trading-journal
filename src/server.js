@@ -1572,6 +1572,9 @@ Communication Style
 - If the trade data is not enough to support a clear Best Trade or Worst Trade, say that instead of inventing one.
 - Use notes, emotion, tradeManagement, closeReason, and lossReason only when those fields are present to inform behavior and discipline analysis.
 - Psychology Review must use only supported evidence from the trade data. If the data is insufficient, say so clearly.
+- Follow this report structure: Overall Grade, Biggest Strength, Biggest Weakness, Best Trade, Worst Trade, Risk Review, Psychology Review, Three Things Done Well, Three Improvements, Goal for Tomorrow, Quote of the Day.
+- Keep language simple, calm, direct, neutral, and professional.
+- Process and discipline matter more than P&L alone.
 
 Examples of the desired tone:
 Instead of: "Your evening trading is terrible. Stop doing it."
@@ -1586,13 +1589,17 @@ Respond ONLY with valid JSON matching this exact schema — no markdown, no expl
   "grade": "string (A+/A/B+/B/C+/C/D/F)",
 "scoreExplanation": "string",
 "diagnosis": "string",
+"biggestStrength": "Short plain-language summary using only supported trade data",
+"biggestWeakness": "Short plain-language summary using only supported trade data",
 "bestTrade": "Short plain-language summary using only available trade data",
 "worstTrade": "Short plain-language summary using only available trade data",
+"riskReview": "Short plain-language risk review using only supported trade data, or a clear insufficient-data statement",
 "psychologyReview": "Short plain-language behavior and discipline review using only supported trade data, or a clear insufficient-data statement",
   "strengths": ["Maximum 3 concise bullet points"],
 "weaknesses": ["Maximum 3 concise bullet points"],
 "prescription": ["Maximum 2 concise bullet points"],
-"tomorrowsFocus": "One sentence starting with 'Tomorrow,' followed by exactly one specific action the trader should execute next session. Do not repeat statistics, the diagnosis, or the prescription."
+"tomorrowsFocus": "One sentence starting with 'Tomorrow,' followed by exactly one specific action the trader should execute next session. Do not repeat statistics, the diagnosis, or the prescription.",
+"quoteOfDay": "One short trader-focused quote in plain English"
 }`;
 
   const userPrompt = `Here are my trading statistics. Produce a DNA Doctor Report.

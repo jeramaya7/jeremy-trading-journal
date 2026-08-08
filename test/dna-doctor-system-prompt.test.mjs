@@ -37,6 +37,9 @@ test('the DNA Doctor system prompt uses the new evidence-based coaching style', 
   assert.ok(prompt.includes('If the trade data is not enough to support a clear Best Trade or Worst Trade, say that instead of inventing one.'), 'Best/Worst Trade should acknowledge unclear data.');
   assert.ok(prompt.includes('Use notes, emotion, tradeManagement, closeReason, and lossReason only when those fields are present to inform behavior and discipline analysis.'), 'Behavior analysis should use existing journal context only when present.');
   assert.ok(prompt.includes('Psychology Review must use only supported evidence from the trade data. If the data is insufficient, say so clearly.'), 'Psychology Review should be evidence-based and clear when data is insufficient.');
+  assert.ok(prompt.includes('Follow this report structure: Overall Grade, Biggest Strength, Biggest Weakness, Best Trade, Worst Trade, Risk Review, Psychology Review, Three Things Done Well, Three Improvements, Goal for Tomorrow, Quote of the Day.'), 'Prompt should request the Aug 7 report structure.');
+  assert.ok(prompt.includes('Keep language simple, calm, direct, neutral, and professional.'), 'Prompt should keep the report language calm and professional.');
+  assert.ok(prompt.includes('Process and discipline matter more than P&L alone.'), 'Prompt should prioritize process and discipline.');
 
   // Old brief style instruction should be fully replaced, not left alongside the new one.
   assert.equal(prompt.includes('Write in professional language. Be direct and specific. Avoid generic advice.'), false, 'The old one-line style instruction should be removed, not just supplemented.');
@@ -58,11 +61,15 @@ test('the JSON response schema and grading scale are unchanged', () => {
   assert.ok(prompt.includes('"grade": "string (A+/A/B+/B/C+/C/D/F)"'), 'The A+ through F grading scale must be unchanged.');
   assert.ok(prompt.includes('"scoreExplanation": "string"'), 'The score explanation field must be unchanged.');
   assert.ok(prompt.includes('"diagnosis": "string"'), 'The diagnosis field must be unchanged.');
+  assert.ok(prompt.includes('"biggestStrength": "Short plain-language summary using only supported trade data"'), 'The biggestStrength field should be present.');
+  assert.ok(prompt.includes('"biggestWeakness": "Short plain-language summary using only supported trade data"'), 'The biggestWeakness field should be present.');
   assert.ok(prompt.includes('"bestTrade": "Short plain-language summary using only available trade data"'), 'The bestTrade field should be present.');
   assert.ok(prompt.includes('"worstTrade": "Short plain-language summary using only available trade data"'), 'The worstTrade field should be present.');
+  assert.ok(prompt.includes('"riskReview": "Short plain-language risk review using only supported trade data, or a clear insufficient-data statement"'), 'The riskReview field should be present.');
   assert.ok(prompt.includes('"psychologyReview": "Short plain-language behavior and discipline review using only supported trade data, or a clear insufficient-data statement"'), 'The psychologyReview field should be present.');
   assert.ok(prompt.includes('"strengths": ["Maximum 3 concise bullet points"]'), 'The strengths field must be unchanged.');
   assert.ok(prompt.includes('"weaknesses": ["Maximum 3 concise bullet points"]'), 'The weaknesses field must be unchanged.');
   assert.ok(prompt.includes('"prescription": ["Maximum 2 concise bullet points"]'), 'The prescription field must be unchanged.');
   assert.ok(prompt.includes('"tomorrowsFocus": "One sentence starting with'), 'The tomorrow focus field must be unchanged.');
+  assert.ok(prompt.includes('"quoteOfDay": "One short trader-focused quote in plain English"'), 'The quoteOfDay field should be present.');
 });

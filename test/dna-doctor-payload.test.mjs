@@ -181,3 +181,27 @@ test('DNA Doctor payload and report support behavior analysis from existing jour
   assert.ok(source.includes('<span class="dna-doctor-section-icon">🧠</span><h4>Psychology Review</h4>'), 'Report should render a Psychology Review section.');
   assert.ok(source.includes('<p>${escapeHtml(report.psychologyReview || \'\')}</p>'), 'Psychology Review should render from report.psychologyReview.');
 });
+
+test('DNA Doctor report matches the Aug 7 target section order', () => {
+  const expectedSections = [
+    '<h4>Overall Grade</h4>',
+    '<h4>Biggest Strength</h4>',
+    '<h4>Biggest Weakness</h4>',
+    '<h4>Best Trade</h4>',
+    '<h4>Worst Trade</h4>',
+    '<h4>Risk Review</h4>',
+    '<h4>Psychology Review</h4>',
+    '<h4>Three Things Done Well</h4>',
+    '<h4>Three Improvements</h4>',
+    '<h4>Goal for Tomorrow</h4>',
+    '<h4>Quote of the Day</h4>',
+  ];
+  let previousIndex = -1;
+  for (const section of expectedSections) {
+    const index = source.indexOf(section);
+    assert.ok(index > previousIndex, `${section} should appear in target order.`);
+    previousIndex = index;
+  }
+  assert.ok(source.includes('<p>${escapeHtml(report.riskReview || \'\')}</p>'), 'Risk Review should render from report.riskReview.');
+  assert.ok(source.includes('<p>${escapeHtml(report.quoteOfDay || \'\')}</p>'), 'Quote of the Day should render from report.quoteOfDay.');
+});
