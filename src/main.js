@@ -1751,6 +1751,20 @@ function renderDnaDoctorReport(report, fullReportOpen = false) {
         <p>${escapeHtml(report.diagnosis)}</p>
       </div>
 
+      <div class="dna-doctor-section dna-doctor-best-trade">
+        <div class="dna-doctor-section-label">
+          <span class="dna-doctor-section-icon">✅</span><h4>Best Trade</h4>
+        </div>
+        <p>${escapeHtml(report.bestTrade || '')}</p>
+      </div>
+
+      <div class="dna-doctor-section dna-doctor-worst-trade">
+        <div class="dna-doctor-section-label">
+          <span class="dna-doctor-section-icon">⚠️</span><h4>Worst Trade</h4>
+        </div>
+        <p>${escapeHtml(report.worstTrade || '')}</p>
+      </div>
+
       <div class="dna-doctor-section dna-doctor-strengths">
         <div class="dna-doctor-section-label">
           <span class="dna-doctor-section-icon">✅</span><h4>Healthy Habits</h4>

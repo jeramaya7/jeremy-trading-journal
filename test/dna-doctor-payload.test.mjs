@@ -154,3 +154,10 @@ test('DNA Doctor backend includes individual trades in the data sent to the mode
   assert.ok(serverSource.includes('Individual Trades:'), 'User prompt data should include an Individual Trades section.');
   assert.ok(serverSource.includes('JSON.stringify(payload.trades || [], null, 2)'), 'Individual trades should be passed through as JSON data.');
 });
+
+test('DNA Doctor report renders Best Trade and Worst Trade sections', () => {
+  assert.ok(source.includes('<span class="dna-doctor-section-icon">✅</span><h4>Best Trade</h4>'), 'Report should render a Best Trade section.');
+  assert.ok(source.includes('<p>${escapeHtml(report.bestTrade || \'\')}</p>'), 'Best Trade should render from report.bestTrade.');
+  assert.ok(source.includes('<span class="dna-doctor-section-icon">⚠️</span><h4>Worst Trade</h4>'), 'Report should render a Worst Trade section.');
+  assert.ok(source.includes('<p>${escapeHtml(report.worstTrade || \'\')}</p>'), 'Worst Trade should render from report.worstTrade.');
+});

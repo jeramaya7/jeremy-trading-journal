@@ -33,6 +33,8 @@ test('the DNA Doctor system prompt uses the new evidence-based coaching style', 
   assert.ok(prompt.includes('Recognize good decisions, even when the trade loses.'), 'Good decisions should be credited even on losing trades.');
   assert.ok(prompt.includes('Never exaggerate or invent certainty.'), 'The coach must never overstate certainty.');
   assert.ok(prompt.includes('Focus on improving the next trade, not criticizing the last one.'), 'The focus should be forward-looking, not blame-focused.');
+  assert.ok(prompt.includes('Best Trade and Worst Trade must consider process and execution, not only P&L.'), 'Best/Worst Trade should consider execution, not only P&L.');
+  assert.ok(prompt.includes('If the trade data is not enough to support a clear Best Trade or Worst Trade, say that instead of inventing one.'), 'Best/Worst Trade should acknowledge unclear data.');
 
   // Old brief style instruction should be fully replaced, not left alongside the new one.
   assert.equal(prompt.includes('Write in professional language. Be direct and specific. Avoid generic advice.'), false, 'The old one-line style instruction should be removed, not just supplemented.');
@@ -54,6 +56,8 @@ test('the JSON response schema and grading scale are unchanged', () => {
   assert.ok(prompt.includes('"grade": "string (A+/A/B+/B/C+/C/D/F)"'), 'The A+ through F grading scale must be unchanged.');
   assert.ok(prompt.includes('"scoreExplanation": "string"'), 'The score explanation field must be unchanged.');
   assert.ok(prompt.includes('"diagnosis": "string"'), 'The diagnosis field must be unchanged.');
+  assert.ok(prompt.includes('"bestTrade": "Short plain-language summary using only available trade data"'), 'The bestTrade field should be present.');
+  assert.ok(prompt.includes('"worstTrade": "Short plain-language summary using only available trade data"'), 'The worstTrade field should be present.');
   assert.ok(prompt.includes('"strengths": ["Maximum 3 concise bullet points"]'), 'The strengths field must be unchanged.');
   assert.ok(prompt.includes('"weaknesses": ["Maximum 3 concise bullet points"]'), 'The weaknesses field must be unchanged.');
   assert.ok(prompt.includes('"prescription": ["Maximum 2 concise bullet points"]'), 'The prescription field must be unchanged.');
