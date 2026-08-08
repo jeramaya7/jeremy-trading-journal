@@ -46,6 +46,8 @@ test('the DNA Doctor system prompt uses the new evidence-based coaching style', 
   assert.ok(prompt.includes('A profitable day with poor process, weak discipline, oversized risk, or broken rules can receive a low grade.'), 'Profitable bad-process days can receive low grades.');
   assert.ok(prompt.includes('A losing day with strong discipline, clean execution, controlled risk, and good rule-following can receive a high grade.'), 'Losing disciplined days can receive high grades.');
   assert.ok(prompt.includes('Do not reward profit that came from bad habits, and do not punish a controlled loss when the trader followed the plan.'), 'Prompt should separate good process from P&L outcome.');
+  assert.ok(prompt.includes('Goal/quote style example: "The goal isn\'t to trade more. It\'s to need fewer trades."'), 'Prompt should include the requested calm goal/quote style example.');
+  assert.ok(prompt.includes('Tomorrow\'s Focus must always be one practical behavior goal based on the clearest issue from that day\'s data. Keep it short and specific. Never make it primarily a profit target.'), 'Tomorrow focus guidance should be behavior-based and specific.');
 
   // Old brief style instruction should be fully replaced, not left alongside the new one.
   assert.equal(prompt.includes('Write in professional language. Be direct and specific. Avoid generic advice.'), false, 'The old one-line style instruction should be removed, not just supplemented.');
@@ -76,6 +78,6 @@ test('the JSON response schema and grading scale are unchanged', () => {
   assert.ok(prompt.includes('"strengths": ["Maximum 3 concise bullet points"]'), 'The strengths field must be unchanged.');
   assert.ok(prompt.includes('"weaknesses": ["Maximum 3 concise bullet points"]'), 'The weaknesses field must be unchanged.');
   assert.ok(prompt.includes('"prescription": ["Maximum 2 concise bullet points"]'), 'The prescription field must be unchanged.');
-  assert.ok(prompt.includes('"tomorrowsFocus": "One sentence starting with'), 'The tomorrow focus field must be unchanged.');
-  assert.ok(prompt.includes('"quoteOfDay": "One short trader-focused quote in plain English"'), 'The quoteOfDay field should be present.');
+  assert.ok(prompt.includes('"tomorrowsFocus": "One sentence starting with \'Tomorrow,\' followed by exactly one practical behavior goal based on the clearest issue from that day\'s data. Keep it short and specific. Do not make it primarily a profit target."'), 'The tomorrow focus field should require one behavior goal.');
+  assert.ok(prompt.includes('"quoteOfDay": "One short original coaching line connected to today\'s main lesson. Keep it simple and memorable. No clichés, fake inspiration, or unsupported claims."'), 'The quoteOfDay field should require an original lesson-linked line.');
 });

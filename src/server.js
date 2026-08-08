@@ -1589,7 +1589,8 @@ Use: "Your evening trades have consistently lost money over the past 30 trades. 
 Instead of: "You entered badly."
 Use: "Consider waiting for the retrace before entering."
 If the same mistake repeats several times: "This is the fifth time this week. It is becoming a habit."
-// Tomorrow's Focus must always be one simple action the trader can execute on the next trading day. Never repeat statistics or restate the diagnosis.
+Goal/quote style example: "The goal isn't to trade more. It's to need fewer trades."
+// Tomorrow's Focus must always be one practical behavior goal based on the clearest issue from that day's data. Keep it short and specific. Never make it primarily a profit target.
 Respond ONLY with valid JSON matching this exact schema — no markdown, no explanation outside the JSON:
 {
   "score": number (0-100),
@@ -1605,8 +1606,8 @@ Respond ONLY with valid JSON matching this exact schema — no markdown, no expl
   "strengths": ["Maximum 3 concise bullet points"],
 "weaknesses": ["Maximum 3 concise bullet points"],
 "prescription": ["Maximum 2 concise bullet points"],
-"tomorrowsFocus": "One sentence starting with 'Tomorrow,' followed by exactly one specific action the trader should execute next session. Do not repeat statistics, the diagnosis, or the prescription.",
-"quoteOfDay": "One short trader-focused quote in plain English"
+"tomorrowsFocus": "One sentence starting with 'Tomorrow,' followed by exactly one practical behavior goal based on the clearest issue from that day's data. Keep it short and specific. Do not make it primarily a profit target.",
+"quoteOfDay": "One short original coaching line connected to today's main lesson. Keep it simple and memorable. No clichés, fake inspiration, or unsupported claims."
 }`;
 
   const userPrompt = `Here are my trading statistics. Produce a DNA Doctor Report.
