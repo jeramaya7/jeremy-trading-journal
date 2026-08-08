@@ -1749,81 +1749,83 @@ function renderDnaDoctorReport(report, fullReportOpen = false) {
         </div>
       </div>
 
-      <div class="dna-doctor-section dna-doctor-overall-grade">
-        <div class="dna-doctor-section-label">
-          <span class="dna-doctor-section-icon">🔬</span><h4>Overall Grade</h4>
+      <div class="dna-doctor-sections-grid">
+        <div class="dna-doctor-section dna-doctor-overall-grade">
+          <div class="dna-doctor-section-label">
+            <span class="dna-doctor-section-icon">🔬</span><h4>Overall Grade</h4>
+          </div>
+          <p>${escapeHtml(report.scoreExplanation || report.diagnosis || '')}</p>
         </div>
-        <p>${escapeHtml(report.scoreExplanation || report.diagnosis || '')}</p>
-      </div>
 
-      <div class="dna-doctor-section dna-doctor-biggest-strength">
-        <div class="dna-doctor-section-label">
-          <span class="dna-doctor-section-icon">✅</span><h4>Biggest Strength</h4>
+        <div class="dna-doctor-section dna-doctor-biggest-strength">
+          <div class="dna-doctor-section-label">
+            <span class="dna-doctor-section-icon">✅</span><h4>Biggest Strength</h4>
+          </div>
+          <p>${escapeHtml(biggestStrength)}</p>
         </div>
-        <p>${escapeHtml(biggestStrength)}</p>
-      </div>
 
-      <div class="dna-doctor-section dna-doctor-biggest-weakness">
-        <div class="dna-doctor-section-label">
-          <span class="dna-doctor-section-icon">⚠️</span><h4>Biggest Weakness</h4>
+        <div class="dna-doctor-section dna-doctor-biggest-weakness">
+          <div class="dna-doctor-section-label">
+            <span class="dna-doctor-section-icon">⚠️</span><h4>Biggest Weakness</h4>
+          </div>
+          <p>${escapeHtml(biggestWeakness)}</p>
         </div>
-        <p>${escapeHtml(biggestWeakness)}</p>
-      </div>
 
-      <div class="dna-doctor-section dna-doctor-best-trade">
-        <div class="dna-doctor-section-label">
-          <span class="dna-doctor-section-icon">✅</span><h4>Best Trade</h4>
+        <div class="dna-doctor-section dna-doctor-best-trade">
+          <div class="dna-doctor-section-label">
+            <span class="dna-doctor-section-icon">✅</span><h4>Best Trade</h4>
+          </div>
+          <p>${escapeHtml(report.bestTrade || '')}</p>
         </div>
-        <p>${escapeHtml(report.bestTrade || '')}</p>
-      </div>
 
-      <div class="dna-doctor-section dna-doctor-worst-trade">
-        <div class="dna-doctor-section-label">
-          <span class="dna-doctor-section-icon">⚠️</span><h4>Worst Trade</h4>
+        <div class="dna-doctor-section dna-doctor-worst-trade">
+          <div class="dna-doctor-section-label">
+            <span class="dna-doctor-section-icon">⚠️</span><h4>Worst Trade</h4>
+          </div>
+          <p>${escapeHtml(report.worstTrade || '')}</p>
         </div>
-        <p>${escapeHtml(report.worstTrade || '')}</p>
-      </div>
 
-      <div class="dna-doctor-section dna-doctor-risk-review">
-        <div class="dna-doctor-section-label">
-          <span class="dna-doctor-section-icon">⚠️</span><h4>Risk Review</h4>
+        <div class="dna-doctor-section dna-doctor-risk-review">
+          <div class="dna-doctor-section-label">
+            <span class="dna-doctor-section-icon">⚠️</span><h4>Risk Review</h4>
+          </div>
+          <p>${escapeHtml(report.riskReview || '')}</p>
         </div>
-        <p>${escapeHtml(report.riskReview || '')}</p>
-      </div>
 
-      <div class="dna-doctor-section dna-doctor-psychology-review">
-        <div class="dna-doctor-section-label">
-          <span class="dna-doctor-section-icon">🧠</span><h4>Psychology Review</h4>
+        <div class="dna-doctor-section dna-doctor-psychology-review">
+          <div class="dna-doctor-section-label">
+            <span class="dna-doctor-section-icon">🧠</span><h4>Psychology Review</h4>
+          </div>
+          <p>${escapeHtml(report.psychologyReview || '')}</p>
         </div>
-        <p>${escapeHtml(report.psychologyReview || '')}</p>
-      </div>
 
-      <div class="dna-doctor-section dna-doctor-strengths">
-        <div class="dna-doctor-section-label">
-          <span class="dna-doctor-section-icon">✅</span><h4>Three Things Done Well</h4>
+        <div class="dna-doctor-section dna-doctor-strengths">
+          <div class="dna-doctor-section-label">
+            <span class="dna-doctor-section-icon">✅</span><h4>Three Things Done Well</h4>
+          </div>
+          <ul>${(report.strengths || []).map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
         </div>
-        <ul>${(report.strengths || []).map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
-      </div>
 
-      <div class="dna-doctor-section dna-doctor-prescription">
-        <div class="dna-doctor-section-label">
-          <span class="dna-doctor-section-icon">💊</span><h4>Three Improvements</h4>
+        <div class="dna-doctor-section dna-doctor-prescription">
+          <div class="dna-doctor-section-label">
+            <span class="dna-doctor-section-icon">💊</span><h4>Three Improvements</h4>
+          </div>
+          <ul>${(report.prescription || []).map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
         </div>
-        <ul>${(report.prescription || []).map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
-      </div>
 
-      <div class="dna-doctor-section dna-doctor-focus">
-        <div class="dna-doctor-section-label">
-          <span class="dna-doctor-section-icon">🌅</span><h4>Goal for Tomorrow</h4>
+        <div class="dna-doctor-section dna-doctor-focus">
+          <div class="dna-doctor-section-label">
+            <span class="dna-doctor-section-icon">🌅</span><h4>Goal for Tomorrow</h4>
+          </div>
+          <p>${escapeHtml(tomorrowFocus)}</p>
         </div>
-        <p>${escapeHtml(tomorrowFocus)}</p>
-      </div>
 
-      <div class="dna-doctor-section dna-doctor-quote">
-        <div class="dna-doctor-section-label">
-          <span class="dna-doctor-section-icon">🔬</span><h4>Quote of the Day</h4>
+        <div class="dna-doctor-section dna-doctor-quote">
+          <div class="dna-doctor-section-label">
+            <span class="dna-doctor-section-icon">🔬</span><h4>Quote of the Day</h4>
+          </div>
+          <p>${escapeHtml(report.quoteOfDay || '')}</p>
         </div>
-        <p>${escapeHtml(report.quoteOfDay || '')}</p>
       </div>
 
     </div>`;

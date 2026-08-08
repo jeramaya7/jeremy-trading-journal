@@ -5,6 +5,7 @@ import vm from 'node:vm';
 
 const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
 const serverSource = await readFile(new URL('../src/server.js', import.meta.url), 'utf8');
+const styles = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');
 
 function extractFunction(name) {
   const marker = `\nfunction ${name}(`;
@@ -204,4 +205,11 @@ test('DNA Doctor report matches the Aug 7 target section order', () => {
   }
   assert.ok(source.includes('<p>${escapeHtml(report.riskReview || \'\')}</p>'), 'Risk Review should render from report.riskReview.');
   assert.ok(source.includes('<p>${escapeHtml(report.quoteOfDay || \'\')}</p>'), 'Quote of the Day should render from report.quoteOfDay.');
+});
+
+test('DNA Doctor report sections use a responsive compact grid', () => {
+  assert.ok(source.includes('<div class="dna-doctor-sections-grid">'), 'Report sections should be grouped in the compact grid wrapper.');
+  assert.ok(styles.includes('.dna-doctor-sections-grid {\n  display: grid;'), 'Report sections should use CSS grid on desktop.');
+  assert.ok(styles.includes('grid-template-columns: repeat(2, minmax(0, 1fr));'), 'Desktop report should use two equal columns.');
+  assert.ok(styles.includes('.dna-doctor-sections-grid { grid-template-columns: 1fr; }'), 'Small screens should collapse the report grid to one column.');
 });
