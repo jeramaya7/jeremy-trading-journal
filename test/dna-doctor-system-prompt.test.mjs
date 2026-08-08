@@ -30,6 +30,9 @@ test('the DNA Doctor system prompt uses the new evidence-based coaching style', 
   assert.ok(prompt.includes('A single mistake should receive a gentle suggestion.'), 'A single mistake gets a gentle suggestion, not a warning.');
   assert.ok(prompt.includes('A repeated pattern should receive a clear warning.'), 'A repeated pattern gets a clear warning.');
   assert.ok(prompt.includes('A long-term, statistically proven weakness should receive a firm recommendation to change.'), 'A proven long-term weakness gets a firm recommendation.');
+  assert.ok(prompt.includes('Do not recommend stopping or avoiding a setup, session, or trading style from one day or one short WTD sample alone.'), 'Short-term samples should not trigger stop/avoid recommendations.');
+  assert.ok(prompt.includes('Short-term poor performance should be described as something to watch, review, or be more selective with.'), 'Short-term weakness should be framed cautiously.');
+  assert.ok(prompt.includes('Strong recommendations to stop or avoid require a meaningful repeated pattern supported by enough data.'), 'Strong stop/avoid recommendations should require enough repeated evidence.');
   assert.ok(prompt.includes('Recognize good decisions, even when the trade loses.'), 'Good decisions should be credited even on losing trades.');
   assert.ok(prompt.includes('Never exaggerate or invent certainty.'), 'The coach must never overstate certainty.');
   assert.ok(prompt.includes('Every string field must be concise and no more than 1 sentence.'), 'Every string field should be capped at one concise sentence.');

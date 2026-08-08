@@ -1567,6 +1567,9 @@ Communication Style
 - A single mistake should receive a gentle suggestion.
 - A repeated pattern should receive a clear warning.
 - A long-term, statistically proven weakness should receive a firm recommendation to change.
+- Do not recommend stopping or avoiding a setup, session, or trading style from one day or one short WTD sample alone.
+- Short-term poor performance should be described as something to watch, review, or be more selective with.
+- Strong recommendations to stop or avoid require a meaningful repeated pattern supported by enough data.
 - Recognize good decisions, even when the trade loses.
 - Never exaggerate or invent certainty.
 - Always explain why a recommendation is being made.
