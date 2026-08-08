@@ -1495,11 +1495,53 @@ const DNA_DOCTOR_PROVIDERS = {
   claude: callClaudeDnaDoctor,
 };
 
+const DNA_DOCTOR_TRADE_FIELDS = [
+  'date',
+  'openTime',
+  'closeTime',
+  'symbol',
+  'brokerSymbol',
+  'direction',
+  'setup',
+  'state',
+  'timeframe',
+  'entry',
+  'exit',
+  'size',
+  'fees',
+  'stopLoss',
+  'adjustedStopLoss',
+  'takeProfit',
+  'adjustedTakeProfit',
+  'accountSize',
+  'riskPercent',
+  'protected',
+  'tradeManagement',
+  'grade',
+  'closeReason',
+  'lossReason',
+  'outcomeOverride',
+  'tags',
+  'notes',
+  'emotion',
+];
+
 async function runDnaDoctor(tradeList = trades) {
   const provider = 'claude'; // future: load from settings
   const fn = DNA_DOCTOR_PROVIDERS[provider];
   if (!fn) throw new Error(`Unknown DNA Doctor provider: ${provider}`);
   return fn(buildDnaScanPayload(tradeList));
+}
+
+function buildDnaDoctorTradePayload(trade) {
+  const payload = {};
+  DNA_DOCTOR_TRADE_FIELDS.forEach((field) => {
+    const value = trade?.[field];
+    if (value !== undefined && value !== null && value !== '') {
+      payload[field] = value;
+    }
+  });
+  return payload;
 }
 
 function buildDnaScanPayload(tradeList) {
@@ -1520,6 +1562,7 @@ function buildDnaScanPayload(tradeList) {
     biggestLoser: stats.biggestLoser,
     averageRiskDollars: stats.averageRiskDollars,
     averageRiskPercent: stats.averageRiskPercent,
+    trades: tradeList.map(buildDnaDoctorTradePayload),
     assets: assetRows.map((r) => ({ symbol: r.asset, trades: r.tradeCount, winRate: r.winRate, netPnl: r.netPnl, averageR: r.averageR })),
     setups: setupRows.map((r) => ({ name: r.setupName, trades: r.tradeCount, winRate: r.winRate, averageR: r.averageR, netPnl: r.netPnl })),
     sessions: sessionRows.map((r) => ({ session: r.label, trades: r.tradeCount, winRate: r.winRate, netPnl: r.netPnl, averageR: r.averageR, profitFactor: r.profitFactor })),

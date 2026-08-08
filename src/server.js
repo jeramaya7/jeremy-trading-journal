@@ -1609,7 +1609,10 @@ By Setup:
 ${(payload.setups || []).map((s) => `${s.name}: ${s.trades} trades, ${Number(s.winRate).toFixed(1)}% WR, $${Number(s.netPnl).toFixed(2)} P&L, ${s.averageR != null ? Number(s.averageR).toFixed(2) + 'R' : 'N/A'} avg R`).join('\n') || 'No setup data'}
 
 By Trading Session:
-${(payload.sessions || []).map((s) => `${s.session}: ${s.trades} trades, ${Number(s.winRate).toFixed(1)}% WR, $${Number(s.netPnl).toFixed(2)} P&L, PF ${s.profitFactor != null && isFinite(s.profitFactor) ? Number(s.profitFactor).toFixed(2) : 'N/A'}`).join('\n') || 'No session data'}`;
+${(payload.sessions || []).map((s) => `${s.session}: ${s.trades} trades, ${Number(s.winRate).toFixed(1)}% WR, $${Number(s.netPnl).toFixed(2)} P&L, PF ${s.profitFactor != null && isFinite(s.profitFactor) ? Number(s.profitFactor).toFixed(2) : 'N/A'}`).join('\n') || 'No session data'}
+
+Individual Trades:
+${JSON.stringify(payload.trades || [], null, 2)}`;
 
   const TIMEOUT_MS = 30_000;
   const controller = new AbortController();
