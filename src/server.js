@@ -1645,7 +1645,7 @@ ${(payload.sessions || []).map((s) => `${s.session}: ${s.trades} trades, ${Numbe
 Individual Trades:
 ${JSON.stringify(payload.trades || [], null, 2)}`;
 
-  const TIMEOUT_MS = 30_000;
+  const TIMEOUT_MS = 60_000;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
   const retrySystemPrompt = `${systemPrompt}
