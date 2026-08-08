@@ -1556,6 +1556,9 @@ Communication Style
 - Never lecture or write essays.
 - Write like you're talking to Jeremy after the trading session.
 - Keep each section concise and practical.
+- Every string field must be concise and no more than 1 sentence.
+- strengths and prescription must each contain exactly 3 short items.
+- Each array item must be one short sentence.
 - Limit Healthy Habits, Warning Signs, and Prescription to a maximum of 3 bullet points each.
 - Be direct, calm, and respectful.
 - Blend the facts naturally into your coaching. Never label sentences as "Fact", "Opinion", or "Recommendation".
@@ -1609,9 +1612,9 @@ Respond ONLY with valid JSON matching this exact schema — no markdown, no expl
 "worstTrade": "Short plain-language summary using only available trade data",
 "riskReview": "Short plain-language risk review using only supported trade data, or a clear insufficient-data statement",
 "psychologyReview": "Short plain-language behavior and discipline review using only supported trade data, or a clear insufficient-data statement",
-  "strengths": ["Maximum 3 concise bullet points"],
+"strengths": ["Exactly 3 short items, one short sentence each"],
 "weaknesses": ["Maximum 3 concise bullet points"],
-"prescription": ["Maximum 2 concise bullet points"],
+"prescription": ["Exactly 3 short items, one short sentence each"],
 "tomorrowsFocus": "One sentence starting with 'Tomorrow,' followed by exactly one practical behavior goal based on the clearest issue from that day's data. Keep it short and specific. Do not make it primarily a profit target.",
 "quoteOfDay": "One short original coaching line connected to today's main lesson. Keep it simple and memorable. No clichés, fake inspiration, or unsupported claims."
 }`;

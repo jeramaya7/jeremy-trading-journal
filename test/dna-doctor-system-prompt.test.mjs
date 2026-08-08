@@ -32,6 +32,9 @@ test('the DNA Doctor system prompt uses the new evidence-based coaching style', 
   assert.ok(prompt.includes('A long-term, statistically proven weakness should receive a firm recommendation to change.'), 'A proven long-term weakness gets a firm recommendation.');
   assert.ok(prompt.includes('Recognize good decisions, even when the trade loses.'), 'Good decisions should be credited even on losing trades.');
   assert.ok(prompt.includes('Never exaggerate or invent certainty.'), 'The coach must never overstate certainty.');
+  assert.ok(prompt.includes('Every string field must be concise and no more than 1 sentence.'), 'Every string field should be capped at one concise sentence.');
+  assert.ok(prompt.includes('strengths and prescription must each contain exactly 3 short items.'), 'Strengths and prescription should keep the target three-item structure.');
+  assert.ok(prompt.includes('Each array item must be one short sentence.'), 'Array items should be short one-sentence items.');
   assert.ok(prompt.includes('Focus on improving the next trade, not criticizing the last one.'), 'The focus should be forward-looking, not blame-focused.');
   assert.ok(prompt.includes('Best Trade and Worst Trade must consider process and execution, not only P&L.'), 'Best/Worst Trade should consider execution, not only P&L.');
   assert.ok(prompt.includes('Describe Best Trade and Worst Trade as best/worst by available data unless notes, grade, or tradeManagement clearly support a stronger conclusion.'), 'Best/Worst Trade should not overstate available evidence.');
@@ -81,9 +84,9 @@ test('the JSON response schema and grading scale are unchanged', () => {
   assert.ok(prompt.includes('"worstTrade": "Short plain-language summary using only available trade data"'), 'The worstTrade field should be present.');
   assert.ok(prompt.includes('"riskReview": "Short plain-language risk review using only supported trade data, or a clear insufficient-data statement"'), 'The riskReview field should be present.');
   assert.ok(prompt.includes('"psychologyReview": "Short plain-language behavior and discipline review using only supported trade data, or a clear insufficient-data statement"'), 'The psychologyReview field should be present.');
-  assert.ok(prompt.includes('"strengths": ["Maximum 3 concise bullet points"]'), 'The strengths field must be unchanged.');
+  assert.ok(prompt.includes('"strengths": ["Exactly 3 short items, one short sentence each"]'), 'The strengths field should require exactly 3 short items.');
   assert.ok(prompt.includes('"weaknesses": ["Maximum 3 concise bullet points"]'), 'The weaknesses field must be unchanged.');
-  assert.ok(prompt.includes('"prescription": ["Maximum 2 concise bullet points"]'), 'The prescription field must be unchanged.');
+  assert.ok(prompt.includes('"prescription": ["Exactly 3 short items, one short sentence each"]'), 'The prescription field should require exactly 3 short items.');
   assert.ok(prompt.includes('"tomorrowsFocus": "One sentence starting with \'Tomorrow,\' followed by exactly one practical behavior goal based on the clearest issue from that day\'s data. Keep it short and specific. Do not make it primarily a profit target."'), 'The tomorrow focus field should require one behavior goal.');
   assert.ok(prompt.includes('"quoteOfDay": "One short original coaching line connected to today\'s main lesson. Keep it simple and memorable. No clichés, fake inspiration, or unsupported claims."'), 'The quoteOfDay field should require an original lesson-linked line.');
 });
