@@ -4927,7 +4927,6 @@ async function loadCTraderAccounts(options = {}) {
   }
 
   isLoadingCTraderAccounts = true;
-  render();
   try {
     const { response, body } = await fetchBackendJson(`${CTRADER_ENDPOINTS.accounts}?maxRows=1`);
     if (!response.ok) {
@@ -4981,7 +4980,6 @@ async function syncCTrader(options = {}) {
   isSyncingCTrader = true;
   const isAutoSync = options.source === 'auto';
   cTraderSyncStatus = { tone: 'pending', message: isAutoSync ? 'Auto Sync checking cTrader trades...' : 'Syncing cTrader trades...' };
-  render();
 
   try {
     await loadCTraderAccounts();
@@ -5039,7 +5037,6 @@ async function syncCTrader(options = {}) {
     };
   } finally {
     isSyncingCTrader = false;
-    render();
   }
 }
 
@@ -5126,7 +5123,6 @@ async function syncCTraderOnStartup() {
 
   if (!isCTraderAutoSyncEnabled) {
     cTraderSyncStatus = { tone: 'pending', message: 'Auto Sync is off.' };
-    render();
     return;
   }
 
@@ -5136,7 +5132,6 @@ async function syncCTraderOnStartup() {
 
   isCheckingCTraderConnection = true;
   cTraderSyncStatus = { tone: 'pending', message: 'Checking cTrader connection for Auto Sync...' };
-  render();
 
   try {
     await checkCTraderConnection();
@@ -5150,7 +5145,6 @@ async function syncCTraderOnStartup() {
     return;
   } finally {
     isCheckingCTraderConnection = false;
-    render();
   }
 
   await syncCTrader({ source: 'auto' });
