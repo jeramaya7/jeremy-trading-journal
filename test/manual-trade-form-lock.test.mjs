@@ -47,15 +47,13 @@ test('cTrader Auto Sync checks the lock before doing any work, so background syn
   const fnBody = source.slice(fnStart, fnEnd);
 
   // The lock check must be the very first thing in the function — before
-  // checking the connection, before touching cTraderSyncStatus, before any
-  // cTrader card UI update — so an open Manual Trade form blocks the network
-  // request itself, not just the render.
+  // checking the connection and before touching cTraderSyncStatus — so an
+  // open Manual Trade form blocks the network request itself, not just a render.
   const lockCheckIndex = fnBody.indexOf('if (isTradeEditLocked()) {');
-  const firstUiUpdateIndex = fnBody.indexOf('refreshCTraderConnectionCard();');
   const firstStatusIndex = fnBody.indexOf('cTraderSyncStatus =');
   assert.notEqual(lockCheckIndex, -1, 'syncCTraderOnStartup must check the edit lock.');
-  assert.ok(lockCheckIndex < firstUiUpdateIndex, 'The lock check must come before any cTrader card UI update in this function.');
   assert.ok(lockCheckIndex < firstStatusIndex, 'The lock check must come before any status update, i.e. before any sync work starts at all.');
+  assert.equal(fnBody.includes('render();'), false, 'Background Auto Sync status updates should not rebuild the full app.');
 });
 
 test('opening, closing, and saving the Manual Trade form force their own render through the lock they just changed', () => {
@@ -101,11 +99,12 @@ test('the doubled "+" icon bug is fixed — no plus icon is paired with a litera
   assertIncludes(source, "${icon(isManualTradeFormOpen ? 'minus' : 'book')} ${isManualTradeFormOpen ? 'Hide Manual Trade Form' : 'Add Manual Trade'}", 'The button renders the notebook icon and a plain "Add Manual Trade" label when closed.');
 });
 
-test('the manual "Sync cTrader" button is unaffected — this fix only touches background Auto Sync gating', () => {
+test('the manual "Sync cTrader" button is unaffected — this fix only removes sync status renders', () => {
   assertIncludes(source, 'async function syncCTrader(options = {}) {', 'The underlying sync function is untouched.');
   const fnStart = source.indexOf('async function syncCTrader(options = {}) {');
   const fnEnd = source.indexOf('\nfunction buildCTraderSyncRequestPath(');
   const fnBody = source.slice(fnStart, fnEnd);
   assert.equal(fnBody.includes('isTradeEditLocked'), false, 'syncCTrader() itself still has no lock check — a manual Sync click still runs and updates data; only background Auto Sync is gated by the edit lock.');
-  assertIncludes(fnBody, 'refreshCTraderConnectionCard();', 'Manual sync status updates only the cTrader card instead of rebuilding the full app.');
+  assert.equal(fnBody.includes('render();'), false, 'Temporary manual/background sync status changes should not rebuild the full app.');
+  assertIncludes(fnBody, 'persistTrades([...syncPlan.importedTrades, ...updatedExistingTrades.trades]);', 'Actual imported or updated trade data still persists through the normal save path.');
 });
