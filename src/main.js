@@ -3933,21 +3933,13 @@ function bindEvents() {
     render();
     document.querySelector('#searchInput').focus();
   });
-  document.querySelector('#autoSyncCTrader').addEventListener('change', changeCTraderAutoSyncSetting, { signal });
-  document.querySelector('#cTraderAccountSelect')?.addEventListener('change', changeCTraderAccountSelection, { signal });
-  document.querySelector('#refreshCTraderAccounts')?.addEventListener('click', () => loadCTraderAccounts({ force: true }));
-  document.querySelector('#connectCTrader')?.addEventListener('click', startCTraderOAuthFlow, { signal });
-  document.querySelector('#syncCTrader').addEventListener('click', () => syncCTrader({ source: 'manual' }));
-  document.querySelector('#deleteAllCTraderImports').addEventListener('click', deleteAllCTraderImports, { signal });
-  document.querySelector('#deleteAllScreenshots').addEventListener('click', deleteAllScreenshots, { signal });
-  document.querySelector('#exportTrades').addEventListener('click', exportTrades, { signal });
+  bindCTraderConnectionCardEvents(signal);
   // Only present in Trading Mode (see renderTodayKpiStrip) — optional
   // chaining so binding is a no-op in Dashboard Mode, same pattern as
   // #connectCTrader above.
   document.querySelector('#dailyExport')?.addEventListener('click', exportDailyTrades, { signal });
   document.querySelector('#storageWarnExport')?.addEventListener('click', () => { exportTrades(); dismissStorageWarning(); });
   document.querySelector('#storageWarnDismiss')?.addEventListener('click', dismissStorageWarning, { signal });
-  document.querySelector('#importTrades').addEventListener('change', importTrades, { signal });
   document.querySelectorAll('[data-setup-sort-key]').forEach((button) => {
     button.addEventListener('click', () => {
       setupAnalyticsSort = {
@@ -4750,6 +4742,30 @@ function renderCTraderConnectionCard() {
   `;
 }
 
+function bindCTraderConnectionCardEvents(signal) {
+  document.querySelector('#autoSyncCTrader')?.addEventListener('change', changeCTraderAutoSyncSetting, { signal });
+  document.querySelector('#cTraderAccountSelect')?.addEventListener('change', changeCTraderAccountSelection, { signal });
+  document.querySelector('#refreshCTraderAccounts')?.addEventListener('click', () => loadCTraderAccounts({ force: true }), { signal });
+  document.querySelector('#connectCTrader')?.addEventListener('click', startCTraderOAuthFlow, { signal });
+  document.querySelector('#syncCTrader')?.addEventListener('click', () => syncCTrader({ source: 'manual' }), { signal });
+  document.querySelector('#deleteAllCTraderImports')?.addEventListener('click', deleteAllCTraderImports, { signal });
+  document.querySelector('#deleteAllScreenshots')?.addEventListener('click', deleteAllScreenshots, { signal });
+  document.querySelector('#exportTrades')?.addEventListener('click', exportTrades, { signal });
+  document.querySelector('#importTrades')?.addEventListener('change', importTrades, { signal });
+}
+
+function refreshCTraderConnectionCard() {
+  const currentCard = document.querySelector('.ctrader-connection-card');
+  if (!currentCard) {
+    return;
+  }
+
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = renderCTraderConnectionCard().trim();
+  currentCard.replaceWith(wrapper.firstElementChild);
+  bindCTraderConnectionCardEvents(bindEventsController?.signal);
+}
+
 function describeCTraderConnectionStatus(status) {
   if (status.connected) {
     return `Connected to cTrader.${getSelectedCTraderAccountStatusLabel()}`;
@@ -4927,7 +4943,7 @@ async function loadCTraderAccounts(options = {}) {
   }
 
   isLoadingCTraderAccounts = true;
-  render();
+  refreshCTraderConnectionCard();
   try {
     const { response, body } = await fetchBackendJson(`${CTRADER_ENDPOINTS.accounts}?maxRows=1`);
     if (!response.ok) {
@@ -4944,7 +4960,7 @@ async function loadCTraderAccounts(options = {}) {
     return cTraderAccounts;
   } finally {
     isLoadingCTraderAccounts = false;
-    render();
+    refreshCTraderConnectionCard();
   }
 }
 
@@ -4981,7 +4997,7 @@ async function syncCTrader(options = {}) {
   isSyncingCTrader = true;
   const isAutoSync = options.source === 'auto';
   cTraderSyncStatus = { tone: 'pending', message: isAutoSync ? 'Auto Sync checking cTrader trades...' : 'Syncing cTrader trades...' };
-  render();
+  refreshCTraderConnectionCard();
 
   try {
     await loadCTraderAccounts();
@@ -5039,7 +5055,7 @@ async function syncCTrader(options = {}) {
     };
   } finally {
     isSyncingCTrader = false;
-    render();
+    refreshCTraderConnectionCard();
   }
 }
 
@@ -5126,7 +5142,7 @@ async function syncCTraderOnStartup() {
 
   if (!isCTraderAutoSyncEnabled) {
     cTraderSyncStatus = { tone: 'pending', message: 'Auto Sync is off.' };
-    render();
+    refreshCTraderConnectionCard();
     return;
   }
 
@@ -5136,7 +5152,7 @@ async function syncCTraderOnStartup() {
 
   isCheckingCTraderConnection = true;
   cTraderSyncStatus = { tone: 'pending', message: 'Checking cTrader connection for Auto Sync...' };
-  render();
+  refreshCTraderConnectionCard();
 
   try {
     await checkCTraderConnection();
@@ -5150,7 +5166,7 @@ async function syncCTraderOnStartup() {
     return;
   } finally {
     isCheckingCTraderConnection = false;
-    render();
+    refreshCTraderConnectionCard();
   }
 
   await syncCTrader({ source: 'auto' });
