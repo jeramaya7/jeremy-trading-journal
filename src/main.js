@@ -210,6 +210,7 @@ let dnaDoctorState = {
   dismissError: false,
   fullReportOpen: false
 };
+let currentDnaDoctorTrades = [];
 
 const FRIENDLY_ASSET_NAMES = {
   XAUUSD: 'Gold',
@@ -3504,6 +3505,7 @@ function render(options = {}) {
   // getActiveTrades() above).
   const activeTrades = getActiveTrades();
   const dnaResultsTrades = getDnaResultsTrades(dnaReferenceDate);
+  currentDnaDoctorTrades = dnaResultsTrades;
   const stats = getStats(dnaResultsTrades);
   const pnlReports = getPnlReports(dnaReferenceDate, activeTrades);
   const [dailyPnl, weeklyPnl, monthlyPnl, yearlyPnl] = pnlReports;
@@ -3838,6 +3840,7 @@ function bindEvents() {
   dnaDoctorState.fullReportOpen = event.currentTarget.open;
 }, { signal });
   document.querySelector('#runDnaDoctor')?.addEventListener('click', async () => {
+    const dnaDoctorTrades = currentDnaDoctorTrades;
     // Preserve existing report during re-scan — never flash empty content
     dnaDoctorState = { ...dnaDoctorState, status: 'loading', report: dnaDoctorState.report, error: null, dismissError: false };
     render();
@@ -3852,8 +3855,7 @@ function bindEvents() {
     }, 1500);
 
     try {
-      const dnaResultsTrades = getDnaResultsTrades(getDnaResultsReferenceDate());
-      const report = await runDnaDoctor(dnaResultsTrades);
+      const report = await runDnaDoctor(dnaDoctorTrades);
       clearInterval(stepInterval);
       dnaDoctorState = { ...dnaDoctorState, status: 'done', report, error: null, dismissError: false };
     } catch (err) {

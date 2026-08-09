@@ -162,6 +162,22 @@ test('DNA Doctor backend includes individual trades in the data sent to the mode
   assert.ok(serverSource.includes('JSON.stringify(payload.trades || [], null, 2)'), 'Individual trades should be passed through as JSON data.');
 });
 
+test('DNA Doctor scan uses the dashboard-filtered trade list', () => {
+  const clickStart = source.indexOf("document.querySelector('#runDnaDoctor')?.addEventListener('click', async () => {");
+  const clickEnd = source.indexOf("\n  document.querySelector('#dnaDoctorDismissError')", clickStart);
+  assert.notEqual(clickStart, -1, 'DNA Doctor click handler should exist.');
+  assert.notEqual(clickEnd, -1, 'DNA Doctor click handler should end before the dismiss handler.');
+  const clickHandler = source.slice(clickStart, clickEnd);
+
+  assert.ok(source.includes('let currentDnaDoctorTrades = [];'), 'The current dashboard-filtered Doctor trade list should be tracked.');
+  assert.ok(source.includes('currentDnaDoctorTrades = dnaResultsTrades;'), 'Render should store the same filtered trade list used by the dashboard.');
+  assert.ok(source.includes('renderDnaDoctor(dnaResultsTrades)'), 'The Doctor panel should be rendered from the dashboard-filtered trade list.');
+  assert.ok(clickHandler.includes('const dnaDoctorTrades = currentDnaDoctorTrades;'), 'The scan should capture the currently displayed dashboard-filtered trade list.');
+  assert.ok(clickHandler.includes('const report = await runDnaDoctor(dnaDoctorTrades);'), 'The scan should send that captured list to DNA Doctor.');
+  assert.equal(clickHandler.includes('getDnaResultsTrades('), false, 'The scan click handler should not recompute a separate timeframe filter.');
+  assert.equal(clickHandler.includes("'day'"), false, 'The Doctor data path should not hardcode today/day filtering.');
+});
+
 test('DNA Doctor backend includes risk and process metrics in the model data', () => {
   assert.ok(serverSource.includes('Protected Trades %: ${payload.protectedPercent != null ? Number(payload.protectedPercent).toFixed(1) + \'%\' : \'N/A\'}'), 'User prompt data should include protected trade percentage.');
   assert.ok(serverSource.includes('Biggest Risk $: ${payload.biggestRisk != null ? \'$\' + Number(payload.biggestRisk).toFixed(2) : \'N/A\'}'), 'User prompt data should include biggest risk dollars.');
