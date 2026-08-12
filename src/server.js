@@ -1559,6 +1559,7 @@ if (!apiKey) {
 - Do not use risk/reward, expectancy, win rate, or profit factor as substitutes for CE.
 - Low R does not automatically mean poor CE.
 - CE commentary must be based on the actual CE value and DNA's CE definition.
+- When Coaching Focus is Capital Efficiency (CE), the top Biggest Issue must identify the biggest problem affecting CE, such as maximum capital exposure, oversized risk, unrecovered drawdown, net profit, or exposure efficiency; do not choose low Average R unless it has a clear direct effect on CE.
 - When Coaching Focus is Capital Efficiency (CE), the Overall grade, biggest issue, recommendations, and goal should primarily reflect CE using this definition.`;
 
   const systemPrompt = `You are DNA Doctor, a professional trading performance analyst.

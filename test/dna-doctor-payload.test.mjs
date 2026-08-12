@@ -233,6 +233,7 @@ test('DNA Doctor prompt defines Capital Efficiency using the DNA formula and gua
   assert.ok(serverSource.includes('Do not use risk/reward, expectancy, win rate, or profit factor as substitutes for CE.'), 'The prompt should prevent substituting other performance metrics for CE.');
   assert.ok(serverSource.includes('Low R does not automatically mean poor CE.'), 'The prompt should state that low R is not automatically poor CE.');
   assert.ok(serverSource.includes("CE commentary must be based on the actual CE value and DNA's CE definition."), 'CE commentary should use the actual CE value and DNA definition.');
+  assert.ok(serverSource.includes('When Coaching Focus is Capital Efficiency (CE), the top Biggest Issue must identify the biggest problem affecting CE, such as maximum capital exposure, oversized risk, unrecovered drawdown, net profit, or exposure efficiency; do not choose low Average R unless it has a clear direct effect on CE.'), 'CE focus should prevent low Average R from becoming the Biggest Issue unless it directly affects CE.');
   assert.ok(serverSource.includes('When Coaching Focus is Capital Efficiency (CE), the Overall grade, biggest issue, recommendations, and goal should primarily reflect CE using this definition.'), 'CE focus should prioritize CE using the DNA definition.');
   assert.ok(serverSource.includes('${capitalEfficiencyInstruction}'), 'The CE instruction should be included in the user prompt sent to the model.');
 });
