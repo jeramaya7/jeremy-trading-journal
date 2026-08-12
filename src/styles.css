@@ -3426,6 +3426,7 @@ h2,
   align-items: center;
   display: flex;
   flex-shrink: 0;
+  gap: 0.75rem;
   justify-content: center;
   padding-left: clamp(1.5rem, 3vw, 3rem);
 }
@@ -3479,6 +3480,26 @@ h2,
   letter-spacing: 0.01em;
   padding: 0.65rem 1.4rem;
   transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+}
+
+.dna-doctor-focus-control {
+  color: var(--dna-muted);
+  display: grid;
+  flex: 0 0 12.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  gap: 0.3rem;
+  letter-spacing: 0.01em;
+}
+
+.dna-doctor-focus-control select {
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  color: var(--dna-navy);
+  font: inherit;
+  min-height: 2.5rem;
+  padding: 0.55rem 0.75rem;
 }
 
 .dna-doctor-scan-btn:hover:not(:disabled) {
@@ -3972,6 +3993,8 @@ h2,
   .dna-doctor-columns { grid-template-columns: 1fr; }
   .dna-doctor-sections-grid { grid-template-columns: 1fr; }
   .dna-doctor-header { flex-direction: column; }
+  .dna-doctor-brand-right { align-items: stretch; flex-direction: column; width: 100%; }
+  .dna-doctor-focus-control { flex-basis: auto; width: 100%; }
   .dna-doctor-scan-btn { align-self: stretch; justify-content: center; }
 }
 

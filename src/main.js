@@ -211,6 +211,7 @@ let dnaDoctorState = {
   fullReportOpen: false
 };
 let currentDnaDoctorTrades = [];
+let selectedDnaDoctorCoachingFocus = 'Overall';
 
 const FRIENDLY_ASSET_NAMES = {
   XAUUSD: 'Gold',
@@ -1505,6 +1506,15 @@ const DNA_DOCTOR_PROVIDERS = {
   claude: callClaudeDnaDoctor,
 };
 
+const DNA_DOCTOR_COACHING_FOCUS_OPTIONS = [
+  'Overall',
+  'Capital Efficiency (CE)',
+  'Risk / Position Sizing',
+  'Trade Management',
+  'Psychology / Discipline',
+];
+const DEFAULT_DNA_DOCTOR_COACHING_FOCUS = 'Overall';
+
 const DNA_DOCTOR_TRADE_FIELDS = [
   'date',
   'openTime',
@@ -1537,11 +1547,11 @@ const DNA_DOCTOR_TRADE_FIELDS = [
   'emotion',
 ];
 
-async function runDnaDoctor(tradeList = trades) {
+async function runDnaDoctor(tradeList = trades, coachingFocus = DEFAULT_DNA_DOCTOR_COACHING_FOCUS) {
   const provider = 'claude'; // future: load from settings
   const fn = DNA_DOCTOR_PROVIDERS[provider];
   if (!fn) throw new Error(`Unknown DNA Doctor provider: ${provider}`);
-  return fn(buildDnaScanPayload(tradeList));
+  return fn(buildDnaScanPayload(tradeList, coachingFocus));
 }
 
 function buildDnaDoctorTradePayload(trade) {
@@ -1555,13 +1565,18 @@ function buildDnaDoctorTradePayload(trade) {
   return payload;
 }
 
-function buildDnaScanPayload(tradeList) {
+function getDnaDoctorCoachingFocus(value) {
+  return DNA_DOCTOR_COACHING_FOCUS_OPTIONS.includes(value) ? value : DEFAULT_DNA_DOCTOR_COACHING_FOCUS;
+}
+
+function buildDnaScanPayload(tradeList, coachingFocus = DEFAULT_DNA_DOCTOR_COACHING_FOCUS) {
   const stats = getStats(tradeList);
   const assetRows = getAssetAnalytics(tradeList);
   const setupRows = getSetupAnalytics(tradeList);
   const sessionRows = getTimeOfDayAnalytics(tradeList);
 
   return {
+    coachingFocus: getDnaDoctorCoachingFocus(coachingFocus),
     tradeCount: stats.tradeCount,
     winRate: stats.winRate,
     totalPnl: stats.totalPnl,
@@ -1701,6 +1716,12 @@ function renderDnaDoctor(tradeList = trades) {
 
         <!-- Right: scan button -->
         <div class="dna-doctor-brand-right">
+          <label class="dna-doctor-focus-control" for="dnaDoctorCoachingFocus">
+            <span>Coaching Focus</span>
+            <select id="dnaDoctorCoachingFocus" ${isLoading ? 'disabled' : ''}>
+              ${DNA_DOCTOR_COACHING_FOCUS_OPTIONS.map((option) => `<option value="${escapeHtml(option)}"${option === selectedDnaDoctorCoachingFocus ? ' selected' : ''}>${escapeHtml(option)}</option>`).join('')}
+            </select>
+          </label>
           <button class="dna-doctor-scan-btn" type="button" id="runDnaDoctor" ${isLoading ? 'disabled' : ''}>
             ${isLoading ? '<span class="dna-doctor-btn-spinner"></span>' : icon('trend')}
             ${isLoading ? '🧬 Scanning...' : 'Run DNA Scan'}
@@ -3888,6 +3909,7 @@ function bindEvents() {
 }, { signal });
   document.querySelector('#runDnaDoctor')?.addEventListener('click', async () => {
     const dnaDoctorTrades = currentDnaDoctorTrades;
+    const coachingFocus = selectedDnaDoctorCoachingFocus;
     // Preserve existing report during re-scan — never flash empty content
     dnaDoctorState = { ...dnaDoctorState, status: 'loading', report: dnaDoctorState.report, error: null, dismissError: false };
     render();
@@ -3902,7 +3924,7 @@ function bindEvents() {
     }, 1500);
 
     try {
-      const report = await runDnaDoctor(dnaDoctorTrades);
+      const report = await runDnaDoctor(dnaDoctorTrades, coachingFocus);
       clearInterval(stepInterval);
       dnaDoctorState = { ...dnaDoctorState, status: 'done', report, error: null, dismissError: false };
     } catch (err) {
@@ -3916,6 +3938,9 @@ function bindEvents() {
     dnaDoctorState = { ...dnaDoctorState, dismissError: true };
     document.querySelector('#dnaDoctorErrorBanner')?.remove();
   });
+  document.querySelector('#dnaDoctorCoachingFocus')?.addEventListener('change', (event) => {
+    selectedDnaDoctorCoachingFocus = getDnaDoctorCoachingFocus(event.target.value);
+  }, { signal });
 
   document.querySelector('[data-save-all-trades]')?.addEventListener('click', saveAllEditedTrades, { signal });
 

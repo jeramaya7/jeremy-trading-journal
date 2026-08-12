@@ -1544,6 +1544,13 @@ if (!apiKey) {
     return;
   }
 
+  const coachingFocus = typeof payload.coachingFocus === 'string' && payload.coachingFocus.trim()
+    ? payload.coachingFocus.trim()
+    : 'Overall';
+  const coachingFocusInstruction = coachingFocus === 'Overall'
+    ? 'Coaching Focus: Overall. Use the current balanced DNA Doctor behavior and weigh all areas normally.'
+    : `Coaching Focus: ${coachingFocus}. Still consider all provided data, but prioritize this area when determining the Overall grade, biggest weakness or issue, recommendations, and goal.`;
+
   const systemPrompt = `You are DNA Doctor, a professional trading performance analyst.
 Produce a concise, honest, data-driven trading diagnosis based ONLY on the statistics provided.
 Never invent data. Never hallucinate. If data is missing or fewer than 10 trades exist, say so explicitly.
@@ -1623,6 +1630,8 @@ Respond ONLY with valid JSON matching this exact schema — no markdown, no expl
 }`;
 
   const userPrompt = `Here are my trading statistics. Produce a DNA Doctor Report.
+
+${coachingFocusInstruction}
 
 Total Trades: ${payload.tradeCount}
 Win Rate: ${payload.winRate != null ? Number(payload.winRate).toFixed(1) + '%' : 'N/A'}

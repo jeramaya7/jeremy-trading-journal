@@ -47,10 +47,13 @@ function extractConst(name) {
   return source.slice(markerIndex, semicolonIndex + 1);
 }
 
-function buildPayload(trades) {
+function buildPayload(trades, coachingFocus) {
   const code = [
+    extractConst('DNA_DOCTOR_COACHING_FOCUS_OPTIONS'),
+    "const DEFAULT_DNA_DOCTOR_COACHING_FOCUS = 'Overall';",
     extractConst('DNA_DOCTOR_TRADE_FIELDS'),
     extractFunction('buildDnaDoctorTradePayload'),
+    extractFunction('getDnaDoctorCoachingFocus'),
     extractFunction('buildDnaScanPayload'),
     'module.exports = { buildDnaScanPayload };',
   ].join('\n\n');
@@ -79,7 +82,7 @@ function buildPayload(trades) {
   };
   vm.createContext(context);
   vm.runInContext(code, context, { filename: 'main.js (extracted DNA Doctor payload)' });
-  return context.module.exports.buildDnaScanPayload(trades);
+  return context.module.exports.buildDnaScanPayload(trades, coachingFocus);
 }
 
 test('DNA Doctor payload includes selected trades without screenshots or invented fields', () => {
@@ -121,6 +124,7 @@ test('DNA Doctor payload includes selected trades without screenshots or invente
   ]);
 
   assert.equal(payload.tradeCount, 1);
+  assert.equal(payload.coachingFocus, 'Overall');
   assert.equal(payload.protectedPercent, 75);
   assert.equal(payload.biggestRisk, 15);
   assert.equal(payload.capitalEfficiency, 1.25);
@@ -159,6 +163,31 @@ test('DNA Doctor payload includes selected trades without screenshots or invente
   assert.equal('lossReason' in payload.trades[0], false);
 });
 
+test('DNA Doctor UI exposes Coaching Focus and sends the selected focus', () => {
+  assert.ok(source.includes('const DNA_DOCTOR_COACHING_FOCUS_OPTIONS = ['), 'Coaching Focus options should be centralized.');
+  for (const option of ['Overall', 'Capital Efficiency (CE)', 'Risk / Position Sizing', 'Trade Management', 'Psychology / Discipline']) {
+    assert.ok(source.includes(`'${option}',`), `Coaching Focus should include ${option}.`);
+  }
+  assert.ok(source.includes("const DEFAULT_DNA_DOCTOR_COACHING_FOCUS = 'Overall';"), 'Overall should be the default Coaching Focus.');
+  assert.ok(source.includes('let selectedDnaDoctorCoachingFocus = \'Overall\';'), 'The selected Coaching Focus should start as Overall.');
+  assert.ok(source.includes('<span>Coaching Focus</span>'), 'The Doctor UI should label the Coaching Focus dropdown.');
+  assert.ok(source.includes('<select id="dnaDoctorCoachingFocus" ${isLoading ? \'disabled\' : \'\'}>'), 'The dropdown should render immediately before the scan button and disable while loading.');
+  assert.ok(source.indexOf('id="dnaDoctorCoachingFocus"') < source.indexOf('id="runDnaDoctor"'), 'The Coaching Focus dropdown should appear before Run DNA Scan.');
+  assert.ok(source.includes('selectedDnaDoctorCoachingFocus = getDnaDoctorCoachingFocus(event.target.value);'), 'Changing the dropdown should update the selected focus.');
+  assert.ok(styles.includes('.dna-doctor-focus-control'), 'The dropdown should have compact Doctor-scoped styling.');
+});
+
+test('DNA Doctor payload carries Coaching Focus without dropping existing data', () => {
+  const payload = buildPayload([{ id: 'trade-1', date: '2026-08-08', symbol: 'XAUUSD' }], 'Risk / Position Sizing');
+
+  assert.equal(payload.coachingFocus, 'Risk / Position Sizing');
+  assert.equal(payload.tradeCount, 1);
+  assert.equal(Array.isArray(payload.trades), true);
+
+  const fallbackPayload = buildPayload([], 'Unsupported Focus');
+  assert.equal(fallbackPayload.coachingFocus, 'Overall');
+});
+
 test('DNA Doctor backend includes individual trades in the data sent to the model', () => {
   assert.ok(serverSource.includes('Individual Trades:'), 'User prompt data should include an Individual Trades section.');
   assert.ok(serverSource.includes('JSON.stringify(payload.trades || [], null, 2)'), 'Individual trades should be passed through as JSON data.');
@@ -175,7 +204,8 @@ test('DNA Doctor scan uses the dashboard-filtered trade list', () => {
   assert.ok(source.includes('currentDnaDoctorTrades = dnaResultsTrades;'), 'Render should store the same filtered trade list used by the dashboard.');
   assert.ok(source.includes('renderDnaDoctor(dnaResultsTrades)'), 'The Doctor panel should be rendered from the dashboard-filtered trade list.');
   assert.ok(clickHandler.includes('const dnaDoctorTrades = currentDnaDoctorTrades;'), 'The scan should capture the currently displayed dashboard-filtered trade list.');
-  assert.ok(clickHandler.includes('const report = await runDnaDoctor(dnaDoctorTrades);'), 'The scan should send that captured list to DNA Doctor.');
+  assert.ok(clickHandler.includes('const coachingFocus = selectedDnaDoctorCoachingFocus;'), 'The scan should capture the currently selected Coaching Focus.');
+  assert.ok(clickHandler.includes('const report = await runDnaDoctor(dnaDoctorTrades, coachingFocus);'), 'The scan should send the captured trade list and focus to DNA Doctor.');
   assert.equal(clickHandler.includes('getDnaResultsTrades('), false, 'The scan click handler should not recompute a separate timeframe filter.');
   assert.equal(clickHandler.includes("'day'"), false, 'The Doctor data path should not hardcode today/day filtering.');
 });
@@ -184,6 +214,13 @@ test('DNA Doctor backend includes risk and process metrics in the model data', (
   assert.ok(serverSource.includes('Protected Trades %: ${payload.protectedPercent != null ? Number(payload.protectedPercent).toFixed(1) + \'%\' : \'N/A\'}'), 'User prompt data should include protected trade percentage.');
   assert.ok(serverSource.includes('Biggest Risk $: ${payload.biggestRisk != null ? \'$\' + Number(payload.biggestRisk).toFixed(2) : \'N/A\'}'), 'User prompt data should include biggest risk dollars.');
   assert.ok(serverSource.includes('Capital Efficiency: ${payload.capitalEfficiency != null ? Number(payload.capitalEfficiency).toFixed(2) + \'x\' : \'N/A\'}'), 'User prompt data should include capital efficiency.');
+});
+
+test('DNA Doctor backend includes Coaching Focus instructions in the prompt data', () => {
+  assert.ok(serverSource.includes('const coachingFocus = typeof payload.coachingFocus === \'string\' && payload.coachingFocus.trim()'), 'Backend should read Coaching Focus from the payload.');
+  assert.ok(serverSource.includes('Coaching Focus: Overall. Use the current balanced DNA Doctor behavior and weigh all areas normally.'), 'Overall should preserve balanced Doctor behavior.');
+  assert.ok(serverSource.includes('Still consider all provided data, but prioritize this area when determining the Overall grade, biggest weakness or issue, recommendations, and goal.'), 'A selected focus should prioritize grade, issue, recommendations, and goal while keeping all data.');
+  assert.ok(serverSource.includes('${coachingFocusInstruction}'), 'The focus instruction should be included in the user prompt sent to the model.');
 });
 
 test('DNA Doctor report renders Best Trade and Worst Trade sections', () => {
