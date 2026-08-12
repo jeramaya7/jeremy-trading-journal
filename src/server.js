@@ -15,7 +15,7 @@ const ROOT_DIR = join(fileURLToPath(new URL('..', import.meta.url)));
 const DEFAULT_RECENT_DEALS_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
 const DEFAULT_DEALS_MAX_ROWS = 100;
 const RAW_DEALS_FILE_NAME = 'ctrader-raw-deals.json';
-const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'timeframe', 'protected', 'tradeManagement', 'grade', 'closeReason', 'lossReason', 'tags', 'notes', 'adjustedStopLoss', 'adjustedTakeProfit', 'takeProfit', 'stopLoss', 'outcomeOverride'];
+const JOURNAL_ANNOTATION_FIELDS = ['setup', 'mindset', 'state', 'timeframe', 'protected', 'tradeManagement', 'grade', 'closeReason', 'lossReason', 'tags', 'notes', 'adjustedStopLoss', 'adjustedTakeProfit', 'takeProfit', 'stopLoss', 'outcomeOverride'];
 const CTRADER_DEBUG_POSITION_ID = '543914821';
 const CTRADER_AUTHORIZE_URL = 'https://id.ctrader.com/my/settings/openapi/grantingaccess/';
 const CTRADER_TOKEN_URL = 'https://openapi.ctrader.com/apps/token';
@@ -1581,7 +1581,7 @@ Communication Style
 - If the trade data is not enough to support a clear Best Trade or Worst Trade, say that instead of inventing one.
 - If protection data is missing or unavailable, say "no documented protection data".
 - Do not treat missing protected fields as confirmed 0% protected behavior.
-- Use notes, emotion, tradeManagement, closeReason, and lossReason only when those fields are present to inform behavior and discipline analysis.
+- Use notes, mindset, emotion, tradeManagement, closeReason, and lossReason only when those fields are present to inform behavior and discipline analysis.
 - Psychology Review must use only supported evidence from the trade data. If the data is insufficient, say so clearly.
 - Do not infer focus, emotion, discipline, or mindset from session performance alone.
 - Follow this report structure: Overall Grade, Biggest Strength, Biggest Weakness, Best Trade, Worst Trade, Risk Review, Psychology Review, Three Things Done Well, Three Improvements, Goal for Tomorrow, Quote of the Day.

@@ -79,7 +79,7 @@ const AUTO_SYNC_INTERVAL_MS = 12 * 1000;
 
 // Fields the backend persists to Supabase for cross-device annotation sync.
 // Must match JOURNAL_ANNOTATION_FIELDS in src/server.js.
-const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'timeframe', 'protected', 'tradeManagement', 'grade', 'closeReason', 'lossReason', 'tags', 'notes', 'adjustedStopLoss', 'adjustedTakeProfit', 'takeProfit', 'stopLoss', 'outcomeOverride'];
+const JOURNAL_ANNOTATION_FIELDS = ['setup', 'mindset', 'state', 'timeframe', 'protected', 'tradeManagement', 'grade', 'closeReason', 'lossReason', 'tags', 'notes', 'adjustedStopLoss', 'adjustedTakeProfit', 'takeProfit', 'stopLoss', 'outcomeOverride'];
 
 const starterTrades = [
   {
@@ -231,6 +231,15 @@ const PLAY_BOOK_SETUP_OPTIONS = [
   'Scalp',
 ];
 const CUSTOM_SETUP_OPTION = 'Custom...';
+const MINDSET_OPTIONS = [
+  'Calm / Confident',
+  'Focused / Disciplined',
+  'Patient',
+  'Uncertain / Anxious',
+  'Frustrated / FOMO / Revenge',
+];
+const DEFAULT_MINDSET = MINDSET_OPTIONS[0];
+const CUSTOM_MINDSET_OPTION = 'Custom...';
 const LOSS_REASON_OPTIONS = [
   'Normal Loss',
   'Stop Too Tight',
@@ -1504,6 +1513,7 @@ const DNA_DOCTOR_TRADE_FIELDS = [
   'brokerSymbol',
   'direction',
   'setup',
+  'mindset',
   'state',
   'timeframe',
   'entry',
@@ -3175,6 +3185,24 @@ function renderPlayBookSetupSelect(trade) {
   `;
 }
 
+function isFixedMindset(mindset) {
+  return MINDSET_OPTIONS.includes(String(mindset || '').trim());
+}
+
+function renderMindsetSelect(trade) {
+  const currentMindset = String(trade.mindset || '').trim();
+  const selectedMindset = currentMindset || DEFAULT_MINDSET;
+  const isCustomMindset = selectedMindset && !isFixedMindset(selectedMindset);
+  const selectedChoice = isCustomMindset ? CUSTOM_MINDSET_OPTION : selectedMindset;
+  return `
+    <select name="mindsetChoice" aria-label="Mindset">
+      ${MINDSET_OPTIONS.map((option) => renderSelectOption(option, selectedChoice)).join('')}
+      ${renderSelectOption(CUSTOM_MINDSET_OPTION, selectedChoice)}
+    </select>
+    <input name="mindsetCustom" data-custom-mindset placeholder="Custom mindset" value="${escapeHtml(isCustomMindset ? selectedMindset : '')}"${isCustomMindset ? '' : ' hidden'} />
+  `;
+}
+
 function renderLossReasonSelect(trade) {
   const currentLossReason = String(trade.lossReason || '').trim();
   const legacyLossReasonOption = currentLossReason && !LOSS_REASON_OPTIONS.includes(currentLossReason)
@@ -3281,10 +3309,26 @@ function getSetupFormValue(formData) {
   return normalizeSetupName(String(formData.get('setup') || '').trim() || setupChoice) || 'Uncategorized setup';
 }
 
+function getMindsetFormValue(formData) {
+  const mindsetChoice = String(formData.get('mindsetChoice') || '').trim();
+  if (mindsetChoice === CUSTOM_MINDSET_OPTION) {
+    return String(formData.get('mindsetCustom') || '').trim() || DEFAULT_MINDSET;
+  }
+
+  return String(formData.get('mindset') || '').trim() || mindsetChoice || DEFAULT_MINDSET;
+}
+
 function toggleCustomSetupInput(select) {
   const customInput = select.closest('form')?.querySelector('[data-custom-setup]');
   if (customInput) {
     customInput.hidden = select.value !== CUSTOM_SETUP_OPTION;
+  }
+}
+
+function toggleCustomMindsetInput(select) {
+  const customInput = select.closest('form')?.querySelector('[data-custom-mindset]');
+  if (customInput) {
+    customInput.hidden = select.value !== CUSTOM_MINDSET_OPTION;
   }
 }
 
@@ -3319,6 +3363,7 @@ function editTradeForm(trade) {
             ${field('State', renderMarketStateSelect(trade))}
             ${field('Setup', renderPlayBookSetupSelect(trade))}
             ${field('Timeframe', renderTimeframeSelect(trade))}
+            ${field('Mindset', renderMindsetSelect(trade))}
           </div>
         </div>
         <div class="edit-form-section">
@@ -3416,6 +3461,7 @@ function editTradeFormQuickEdit(trade) {
           </div>
           <div class="quick-edit-row">
             ${field('Timeframe', renderTimeframeSelect(trade))}
+            ${field('Mindset', renderMindsetSelect(trade))}
           </div>
         </div>
         <div class="edit-form-section quick-edit-section">
@@ -3738,6 +3784,7 @@ function renderManualTradeForm(today) {
         ${field('Symbol', '<input name="symbol" placeholder="SPY" required />')}
         ${field('Direction', '<select name="direction"><option>Long</option><option>Short</option></select>')}
         ${field('Setup', '<input name="setup" placeholder="Breakout, pullback, VWAP..." />')}
+        ${field('Mindset', renderMindsetSelect({ mindset: DEFAULT_MINDSET }))}
         ${field('Timeframe', renderTimeframeSelect({ timeframe: '1m' }))}
         ${field('Entry', '<input name="entry" type="number" min="0" step="0.01" required />')}
         ${field('Exit', '<input name="exit" type="number" min="0" step="0.01" required />')}
@@ -3923,6 +3970,7 @@ function bindEvents() {
   if (tradeForm) {
     tradeForm.addEventListener('submit', submitTrade, { signal });
     tradeForm.addEventListener('input', updateRiskPercentField, { signal });
+    tradeForm.querySelector('select[name="mindsetChoice"]')?.addEventListener('change', (event) => toggleCustomMindsetInput(event.currentTarget), { signal });
     screenshotInput?.addEventListener('change', changeScreenshot, { signal });
   }
 
@@ -4052,6 +4100,11 @@ function bindTradeCardEvents(tradeCardElement) {
   tradeCardElement.querySelectorAll('select[name="setupChoice"]').forEach((select) => {
     select.addEventListener('change', () => {
       toggleCustomSetupInput(select);
+    });
+  });
+  tradeCardElement.querySelectorAll('select[name="mindsetChoice"]').forEach((select) => {
+    select.addEventListener('change', () => {
+      toggleCustomMindsetInput(select);
     });
   });
 
@@ -4315,6 +4368,7 @@ async function submitTrade(event) {
     symbol: String(formData.get('symbol')).trim().toUpperCase(),
     direction: formData.get('direction'),
     setup: normalizeSetupName(String(formData.get('setup')).trim()) || 'Uncategorized setup',
+    mindset: getMindsetFormValue(formData),
     // Read from the Add Trade form's own Timeframe dropdown (rendered via
     // the same shared renderTimeframeSelect() used everywhere else, and
     // pre-selected to 1m — see renderManualTradeForm()), so the saved value
@@ -4373,6 +4427,7 @@ async function buildTradeEditUpdate(form) {
     : toOptionalNumber(formData.get('adjustedStopLoss'));
   const journalingUpdates = {
     setup: getSetupFormValue(formData),
+    mindset: getMindsetFormValue(formData),
     lossReason: String(formData.get('lossReason')).trim(),
     closeReason,
     state: String(formData.get('state')).trim(),
