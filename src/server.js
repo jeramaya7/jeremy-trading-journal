@@ -1550,6 +1550,16 @@ if (!apiKey) {
   const coachingFocusInstruction = coachingFocus === 'Overall'
     ? 'Coaching Focus: Overall. Use the current balanced DNA Doctor behavior and weigh all areas normally.'
     : `Coaching Focus: ${coachingFocus}. Still consider all provided data, but prioritize this area when determining the Overall grade, biggest weakness or issue, recommendations, and goal.`;
+  const capitalEfficiencyInstruction = `Capital Efficiency (CE) Definition
+- In DNA, CE = Net Profit ÷ Maximum Capital Exposure.
+- Capital Exposure = max(0, -RunningPnLBeforeThisTrade) + RiskDollars(trade).
+- Maximum Capital Exposure = the highest exposure reached during the selected period.
+- CE measures how much net profit was produced for each dollar of maximum capital actually exposed during the period.
+- Do not judge CE from Average R alone.
+- Do not use risk/reward, expectancy, win rate, or profit factor as substitutes for CE.
+- Low R does not automatically mean poor CE.
+- CE commentary must be based on the actual CE value and DNA's CE definition.
+- When Coaching Focus is Capital Efficiency (CE), the Overall grade, biggest issue, recommendations, and goal should primarily reflect CE using this definition.`;
 
   const systemPrompt = `You are DNA Doctor, a professional trading performance analyst.
 Produce a concise, honest, data-driven trading diagnosis based ONLY on the statistics provided.
@@ -1632,6 +1642,8 @@ Respond ONLY with valid JSON matching this exact schema — no markdown, no expl
   const userPrompt = `Here are my trading statistics. Produce a DNA Doctor Report.
 
 ${coachingFocusInstruction}
+
+${capitalEfficiencyInstruction}
 
 Total Trades: ${payload.tradeCount}
 Win Rate: ${payload.winRate != null ? Number(payload.winRate).toFixed(1) + '%' : 'N/A'}

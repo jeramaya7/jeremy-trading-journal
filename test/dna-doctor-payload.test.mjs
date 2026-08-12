@@ -223,6 +223,20 @@ test('DNA Doctor backend includes Coaching Focus instructions in the prompt data
   assert.ok(serverSource.includes('${coachingFocusInstruction}'), 'The focus instruction should be included in the user prompt sent to the model.');
 });
 
+test('DNA Doctor prompt defines Capital Efficiency using the DNA formula and guardrails', () => {
+  assert.ok(serverSource.includes('Capital Efficiency (CE) Definition'), 'The prompt should include a Capital Efficiency definition section.');
+  assert.ok(serverSource.includes('CE = Net Profit ÷ Maximum Capital Exposure.'), 'CE should be defined as net profit divided by maximum capital exposure.');
+  assert.ok(serverSource.includes('Capital Exposure = max(0, -RunningPnLBeforeThisTrade) + RiskDollars(trade).'), 'Capital Exposure should use the DNA running drawdown plus trade risk formula.');
+  assert.ok(serverSource.includes('Maximum Capital Exposure = the highest exposure reached during the selected period.'), 'Maximum Capital Exposure should be defined as the selected period peak exposure.');
+  assert.ok(serverSource.includes('CE measures how much net profit was produced for each dollar of maximum capital actually exposed during the period.'), 'The prompt should explain what CE measures.');
+  assert.ok(serverSource.includes('Do not judge CE from Average R alone.'), 'The prompt should prevent judging CE from Average R alone.');
+  assert.ok(serverSource.includes('Do not use risk/reward, expectancy, win rate, or profit factor as substitutes for CE.'), 'The prompt should prevent substituting other performance metrics for CE.');
+  assert.ok(serverSource.includes('Low R does not automatically mean poor CE.'), 'The prompt should state that low R is not automatically poor CE.');
+  assert.ok(serverSource.includes("CE commentary must be based on the actual CE value and DNA's CE definition."), 'CE commentary should use the actual CE value and DNA definition.');
+  assert.ok(serverSource.includes('When Coaching Focus is Capital Efficiency (CE), the Overall grade, biggest issue, recommendations, and goal should primarily reflect CE using this definition.'), 'CE focus should prioritize CE using the DNA definition.');
+  assert.ok(serverSource.includes('${capitalEfficiencyInstruction}'), 'The CE instruction should be included in the user prompt sent to the model.');
+});
+
 test('DNA Doctor report renders Best Trade and Worst Trade sections', () => {
   assert.ok(source.includes('<span class="dna-doctor-section-icon">✅</span><h4>Best Trade</h4>'), 'Report should render a Best Trade section.');
   assert.ok(source.includes('<p>${escapeHtml(report.bestTrade || \'\')}</p>'), 'Best Trade should render from report.bestTrade.');
