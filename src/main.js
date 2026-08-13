@@ -278,13 +278,16 @@ const GRADE_OPTIONS = [
   'F',
 ];
 const TRADE_MANAGEMENT_OPTIONS = [
-  'Set & Forget',
+  'Set & Let',
   'Trail Stop',
   'Break Even',
   'Stop Loss',
   'Manual Exit',
   'Other',
 ];
+const LEGACY_TRADE_MANAGEMENT_MAP = {
+  'Set & Forget': 'Set & Let',
+};
 // Protected is fully derived from Trade Management (Smart Protected) — this
 // map is the single source of truth for that derivation, used both to
 // render the read-only Protected value and to update it live when Trade
@@ -296,14 +299,20 @@ const TRADE_MANAGEMENT_OPTIONS = [
 const TRADE_MANAGEMENT_PROTECTED_MAP = {
   'Trail Stop': 'Yes',
   'Break Even': 'Yes',
+  'Set & Let': 'No',
   'Set & Forget': 'No',
   'Stop Loss': 'No',
   'Manual Exit': 'No',
   'Other': 'No',
 };
 
+function normalizeTradeManagement(tradeManagement) {
+  const value = String(tradeManagement || '').trim();
+  return LEGACY_TRADE_MANAGEMENT_MAP[value] || value;
+}
+
 function getSmartProtectedValue(tradeManagement) {
-  return TRADE_MANAGEMENT_PROTECTED_MAP[String(tradeManagement || '').trim()] || 'No';
+  return TRADE_MANAGEMENT_PROTECTED_MAP[normalizeTradeManagement(tradeManagement)] || 'No';
 }
 
 const TRADE_MANAGEMENT_CLOSE_REASON_MAP = {
@@ -318,7 +327,7 @@ const LEGACY_SMART_CLOSE_REASON_MAP = {
 };
 
 function getSmartCloseReasonValue(tradeManagement) {
-  return TRADE_MANAGEMENT_CLOSE_REASON_MAP[String(tradeManagement || '').trim()] || '';
+  return TRADE_MANAGEMENT_CLOSE_REASON_MAP[normalizeTradeManagement(tradeManagement)] || '';
 }
 
 function isSmartCloseReasonValue(closeReason, tradeManagement) {
@@ -3123,7 +3132,7 @@ function tradeCard(trade) {
             tradeOutcomeLabel,
             trade.state ? normalizeMarketState(trade.state) : '',
             trade.timeframe,
-            trade.tradeManagement,
+            normalizeTradeManagement(trade.tradeManagement),
             trade.grade,
             trade.closeReason,
             trade.lossReason,
@@ -3312,7 +3321,7 @@ function renderOutcomeOverrideSelect(trade) {
 }
 
 function renderTradeManagementSelect(trade) {
-  const current = String(trade.tradeManagement || '').trim();
+  const current = normalizeTradeManagement(trade.tradeManagement);
   return `
     <select name="tradeManagement" aria-label="Trade Management">
       <option value="">None</option>

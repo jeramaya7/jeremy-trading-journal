@@ -64,11 +64,16 @@ function extractConst(name) {
 function loadProtectedModule() {
   const code = [
     extractConst('TRADE_PROTECTED_OPTIONS'),
+    extractConst('TRADE_MANAGEMENT_OPTIONS'),
+    extractConst('LEGACY_TRADE_MANAGEMENT_MAP'),
     extractConst('TRADE_MANAGEMENT_PROTECTED_MAP'),
     extractFunction('escapeHtml'),
+    extractFunction('renderSelectOption'),
+    extractFunction('normalizeTradeManagement'),
     extractFunction('getSmartProtectedValue'),
     extractFunction('renderProtectedDisplay'),
-    'module.exports = { TRADE_PROTECTED_OPTIONS, TRADE_MANAGEMENT_PROTECTED_MAP, getSmartProtectedValue, renderProtectedDisplay };',
+    extractFunction('renderTradeManagementSelect'),
+    'module.exports = { TRADE_PROTECTED_OPTIONS, TRADE_MANAGEMENT_OPTIONS, TRADE_MANAGEMENT_PROTECTED_MAP, normalizeTradeManagement, getSmartProtectedValue, renderProtectedDisplay, renderTradeManagementSelect };',
   ].join('\n\n');
 
   const context = { module: { exports: {} } };
@@ -91,9 +96,10 @@ test('getSmartProtectedValue maps every Trade Management option to the requested
   const { getSmartProtectedValue } = loadProtectedModule();
 
   const expected = {
+    'Set & Let': 'No',
+    'Set & Forget': 'No',
     'Trail Stop': 'Yes',
     'Break Even': 'Yes', // "Moved to Breakeven" in the request, existing option name kept
-    'Set & Forget': 'No',
     'Stop Loss': 'No',
     'Manual Exit': 'No',
     'Other': 'No',
@@ -102,6 +108,18 @@ test('getSmartProtectedValue maps every Trade Management option to the requested
   for (const [tradeManagement, protectedValue] of Object.entries(expected)) {
     assert.equal(getSmartProtectedValue(tradeManagement), protectedValue, `${tradeManagement} should map to Protected = ${protectedValue}.`);
   }
+});
+
+test('Set & Forget is preserved as a legacy value but displays as Set & Let', () => {
+  const { TRADE_MANAGEMENT_OPTIONS, normalizeTradeManagement, renderTradeManagementSelect } = loadProtectedModule();
+
+  assert.deepEqual(Array.from(TRADE_MANAGEMENT_OPTIONS), ['Set & Let', 'Trail Stop', 'Break Even', 'Stop Loss', 'Manual Exit', 'Other']);
+  assert.equal(normalizeTradeManagement('Set & Forget'), 'Set & Let');
+  assert.equal(normalizeTradeManagement('Set & Let'), 'Set & Let');
+
+  const markup = renderTradeManagementSelect({ tradeManagement: 'Set & Forget' });
+  assertIncludes(markup, '<option value="Set &amp; Let" selected>Set &amp; Let</option>', 'Legacy Set & Forget trades should reopen with Set & Let selected.');
+  assert.equal(markup.includes('<option value="Set &amp; Forget"'), false, 'Set & Forget should no longer be a visible Trade Management option.');
 });
 
 test('getSmartProtectedValue defaults to No for blank/None or any unrecognized value', () => {
@@ -127,8 +145,11 @@ test('renderProtectedDisplay renders a read-only input (not a select) so Protect
   assertIncludes(markupTrailStop, 'value="Yes"', 'Trail Stop should calculate Protected = Yes.');
   assert.equal(markupTrailStop.includes('<select'), false, 'Protected should no longer render as a <select>.');
 
+  const markupSetLet = renderProtectedDisplay({ tradeManagement: 'Set & Let' });
+  assertIncludes(markupSetLet, 'value="No"', 'Set & Let should calculate Protected = No.');
+
   const markupSetForget = renderProtectedDisplay({ tradeManagement: 'Set & Forget' });
-  assertIncludes(markupSetForget, 'value="No"', 'Set & Forget should calculate Protected = No.');
+  assertIncludes(markupSetForget, 'value="No"', 'Legacy Set & Forget should calculate Protected = No.');
 
   // A trade with no Trade Management chosen at all (blank/undefined) must
   // still calculate a value (No), never render blank or throw.

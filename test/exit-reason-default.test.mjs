@@ -52,10 +52,12 @@ function extractConst(name) {
 function loadExitReasonModule() {
   const code = [
     extractConst('CLOSE_REASON_OPTIONS'),
+    extractConst('LEGACY_TRADE_MANAGEMENT_MAP'),
     extractConst('TRADE_MANAGEMENT_CLOSE_REASON_MAP'),
     extractConst('LEGACY_SMART_CLOSE_REASON_MAP'),
     extractFunction('escapeHtml'),
     extractFunction('renderSelectOption'),
+    extractFunction('normalizeTradeManagement'),
     extractFunction('getSmartCloseReasonValue'),
     extractFunction('isSmartCloseReasonValue'),
     extractFunction('renderCloseReasonSelect'),
@@ -76,6 +78,7 @@ test('Trade Management maps to the matching smart Exit Reason default', () => {
   assert.equal(getSmartCloseReasonValue('Manual Exit'), 'Manual Exit');
   assert.equal(getSmartCloseReasonValue('Other'), 'Other');
   assert.equal(getSmartCloseReasonValue('Break Even'), '');
+  assert.equal(getSmartCloseReasonValue('Set & Let'), '');
   assert.equal(getSmartCloseReasonValue('Set & Forget'), '');
 });
 
