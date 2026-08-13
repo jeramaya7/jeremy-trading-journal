@@ -240,28 +240,6 @@ test('PUT /api/journal/annotations/:tradeId saves and syncs Outcome Override', a
   }, { fetchImpl });
 });
 
-test('PUT /api/journal/annotations/:tradeId saves and syncs Mindset like the other journal fields', async () => {
-  // Mindset must round-trip through Supabase annotation sync so DNA and
-  // DNA Doctor can analyze it later across devices.
-  const { fetchImpl } = createFakeSupabase();
-  await withServer(async ({ port }) => {
-    const putResponse = await fetch(`http://127.0.0.1:${port}/api/journal/annotations/trade-1`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mindset: 'Focused / Disciplined' }),
-    });
-    const putBody = await putResponse.json();
-
-    assert.equal(putResponse.status, 200);
-    assert.deepEqual(putBody, { tradeId: 'trade-1', mindset: 'Focused / Disciplined' });
-
-    const getResponse = await fetch(`http://127.0.0.1:${port}/api/journal/annotations`);
-    const getBody = await getResponse.json();
-
-    assert.deepEqual(getBody, { 'trade-1': { mindset: 'Focused / Disciplined' } });
-  }, { fetchImpl });
-});
-
 test('PUT /api/journal/annotations/:tradeId saves and syncs Timeframe like the other journal fields', async () => {
   // New field: timeframe must round-trip through PUT and GET exactly like
   // setup/state/position, so it saves, reloads, and syncs across devices.

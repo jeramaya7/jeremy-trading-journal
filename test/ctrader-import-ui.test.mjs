@@ -172,17 +172,11 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(source, "'Support & Resistance'", 'The Play Book setup dropdown includes Support & Resistance.');
   assertIncludes(source, "'Scalp'", 'The Play Book setup dropdown includes Scalp.');
   assertIncludes(source, "const CUSTOM_SETUP_OPTION = 'Custom...';", 'The Play Book setup dropdown includes Custom... after the fixed list.');
-  assertIncludes(source, 'const MINDSET_OPTIONS = [', 'The Mindset dropdown has a fixed option list.');
-  assertIncludes(source, "'Calm / Confident'", 'The Mindset dropdown includes Calm / Confident.');
-  assertIncludes(source, "'Focused / Disciplined'", 'The Mindset dropdown includes Focused / Disciplined.');
-  assertIncludes(source, "'Patient'", 'The Mindset dropdown includes Patient.');
-  assertIncludes(source, "'Uncertain / Anxious'", 'The Mindset dropdown includes Uncertain / Anxious.');
-  assertIncludes(source, "'Frustrated / FOMO / Revenge'", 'The Mindset dropdown includes Frustrated / FOMO / Revenge.');
-  assertIncludes(source, "const DEFAULT_MINDSET = MINDSET_OPTIONS[0];", 'New trades default to Calm / Confident.');
-  assertIncludes(source, "const CUSTOM_MINDSET_OPTION = 'Custom...';", 'The Mindset dropdown includes Custom... after the fixed list.');
   assert.ok(!source.includes("  'Trade Line Break',"), 'The Play Book setup dropdown no longer shows the misspelled setup label.');
   assert.ok(!source.includes("'Elephant Bar',") , 'The retired Elephant Bar label is no longer a selectable Play Book option (migrated to Momentum / Breakout instead).');
   assert.ok(!source.includes('>None</option>\n      ${PLAY_BOOK_SETUP_OPTIONS'), 'The Play Book setup dropdown no longer offers a None option.');
+  assert.equal(source.includes('const MINDSET_OPTIONS = ['), false, 'Mindset options are no longer active journaling options.');
+  assert.equal(source.includes('Calm / Confident'), false, 'Manual trades no longer default to Calm / Confident.');
 
   const setupSelectStart = source.indexOf('function renderPlayBookSetupSelect(trade)');
   const setupSelectEnd = source.indexOf('\nfunction ', setupSelectStart + 1);
@@ -190,15 +184,9 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assert.equal(setupSelectBody.includes('setupCustom'), true, 'The Setup dropdown renders a free-text custom setup input.');
   assert.equal(setupSelectBody.includes('data-custom-setup'), true, 'The custom setup input hook is present.');
 
-  const mindsetSelectStart = source.indexOf('function renderMindsetSelect(trade)');
-  const mindsetSelectEnd = source.indexOf('\nfunction ', mindsetSelectStart + 1);
-  const mindsetSelectBody = source.slice(mindsetSelectStart, mindsetSelectEnd);
-  assert.equal(mindsetSelectBody.includes('mindsetCustom'), true, 'The Mindset dropdown renders a free-text custom mindset input.');
-  assert.equal(mindsetSelectBody.includes('data-custom-mindset'), true, 'The custom mindset input hook is present.');
-  assert.equal(mindsetSelectBody.includes('const isCustomMindset = selectedMindset && !isFixedMindset(selectedMindset)'), true, 'Existing custom mindset values select Custom... automatically.');
-  assert.equal(mindsetSelectBody.includes('value="${escapeHtml(isCustomMindset ? selectedMindset : \'\')}"'), true, 'Existing custom mindset values populate the text input.');
-  assertIncludes(source, "${field('Mindset', renderMindsetSelect({ mindset: DEFAULT_MINDSET }))}", 'The manual Add Trade form shows Mindset with the default selected.');
-  assertIncludes(source, "tradeForm.querySelector('select[name=\"mindsetChoice\"]')?.addEventListener('change', (event) => toggleCustomMindsetInput(event.currentTarget), { signal });", 'The manual Add Trade form toggles the custom Mindset input.');
+  assert.equal(source.includes('function renderMindsetSelect(trade)'), false, 'Mindset no longer renders an active edit dropdown.');
+  assert.equal(source.includes('mindsetChoice'), false, 'Mindset no longer has active form controls.');
+  assert.equal(source.includes('data-custom-mindset'), false, 'Mindset custom input is removed from active forms.');
 
   // Cleanup: Tags is fully removed from the edit form (still present on
   // the manual "Add Trade" panel, which is a different form).
@@ -244,7 +232,7 @@ test('trade cards expose an edit flow for local journaling fields', () => {
     'State renders before Setup in the Setup section.',
   );
   assertIncludes(setupBody, "${field('Timeframe', renderTimeframeSelect(trade))}", 'Timeframe is in the Setup section.');
-  assertIncludes(setupBody, "${field('Mindset', renderMindsetSelect(trade))}", 'Mindset is in the Setup section.');
+  assert.equal(setupBody.includes("${field('Mindset'"), false, 'Mindset is no longer in the Setup section.');
 
   // Trade Review section: Trade Management, Protected (read-only, calculated
   // from Trade Management), Exit Reason, and Loss Reason share the first
@@ -378,9 +366,8 @@ test('trade edit mode locks rendering and Auto Sync until save or cancel', () =>
 test('saving trade edits only updates journaling fields and preserves imported execution data', () => {
   assertIncludes(source, 'const journalingUpdates = {', 'The edit save handler creates a restricted journaling update object.');
   assertIncludes(source, "setup: getSetupFormValue(formData)", 'Saving edits updates setup from the dropdown or custom setup input.');
-  assertIncludes(source, "mindset: getMindsetFormValue(formData)", 'Saving edits updates mindset from the dropdown or custom mindset input.');
   assertIncludes(source, "if (setupChoice === CUSTOM_SETUP_OPTION)", 'Saving edits supports custom setup names.');
-  assertIncludes(source, "if (mindsetChoice === CUSTOM_MINDSET_OPTION)", 'Saving edits supports custom mindset names.');
+  assert.equal(source.includes('getMindsetFormValue'), false, 'Saving edits no longer writes Mindset.');
   assert.ok(!source.includes("formData.get('emotion')"), 'Saving edits does not update emotion.');
   assertIncludes(source, "lossReason: String(formData.get('lossReason')).trim()", 'Saving edits stores the selected loss reason.');
   assertIncludes(source, "const closeReason = String(formData.get('closeReason')).trim();", 'Saving edits stores the selected close reason.');

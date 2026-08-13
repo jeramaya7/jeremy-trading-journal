@@ -96,7 +96,6 @@ test('DNA Doctor payload includes selected trades without screenshots or invente
       brokerSymbol: 'Gold',
       direction: 'Long',
       setup: 'Trend Continuation',
-      mindset: 'Focused / Disciplined',
       state: 'Trending',
       timeframe: '5m',
       entry: 2400,
@@ -136,7 +135,6 @@ test('DNA Doctor payload includes selected trades without screenshots or invente
     brokerSymbol: 'Gold',
     direction: 'Long',
     setup: 'Trend Continuation',
-    mindset: 'Focused / Disciplined',
     state: 'Trending',
     timeframe: '5m',
     entry: 2400,
@@ -246,10 +244,11 @@ test('DNA Doctor report renders Best Trade and Worst Trade sections', () => {
 });
 
 test('DNA Doctor payload and report support behavior analysis from existing journal context', () => {
-  for (const field of ['notes', 'mindset', 'emotion', 'tradeManagement', 'closeReason', 'lossReason']) {
+  for (const field of ['notes', 'emotion', 'tradeManagement', 'closeReason', 'lossReason']) {
     assert.ok(source.includes(`'${field}',`), `Trade payload should include existing ${field} field when present.`);
   }
-  assert.ok(serverSource.includes('Use notes, mindset, emotion, tradeManagement, closeReason, and lossReason only when those fields are present to inform behavior and discipline analysis.'), 'Behavior analysis should treat mindset as supported journal context when present.');
+  assert.equal(source.includes("'mindset',"), false, 'Trade payload should no longer include Mindset.');
+  assert.ok(serverSource.includes('Use notes, emotion, tradeManagement, closeReason, and lossReason only when those fields are present to inform behavior and discipline analysis.'), 'Behavior analysis should use active journal context only when present.');
   assert.ok(source.includes('<span class="dna-doctor-section-icon">🧠</span><h4>Psychology Review</h4>'), 'Report should render a Psychology Review section.');
   assert.ok(source.includes('<p>${escapeHtml(report.psychologyReview || \'\')}</p>'), 'Psychology Review should render from report.psychologyReview.');
 });
