@@ -225,6 +225,7 @@ const FRIENDLY_ASSET_NAMES = {
 const PLAY_BOOK_SETUP_OPTIONS = [
   'Trend Continuation',
   'Countertrend Continuation',
+  'FRVP',
   'Momentum / Breakout',
   'RBI / GBI',
   'Retrace / Bounce',

@@ -171,6 +171,7 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(source, "'Retrace / Bounce'", 'The Play Book setup dropdown includes Retrace / Bounce.');
   assertIncludes(source, "'Support & Resistance'", 'The Play Book setup dropdown includes Support & Resistance.');
   assertIncludes(source, "'Scalp'", 'The Play Book setup dropdown includes Scalp.');
+  assertIncludes(source, "'FRVP'", 'The Play Book setup dropdown includes FRVP.');
   assertIncludes(source, "const CUSTOM_SETUP_OPTION = 'Custom...';", 'The Play Book setup dropdown includes Custom... after the fixed list.');
   assert.ok(!source.includes("  'Trade Line Break',"), 'The Play Book setup dropdown no longer shows the misspelled setup label.');
   assert.ok(!source.includes("'Elephant Bar',") , 'The retired Elephant Bar label is no longer a selectable Play Book option (migrated to Momentum / Breakout instead).');
