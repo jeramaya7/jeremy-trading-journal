@@ -82,16 +82,16 @@ test('the old ±0.1R breakeven rule is fully removed, not just unused', () => {
   assert.equal(/function classifyTradeOutcome\(pnl, rMultiple\)/.test(source), false, 'classifyTradeOutcome should take only pnl, not pnl + rMultiple.');
 });
 
-test('Outcome boundary values classify exactly as specified: $1.00 and beyond is decided, inside that is Breakeven', () => {
+test('Outcome boundary values classify exactly as specified: profit wins, $0 through -$1.00 is Breakeven, below -$1.00 is Loss', () => {
   const { classifyTradeOutcome } = loadTradeMathModule();
 
-  assert.equal(classifyTradeOutcome(0.99), 'breakeven', '+$0.99 should be Breakeven.');
-  assert.equal(classifyTradeOutcome(-0.99), 'breakeven', '-$0.99 should be Breakeven.');
+  assert.equal(classifyTradeOutcome(0.01), 'win', '+$0.01 should be a Win.');
   assert.equal(classifyTradeOutcome(1.00), 'win', '+$1.00 should be a Win.');
-  assert.equal(classifyTradeOutcome(-1.00), 'loss', '-$1.00 should be a Loss.');
   assert.equal(classifyTradeOutcome(1.01), 'win', '+$1.01 should be a Win.');
-  assert.equal(classifyTradeOutcome(-1.01), 'loss', '-$1.01 should be a Loss.');
   assert.equal(classifyTradeOutcome(0), 'breakeven', 'Exactly $0.00 should be Breakeven.');
+  assert.equal(classifyTradeOutcome(-0.50), 'breakeven', '-$0.50 should be Breakeven.');
+  assert.equal(classifyTradeOutcome(-1.00), 'breakeven', '-$1.00 should be Breakeven.');
+  assert.equal(classifyTradeOutcome(-1.01), 'loss', '-$1.01 should be a Loss.');
 });
 
 test('Outcome Override: Win/Breakeven/Loss ignore the automatic dollar calculation entirely', () => {
@@ -120,14 +120,14 @@ test('Outcome Override: Auto (the default for every trade) falls through to the 
   assert.equal(classifyTradeOutcome(500, undefined), 'win');
   assert.equal(classifyTradeOutcome(500, null), 'win');
   assert.equal(classifyTradeOutcome(-500, 'Auto'), 'loss');
-  assert.equal(classifyTradeOutcome(0.42, 'Auto'), 'breakeven');
+  assert.equal(classifyTradeOutcome(0.42, 'Auto'), 'win');
 });
 
-test('regression: a trade stopped out at a trailed (breakeven+) stop still classifies as Breakeven under the dollar rule', () => {
+test('regression: a trade stopped out at a trailed (breakeven+) stop classifies by the final dollar P/L', () => {
   // Real-world case: Long XAUUSD, entered 4066.39, stop trailed up to
   // 4066.67 (above entry, locking in a sliver of profit), then price
-  // reversed and hit that trailed stop. Net P/L: +$0.42 — inside the
-  // Breakeven dollar band regardless of how the R multiple computes.
+  // reversed and hit that trailed stop. Net P/L: +$0.42 — now a Win under
+  // the active dollar rule regardless of how the R multiple computes.
   //
   // calculateOriginalRiskDollars/calculateRiskDollars must still compute the
   // entry-to-stop distance as a magnitude (not a signed value that returns
@@ -150,7 +150,7 @@ test('regression: a trade stopped out at a trailed (breakeven+) stop still class
   assert.notEqual(calculateOriginalRiskDollars(trade), null, 'Original risk $ should be computable from the entry-to-stop distance, even when the stop sits above entry.');
   assert.notEqual(calculateRiskDollars(trade), null, 'Risk $ should be computable from the entry-to-stop distance, even when the stop sits above entry.');
 
-  assert.equal(classifyTradeOutcome(calculatePnl(trade)), 'breakeven');
+  assert.equal(classifyTradeOutcome(calculatePnl(trade)), 'win');
 });
 
 test('sanity: well-formed trades with a normal stop still classify as Win/Loss/Breakeven correctly', () => {
@@ -171,7 +171,7 @@ test('sanity: well-formed trades with a normal stop still classify as Win/Loss/B
 
   assert.equal(classifyTradeOutcome(calculatePnl(bigWinner)), 'win');
   assert.equal(classifyTradeOutcome(calculatePnl(bigLoser)), 'loss');
-  assert.equal(classifyTradeOutcome(calculatePnl(nearFlatWinner)), 'breakeven', 'A $0.20 winner is inside the $1.00 Breakeven band.');
+  assert.equal(classifyTradeOutcome(calculatePnl(nearFlatWinner)), 'win', 'Any positive P/L should be a Win.');
   assert.equal(classifyTradeOutcome(calculatePnl(shortBigWinner)), 'win');
 });
 

@@ -1070,13 +1070,12 @@ function calculatePnl(trade) {
   return (gross * getTradeContractSize(trade)) - fees;
 }
 
-// A trade this close to flat in real dollar terms counts as Breakeven rather
-// than a Win or a Loss. This only changes which bucket a trade is counted in
+// A trade from $0.00 through -$1.00 in real dollar terms counts as Breakeven
+// rather than a Loss. This only changes which bucket a trade is counted in
 // for win-rate style stats — it never changes the trade's actual P/L or R
-// value. Fixed at $1.00: P/L at or beyond +/-$1.00 is a Win/Loss; anything
-// strictly inside that band (-$0.99 to +$0.99) is Breakeven. (Replaces the
-// earlier +/-0.1R-based rule, which classified by risk multiple rather than
-// a flat dollar amount.)
+// value. Any profit above $0.00 is a Win; anything below -$1.00 is a Loss.
+// (Replaces the earlier +/-0.1R-based rule, which classified by risk multiple
+// rather than a flat dollar amount.)
 const OUTCOME_DOLLAR_THRESHOLD = 1.00;
 
 // Outcome Override: lets a trade's Win/Loss/Breakeven bucket be manually
@@ -1101,8 +1100,8 @@ function classifyTradeOutcome(pnl, outcomeOverride) {
     return overrideKey;
   }
 
-  if (pnl >= OUTCOME_DOLLAR_THRESHOLD) return 'win';
-  if (pnl <= -OUTCOME_DOLLAR_THRESHOLD) return 'loss';
+  if (pnl > 0) return 'win';
+  if (pnl < -OUTCOME_DOLLAR_THRESHOLD) return 'loss';
   return 'breakeven';
 }
 

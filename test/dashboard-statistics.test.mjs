@@ -125,12 +125,12 @@ test('biggest winner and loser calculate from closed trade P&L', () => {
   assert.ok(source.includes('Math.min(...losingPnlValues)'), 'Biggest Loser should select the lowest losing P&L.');
 });
 
-test('Outcome classification uses a fixed $1.00 dollar threshold everywhere wins/losses are counted', () => {
-  assert.ok(source.includes('const OUTCOME_DOLLAR_THRESHOLD = 1.00;'), 'Outcome threshold should be a flat $1.00, not a risk multiple.');
+test('Outcome classification uses the shared active dollar definition everywhere wins/losses are counted', () => {
+  assert.ok(source.includes('const OUTCOME_DOLLAR_THRESHOLD = 1.00;'), 'Outcome loss threshold should stay a flat $1.00, not a risk multiple.');
   assert.ok(source.includes('function classifyTradeOutcome(pnl, outcomeOverride)'), 'A single shared classifier should decide win/loss/breakeven from raw dollar P/L alone (plus an optional manual Outcome Override).');
-  assert.ok(source.includes('if (pnl >= OUTCOME_DOLLAR_THRESHOLD) return \'win\';'), 'P/L at or above +$1.00 should count as a win.');
-  assert.ok(source.includes('if (pnl <= -OUTCOME_DOLLAR_THRESHOLD) return \'loss\';'), 'P/L at or below -$1.00 should count as a loss.');
-  assert.ok(source.includes("return 'breakeven';"), 'P/L strictly between -$1.00 and +$1.00 should count as breakeven.');
+  assert.ok(source.includes('if (pnl > 0) return \'win\';'), 'P/L above $0.00 should count as a win.');
+  assert.ok(source.includes('if (pnl < -OUTCOME_DOLLAR_THRESHOLD) return \'loss\';'), 'P/L below -$1.00 should count as a loss.');
+  assert.ok(source.includes("return 'breakeven';"), 'P/L from $0.00 through -$1.00 should count as breakeven.');
 
   // The old R-multiple-based rule must be gone, not just unused.
   assert.equal(source.includes('BREAKEVEN_R_THRESHOLD'), false, 'The old ±0.1R breakeven threshold should be fully removed.');
