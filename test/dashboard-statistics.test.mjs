@@ -69,7 +69,7 @@ test('dashboard renders one shared DNA timeframe toggle that drives dashboard se
   assert.ok(source.includes("{ value: 'all', label: 'Beginning' }"), 'DNA timeframe should include Beginning.');
   assert.ok(source.includes("return isValidDnaTimeframe(storedTimeframe) ? storedTimeframe : 'all';"), 'DNA timeframe should default invalid or missing storage to Beginning.');
   assert.ok(source.includes('const dnaResultsTrades = getDnaResultsTrades(dnaReferenceDate);'), 'Render should build one DNA-filtered trade list.');
-  assert.ok(source.includes('currentDnaDoctorTrades = dnaResultsTrades;'), 'DNA Doctor should receive the same filtered trade list the dashboard is displaying.');
+  assert.ok(source.includes('const dnaResultsTrades = filterTradesForPeriod(activeTrades, timeframe, referenceDate);'), 'The AI export should use the same selected DNA timeframe.');
   assert.ok(source.includes('${renderDnaResultsTimeframeToggle()}'), 'The timeframe toggle should render visibly in the dashboard.');
   assert.ok(source.indexOf('${renderDnaResultsTimeframeToggle()}') < source.indexOf('${renderHeroStatsRow(stats)}'), 'The timeframe toggle should render above the KPI row.');
   assert.ok(source.includes('${renderEquityCurveCard(dnaResultsTrades)}'), 'Equity curve should use the shared DNA-filtered trades.');

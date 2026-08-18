@@ -1,5 +1,5 @@
 import { applyCTraderImportedTradeUpdates, buildCTraderSyncPlan, getImportedTradeSourceKey } from './ctrader-sync.js';
-import { CTRADER_ENDPOINTS, buildCTraderOAuthUrl, fetchBackendJson, getBackendDiagnostics, getConfiguredBackendBaseUrl } from './backend-api.js';
+import { CTRADER_ENDPOINTS, buildCTraderOAuthUrl, fetchBackendJson, getBackendDiagnostics } from './backend-api.js';
 
 const STORAGE_KEY = 'jeremy-trading-journal:v1';
 const AUTO_SYNC_STORAGE_KEY = 'jeremy-trading-journal:ctrader-auto-sync:v1';
@@ -203,15 +203,6 @@ let pageMode = loadPageMode();
 let sessionNotesByDay = loadSessionNotesByDay();
 let isSessionNotesModalOpen = false;
 let isSettingsModalOpen = false;
-let dnaDoctorState = {
-  status: 'idle',
-  report: null,
-  error: null,
-  dismissError: false,
-  fullReportOpen: false
-};
-let currentDnaDoctorTrades = [];
-let selectedDnaDoctorCoachingFocus = 'Overall';
 
 const FRIENDLY_ASSET_NAMES = {
   XAUUSD: 'Gold',
@@ -1516,129 +1507,6 @@ function getAssetAnalytics(tradeList = trades) {
 
 // ─── DNA Doctor ──────────────────────────────────────────────────────
 
-// Abstraction layer — swap provider without touching UI
-const DNA_DOCTOR_PROVIDERS = {
-  claude: callClaudeDnaDoctor,
-};
-
-const DNA_DOCTOR_COACHING_FOCUS_OPTIONS = [
-  'Overall',
-  'Risk / Position Sizing',
-  'Trade Management',
-  'Psychology / Discipline',
-];
-const DEFAULT_DNA_DOCTOR_COACHING_FOCUS = 'Overall';
-
-const DNA_DOCTOR_TRADE_FIELDS = [
-  'date',
-  'openTime',
-  'closeTime',
-  'symbol',
-  'brokerSymbol',
-  'direction',
-  'setup',
-  'state',
-  'timeframe',
-  'entry',
-  'exit',
-  'size',
-  'fees',
-  'stopLoss',
-  'adjustedStopLoss',
-  'takeProfit',
-  'adjustedTakeProfit',
-  'accountSize',
-  'riskPercent',
-  'protected',
-  'tradeManagement',
-  'grade',
-  'closeReason',
-  'lossReason',
-  'outcomeOverride',
-  'tags',
-  'notes',
-  'emotion',
-];
-
-async function runDnaDoctor(tradeList = trades, coachingFocus = DEFAULT_DNA_DOCTOR_COACHING_FOCUS) {
-  const provider = 'claude'; // future: load from settings
-  const fn = DNA_DOCTOR_PROVIDERS[provider];
-  if (!fn) throw new Error(`Unknown DNA Doctor provider: ${provider}`);
-  return fn(buildDnaScanPayload(tradeList, coachingFocus));
-}
-
-function buildDnaDoctorTradePayload(trade) {
-  const payload = {};
-  DNA_DOCTOR_TRADE_FIELDS.forEach((field) => {
-    const value = trade?.[field];
-    if (value !== undefined && value !== null && value !== '') {
-      payload[field] = value;
-    }
-  });
-  return payload;
-}
-
-function getDnaDoctorCoachingFocus(value) {
-  return DNA_DOCTOR_COACHING_FOCUS_OPTIONS.includes(value) ? value : DEFAULT_DNA_DOCTOR_COACHING_FOCUS;
-}
-
-function buildDnaScanPayload(tradeList, coachingFocus = DEFAULT_DNA_DOCTOR_COACHING_FOCUS) {
-  const stats = getStats(tradeList);
-  const assetRows = getAssetAnalytics(tradeList);
-  const setupRows = getSetupAnalytics(tradeList);
-  const sessionRows = getTimeOfDayAnalytics(tradeList);
-
-  return {
-    coachingFocus: getDnaDoctorCoachingFocus(coachingFocus),
-    tradeCount: stats.tradeCount,
-    winRate: stats.winRate,
-    totalPnl: stats.totalPnl,
-    averageWin: stats.averageWin,
-    averageLoss: stats.averageLoss,
-    profitFactor: stats.profitFactor,
-    biggestWinner: stats.biggestWinner,
-    biggestLoser: stats.biggestLoser,
-    protectedPercent: stats.protectedPercent,
-    averageRiskDollars: stats.averageRiskDollars,
-    averageRiskPercent: stats.averageRiskPercent,
-    biggestRisk: stats.biggestRisk,
-    trades: tradeList.map(buildDnaDoctorTradePayload),
-    assets: assetRows.map((r) => ({ symbol: r.asset, trades: r.tradeCount, winRate: r.winRate, netPnl: r.netPnl })),
-    setups: setupRows.map((r) => ({ name: r.setupName, trades: r.tradeCount, winRate: r.winRate, netPnl: r.netPnl })),
-    sessions: sessionRows.map((r) => ({ session: r.label, trades: r.tradeCount, winRate: r.winRate, netPnl: r.netPnl, profitFactor: r.profitFactor })),
-  };
-}
-
-async function callClaudeDnaDoctor(payload) {
-  const backendUrl = getConfiguredBackendBaseUrl();
-  if (!backendUrl) {
-    throw new Error('Backend is not configured. Set the backend URL to use DNA Doctor.');
-  }
-
-  const response = await fetch(`${backendUrl}/api/dna-doctor`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(data.error || `Server error ${response.status}`);
-  }
-
-  return data;
-}
-
-const DNA_DOCTOR_LOADING_STEPS = [
-  '🧬 Extracting trading DNA...',
-  '📊 Analyzing statistics...',
-  '🔎 Detecting patterns...',
-  '⚠️ Looking for weaknesses...',
-  '💊 Preparing prescription...',
-  '🩺 Finalizing diagnosis...',
-];
-
 function renderDnaDoctor(tradeList = trades) {
   return `
     <section class="panel dna-doctor-panel" aria-label="DNA Doctor">
@@ -1684,140 +1552,13 @@ function renderDnaDoctor(tradeList = trades) {
         </div>
 
         <div class="dna-doctor-brand-right">
-          <button class="dna-doctor-scan-btn" type="button" id="runDnaDoctor">
+          <button class="dna-doctor-scan-btn" type="button" id="requestAnalysis">
             ${icon('download')}
             Request Analysis
           </button>
         </div>
       </div>
     </section>`;
-}
-
-function renderDnaDoctorReport(report, fullReportOpen = false) {
-  const score = report.score || 0;
-  const gradeClass = report.grade?.startsWith('A') ? 'positive' : report.grade?.startsWith('B') ? 'neutral' : 'negative';
-  const barClass = score >= 70 ? 'positive' : score >= 40 ? 'neutral' : 'negative';
-  const scoreBar = Math.min(100, Math.max(0, score));
-  const biggestRisk = (report.riskFactors || [])[0] || null;
-  const biggestIssue = (report.weaknesses || [])[0] || null;
-  const statusLabel = score >= 70 ? 'Healthy' : score >= 40 ? 'Needs Attention' : 'Critical';
-  const statusClass = score >= 70 ? 'positive' : score >= 40 ? 'neutral' : 'negative';
-  const scannedAt = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
-  const warningSigns = (report.weaknesses || []).length ? report.weaknesses : (report.riskFactors || []);
-  const tomorrowFocus = report.tomorrowsFocus || '';
-  const biggestStrength = report.biggestStrength || (report.strengths || [])[0] || '';
-  const biggestWeakness = report.biggestWeakness || warningSigns[0] || '';
-
-  return `
-    <div class="dna-doctor-report">
-
-      <div class="dna-doctor-divider">
-        <span class="dna-doctor-divider-label">🩺 DNA Doctor Report</span>
-      </div>
-
-      <div class="dna-doctor-hero">
-        <div class="dna-doctor-score-block">
-          <div class="dna-doctor-score-ring ${gradeClass}">
-            <span class="dna-doctor-score-number">${score}</span>
-            <span class="dna-doctor-score-denom">/100</span>
-          </div>
-          <div class="dna-doctor-score-meta">
-            <span class="dna-doctor-score-grade ${gradeClass}">${report.grade}</span>
-            <span class="dna-doctor-status-badge ${statusClass}">${statusLabel}</span>
-          </div>
-        </div>
-        <div class="dna-doctor-executive-summary">
-          <div class="dna-doctor-score-bar-row">
-            <div class="dna-doctor-score-bar">
-              <div class="dna-doctor-score-bar-fill ${barClass}" style="width:${scoreBar}%"></div>
-            </div>
-            <span class="dna-doctor-scan-time">Last scan: ${scannedAt}</span>
-          </div>
-          <p class="dna-doctor-summary-text">${escapeHtml(report.diagnosis)}</p>
-          ${biggestIssue ? `<p class="dna-doctor-biggest-issue"><strong>Biggest issue / observation:</strong> ${escapeHtml(biggestIssue)}</p>` : ''}
-        </div>
-      </div>
-
-      <div class="dna-doctor-sections-grid">
-        <div class="dna-doctor-section dna-doctor-overall-grade">
-          <div class="dna-doctor-section-label">
-            <span class="dna-doctor-section-icon">🔬</span><h4>Overall Grade</h4>
-          </div>
-          <p>${escapeHtml(report.scoreExplanation || report.diagnosis || '')}</p>
-        </div>
-
-        <div class="dna-doctor-section dna-doctor-biggest-strength">
-          <div class="dna-doctor-section-label">
-            <span class="dna-doctor-section-icon">✅</span><h4>Biggest Strength</h4>
-          </div>
-          <p>${escapeHtml(biggestStrength)}</p>
-        </div>
-
-        <div class="dna-doctor-section dna-doctor-biggest-weakness">
-          <div class="dna-doctor-section-label">
-            <span class="dna-doctor-section-icon">⚠️</span><h4>Biggest Weakness</h4>
-          </div>
-          <p>${escapeHtml(biggestWeakness)}</p>
-        </div>
-
-        <div class="dna-doctor-section dna-doctor-best-trade">
-          <div class="dna-doctor-section-label">
-            <span class="dna-doctor-section-icon">✅</span><h4>Best Trade</h4>
-          </div>
-          <p>${escapeHtml(report.bestTrade || '')}</p>
-        </div>
-
-        <div class="dna-doctor-section dna-doctor-worst-trade">
-          <div class="dna-doctor-section-label">
-            <span class="dna-doctor-section-icon">⚠️</span><h4>Worst Trade</h4>
-          </div>
-          <p>${escapeHtml(report.worstTrade || '')}</p>
-        </div>
-
-        <div class="dna-doctor-section dna-doctor-risk-review">
-          <div class="dna-doctor-section-label">
-            <span class="dna-doctor-section-icon">⚠️</span><h4>Risk Review</h4>
-          </div>
-          <p>${escapeHtml(report.riskReview || '')}</p>
-        </div>
-
-        <div class="dna-doctor-section dna-doctor-psychology-review">
-          <div class="dna-doctor-section-label">
-            <span class="dna-doctor-section-icon">🧠</span><h4>Psychology Review</h4>
-          </div>
-          <p>${escapeHtml(report.psychologyReview || '')}</p>
-        </div>
-
-        <div class="dna-doctor-section dna-doctor-strengths">
-          <div class="dna-doctor-section-label">
-            <span class="dna-doctor-section-icon">✅</span><h4>Three Things Done Well</h4>
-          </div>
-          <ul>${(report.strengths || []).map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
-        </div>
-
-        <div class="dna-doctor-section dna-doctor-prescription">
-          <div class="dna-doctor-section-label">
-            <span class="dna-doctor-section-icon">💊</span><h4>Three Improvements</h4>
-          </div>
-          <ul>${(report.prescription || []).map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
-        </div>
-
-        <div class="dna-doctor-section dna-doctor-focus">
-          <div class="dna-doctor-section-label">
-            <span class="dna-doctor-section-icon">🌅</span><h4>Goal for Tomorrow</h4>
-          </div>
-          <p>${escapeHtml(tomorrowFocus)}</p>
-        </div>
-
-        <div class="dna-doctor-section dna-doctor-quote">
-          <div class="dna-doctor-section-label">
-            <span class="dna-doctor-section-icon">🔬</span><h4>Quote of the Day</h4>
-          </div>
-          <p>${escapeHtml(report.quoteOfDay || '')}</p>
-        </div>
-      </div>
-
-    </div>`;
 }
 
 function getTimeOfDayBucket(openTime) {
@@ -3489,7 +3230,6 @@ function render(options = {}) {
   // getActiveTrades() above).
   const activeTrades = getActiveTrades();
   const dnaResultsTrades = getDnaResultsTrades(dnaReferenceDate);
-  currentDnaDoctorTrades = dnaResultsTrades;
   const stats = getStats(dnaResultsTrades);
   const pnlReports = getPnlReports(dnaReferenceDate, activeTrades);
   const [dailyPnl, weeklyPnl, monthlyPnl, yearlyPnl] = pnlReports;
@@ -3822,18 +3562,7 @@ function bindEvents() {
 
   document.querySelector('#toggleManualTrade')?.addEventListener('click', toggleManualTradeForm, { signal });
   document.querySelector('#shareDashboard')?.addEventListener('click', openShareDashboardView, { signal });
-  document.querySelector('.dna-doctor-full-report')?.addEventListener('toggle', (event) => {
-  dnaDoctorState.fullReportOpen = event.currentTarget.open;
-}, { signal });
-  document.querySelector('#runDnaDoctor')?.addEventListener('click', exportForAiMarkdown, { signal });
-
-  document.querySelector('#dnaDoctorDismissError')?.addEventListener('click', () => {
-    dnaDoctorState = { ...dnaDoctorState, dismissError: true };
-    document.querySelector('#dnaDoctorErrorBanner')?.remove();
-  });
-  document.querySelector('#dnaDoctorCoachingFocus')?.addEventListener('change', (event) => {
-    selectedDnaDoctorCoachingFocus = getDnaDoctorCoachingFocus(event.target.value);
-  }, { signal });
+  document.querySelector('#requestAnalysis')?.addEventListener('click', exportForAiMarkdown, { signal });
 
   document.querySelector('[data-save-all-trades]')?.addEventListener('click', saveAllEditedTrades, { signal });
 

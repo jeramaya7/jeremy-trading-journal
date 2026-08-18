@@ -4,6 +4,8 @@ import test from 'node:test';
 import vm from 'node:vm';
 
 const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
+const serverSource = await readFile(new URL('../src/server.js', import.meta.url), 'utf8');
+const styles = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');
 
 function assertIncludes(text, expected, message) {
   assert.ok(text.includes(expected), `${message}\nExpected to find: ${expected}`);
@@ -241,8 +243,22 @@ function countOccurrences(text, value) {
 test('DNA Doctor Request Analysis button is wired to the markdown download function', () => {
   assert.equal(source.includes('id="exportForAi"'), false, 'The temporary Export for AI hero button should be removed.');
   assertIncludes(source, 'Request Analysis', 'The DNA Doctor panel should use the new Request Analysis label.');
-  assertIncludes(source, "document.querySelector('#runDnaDoctor')?.addEventListener('click', exportForAiMarkdown, { signal });", 'The Doctor button should call the markdown export function.');
+  assertIncludes(source, 'id="requestAnalysis"', 'The Doctor button should use the Request Analysis id.');
+  assertIncludes(source, "document.querySelector('#requestAnalysis')?.addEventListener('click', exportForAiMarkdown, { signal });", 'The Doctor button should call the markdown export function.');
   assertIncludes(source, 'function buildExportForAiMarkdown(', 'The markdown builder should exist for Step 1.');
+});
+
+test('old DNA Doctor API scan implementation is removed while Request Analysis remains', () => {
+  assert.equal(serverSource.includes(['/api', ['dna', 'doctor'].join('-')].join('/')), false, 'The old Doctor API route should be removed.');
+  assert.equal(serverSource.includes(['api.', 'openai', '.com/v1/', 'responses'].join('')), false, 'The old server-side OpenAI request should be removed.');
+  assert.equal(source.includes(['run', 'Dna', 'Doctor'].join('')), false, 'The old frontend scan button id should be removed.');
+  assert.equal(source.includes(['build', 'Dna', 'Scan', 'Payload'].join('')), false, 'The old frontend scan payload builder should be removed.');
+  assert.equal(source.includes(['render', 'Dna', 'Doctor', 'Report'].join('')), false, 'The old frontend report renderer should be removed.');
+  assert.equal(source.includes(['DNA', 'DOCTOR', 'LOADING', 'STEPS'].join('_')), false, 'The old frontend loading flow should be removed.');
+  assert.equal(styles.includes(['dna', 'doctor', 'loading'].join('-')), false, 'The old loading styles should be removed.');
+  assert.equal(styles.includes(['dna', 'doctor', 'report'].join('-')), false, 'The old report styles should be removed.');
+  assertIncludes(source, '<h2 class="dna-doctor-title">DNA Doctor</h2>', 'The DNA Doctor section should remain.');
+  assertIncludes(source, 'Request Analysis', 'The Request Analysis button should remain.');
 });
 
 test('buildExportForAiMarkdown uses the selected DNA Results timeframe and includes required sections', () => {
@@ -292,8 +308,8 @@ test('buildExportForAiMarkdown excludes forbidden fields and screenshot image da
   assert.equal(markdown.includes('Capital Efficiency'), false, 'The markdown should not include Capital Efficiency.');
   assert.equal(markdown.includes('CE'), false, 'The markdown should not include CE.');
   assert.equal(markdown.includes('secret-image-data'), false, 'The markdown should not include screenshot image bytes.');
-  assert.equal(markdown.includes('/api/dna-doctor'), false, 'The markdown should not include the DNA Doctor API path.');
-  assert.equal(markdown.includes('dnaDoctorState'), false, 'The markdown should not include DNA Doctor UI output/state.');
+  assert.equal(markdown.includes(['/api', ['dna', 'doctor'].join('-')].join('/')), false, 'The markdown should not include the old Doctor API path.');
+  assert.equal(markdown.includes(['dnaDoctor', 'State'].join('')), false, 'The markdown should not include old Doctor UI output/state.');
   assert.equal(markdown.includes('Biggest Risk Used'), false, 'The realized-loss summary should not include theoretical biggest risk.');
   assert.equal(markdown.includes('Mean Risk $'), false, 'The realized-loss summary should not include mean risk dollars.');
   assert.equal(markdown.includes('Mean Risk %'), false, 'The realized-loss summary should not include mean risk percent.');
