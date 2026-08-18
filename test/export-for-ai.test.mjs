@@ -250,6 +250,12 @@ test('buildExportForAiMarkdown uses the selected DNA Results timeframe and inclu
 
   assertIncludes(markdown, '# DNA Export for AI', 'The export should have a clear title.');
   assertIncludes(markdown, '## AI Coaching Instructions', 'The export should include built-in coaching instructions.');
+  assertIncludes(markdown, 'provide an overall assessment, proven strengths, proven weaknesses only when supported by the data, important patterns, and practical next steps', 'The coaching prompt should tell the AI what analysis to provide.');
+  assertIncludes(markdown, 'Never invent a weakness just because every trader is expected to have one.', 'The coaching prompt should forbid invented weaknesses.');
+  assertIncludes(markdown, 'Distinguish clearly between statistically supported findings and observations based on small samples.', 'The coaching prompt should separate proven findings from small samples.');
+  assertIncludes(markdown, 'Judge profitability using Net P/L, Profit Factor, consistency, and supporting metrics together.', 'The coaching prompt should define profitability judgment.');
+  assertIncludes(markdown, 'Use realized trading results and realized closed-trade losses rather than theoretical risk assumptions.', 'The coaching prompt should emphasize realized results.');
+  assertIncludes(markdown, 'Do not impose generic textbook trading rules when the trader\'s actual results do not support them.', 'The coaching prompt should reject unsupported textbook rules.');
   assertIncludes(markdown, 'Timeframe: WTD (week)', 'The export should use the selected DNA timeframe.');
   assertIncludes(markdown, 'Selected date range: 2026-08-17 to 2026-08-18', 'The export should include the actual selected date range.');
   assertIncludes(markdown, '## DNA Results', 'DNA Results should be included.');
@@ -288,6 +294,9 @@ test('buildExportForAiMarkdown excludes forbidden fields and screenshot image da
   assert.equal(markdown.includes('secret-image-data'), false, 'The markdown should not include screenshot image bytes.');
   assert.equal(markdown.includes('/api/dna-doctor'), false, 'The markdown should not include the DNA Doctor API path.');
   assert.equal(markdown.includes('dnaDoctorState'), false, 'The markdown should not include DNA Doctor UI output/state.');
+  assert.equal(markdown.includes('Biggest Risk Used'), false, 'The realized-loss summary should not include theoretical biggest risk.');
+  assert.equal(markdown.includes('Mean Risk $'), false, 'The realized-loss summary should not include mean risk dollars.');
+  assert.equal(markdown.includes('Mean Risk %'), false, 'The realized-loss summary should not include mean risk percent.');
   assertIncludes(markdown, 'Screenshot: Attached (chart.png)', 'The export can include a screenshot reference.');
 });
 
@@ -303,6 +312,8 @@ test('buildExportForAiMarkdown numbers match existing DNA Results calculations',
   assertIncludes(markdown, `| Net P/L | ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(stats.totalPnl)} |`, 'Net P/L should match getStats().');
   assertIncludes(markdown, `| Profit Factor | ${stats.profitFactor.toFixed(2)} |`, 'Profit Factor should match getStats().');
   assertIncludes(markdown, '| Total Realized Loss | $10.00 |', 'Realized losses should use closed losing P/L.');
+  assertIncludes(markdown, '| Mean Realized Loss | $10.00 |', 'Mean realized loss should use actual closed losing P/L.');
+  assertIncludes(markdown, '| Largest Realized Loss | -$10.00 |', 'Largest realized loss should use actual closed losing P/L.');
   assertIncludes(markdown, '| Gold | 1 | 100.0% | $500.00 | ∞ | $500.00 | - |', 'Asset analytics should match the selected trade calculations and existing friendly asset names.');
   assertIncludes(markdown, '| EURUSD | 1 | 0.0% | -$10.00 | 0.00 | - | -$10.00 |', 'Asset analytics should include the selected losing asset.');
 });
