@@ -1556,9 +1556,7 @@ if (!apiKey) {
 - Capital Exposure = max(0, -RunningPnLBeforeThisTrade) + RiskDollars(trade).
 - Maximum Capital Exposure = the highest exposure reached during the selected period.
 - CE measures how much net profit was produced for each dollar of maximum capital actually exposed during the period.
-- Do not judge CE from Average R alone.
 - Do not use risk/reward, expectancy, win rate, or profit factor as substitutes for CE.
-- Low R does not automatically mean poor CE.
 - CE commentary must be based on the actual CE value and DNA's CE definition.
 - CE is a secondary diagnostic only and must not drive the Overall grade, Biggest Weakness, recommendations, or goal.`;
 
@@ -1610,10 +1608,8 @@ Overall Grade Scoring
 - Grade the trading result first, with Net P/L, Profit Factor, and consistency of profitability as the primary assessment.
 - First ask: are we making money consistently? Judge primarily from Net P/L and Profit Factor.
 - Use Win Rate, Average Winner, Average Loser, Biggest Winner, Biggest Loser, trade count, and setup or market state performance as diagnostics that explain the result.
-- Average R may be present in the data, but do not use it to grade, criticize, recommend, choose Biggest Weakness, or set the goal.
-- Do not assume larger R targets or holding winners longer would improve the trader.
 - A profitable trading style with many small winners is acceptable when Net P/L and Profit Factor show that it works.
-- For a period with positive Net P/L, very strong Profit Factor, high Win Rate, and controlled realized losses, recognize the period as strong without downgrading it for Average R.
+- For a period with positive Net P/L, very strong Profit Factor, high Win Rate, and controlled realized losses, recognize the period as strong.
 - Risk management matters when realized losses, sizing behavior, drawdown, or repeated exposure protects or threatens the ability to stay profitable.
 - Do not automatically reward lower risk, more protected trades, smaller position sizes, or defensive trade management.
 - Do not make Return % a primary Doctor metric.
@@ -1661,7 +1657,6 @@ Win Rate: ${payload.winRate != null ? Number(payload.winRate).toFixed(1) + '%' :
 Total P&L: ${payload.totalPnl != null ? '$' + Number(payload.totalPnl).toFixed(2) : 'N/A'}
 Average Winner: ${payload.averageWin != null ? '$' + Number(payload.averageWin).toFixed(2) : 'N/A'}
 Average Loser: ${payload.averageLoss != null ? '$' + Number(payload.averageLoss).toFixed(2) : 'N/A'}
-Average R: ${payload.averageR != null ? Number(payload.averageR).toFixed(2) + 'R' : 'N/A'}
 Profit Factor: ${payload.profitFactor != null && isFinite(payload.profitFactor) ? Number(payload.profitFactor).toFixed(2) : 'N/A'}
 Biggest Winner: ${payload.biggestWinner != null ? '$' + Number(payload.biggestWinner).toFixed(2) : 'N/A'}
 Biggest Loser: ${payload.biggestLoser != null ? '$' + Number(payload.biggestLoser).toFixed(2) : 'N/A'}
@@ -1672,10 +1667,10 @@ Biggest Risk $: ${payload.biggestRisk != null ? '$' + Number(payload.biggestRisk
 Capital Efficiency: ${payload.capitalEfficiency != null ? Number(payload.capitalEfficiency).toFixed(2) + 'x' : 'N/A'}
 
 By Asset:
-${(payload.assets || []).map((a) => `${a.symbol}: ${a.trades} trades, ${Number(a.winRate).toFixed(1)}% WR, $${Number(a.netPnl).toFixed(2)} P&L, ${a.averageR != null ? Number(a.averageR).toFixed(2) + 'R' : 'N/A'} avg R`).join('\n') || 'No asset data'}
+${(payload.assets || []).map((a) => `${a.symbol}: ${a.trades} trades, ${Number(a.winRate).toFixed(1)}% WR, $${Number(a.netPnl).toFixed(2)} P&L`).join('\n') || 'No asset data'}
 
 By Setup:
-${(payload.setups || []).map((s) => `${s.name}: ${s.trades} trades, ${Number(s.winRate).toFixed(1)}% WR, $${Number(s.netPnl).toFixed(2)} P&L, ${s.averageR != null ? Number(s.averageR).toFixed(2) + 'R' : 'N/A'} avg R`).join('\n') || 'No setup data'}
+${(payload.setups || []).map((s) => `${s.name}: ${s.trades} trades, ${Number(s.winRate).toFixed(1)}% WR, $${Number(s.netPnl).toFixed(2)} P&L`).join('\n') || 'No setup data'}
 
 By Trading Session:
 ${(payload.sessions || []).map((s) => `${s.session}: ${s.trades} trades, ${Number(s.winRate).toFixed(1)}% WR, $${Number(s.netPnl).toFixed(2)} P&L, PF ${s.profitFactor != null && isFinite(s.profitFactor) ? Number(s.profitFactor).toFixed(2) : 'N/A'}`).join('\n') || 'No session data'}

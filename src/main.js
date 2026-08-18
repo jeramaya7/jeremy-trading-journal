@@ -1583,7 +1583,6 @@ function buildDnaScanPayload(tradeList, coachingFocus = DEFAULT_DNA_DOCTOR_COACH
     totalPnl: stats.totalPnl,
     averageWin: stats.averageWin,
     averageLoss: stats.averageLoss,
-    averageR: stats.averageR,
     profitFactor: stats.profitFactor,
     biggestWinner: stats.biggestWinner,
     biggestLoser: stats.biggestLoser,
@@ -1593,9 +1592,9 @@ function buildDnaScanPayload(tradeList, coachingFocus = DEFAULT_DNA_DOCTOR_COACH
     biggestRisk: stats.biggestRisk,
     capitalEfficiency: stats.capitalEfficiency,
     trades: tradeList.map(buildDnaDoctorTradePayload),
-    assets: assetRows.map((r) => ({ symbol: r.asset, trades: r.tradeCount, winRate: r.winRate, netPnl: r.netPnl, averageR: r.averageR })),
-    setups: setupRows.map((r) => ({ name: r.setupName, trades: r.tradeCount, winRate: r.winRate, averageR: r.averageR, netPnl: r.netPnl })),
-    sessions: sessionRows.map((r) => ({ session: r.label, trades: r.tradeCount, winRate: r.winRate, netPnl: r.netPnl, averageR: r.averageR, profitFactor: r.profitFactor })),
+    assets: assetRows.map((r) => ({ symbol: r.asset, trades: r.tradeCount, winRate: r.winRate, netPnl: r.netPnl })),
+    setups: setupRows.map((r) => ({ name: r.setupName, trades: r.tradeCount, winRate: r.winRate, netPnl: r.netPnl })),
+    sessions: sessionRows.map((r) => ({ session: r.label, trades: r.tradeCount, winRate: r.winRate, netPnl: r.netPnl, profitFactor: r.profitFactor })),
   };
 }
 

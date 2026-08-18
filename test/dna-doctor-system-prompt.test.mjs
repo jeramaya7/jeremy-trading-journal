@@ -56,10 +56,8 @@ test('the DNA Doctor system prompt uses the new evidence-based coaching style', 
   assert.ok(prompt.includes('Grade the trading result first, with Net P/L, Profit Factor, and consistency of profitability as the primary assessment.'), 'Overall Grade should prioritize profitability metrics.');
   assert.ok(prompt.includes('First ask: are we making money consistently? Judge primarily from Net P/L and Profit Factor.'), 'Doctor should judge primarily from Net P/L and Profit Factor.');
   assert.ok(prompt.includes('Use Win Rate, Average Winner, Average Loser, Biggest Winner, Biggest Loser, trade count, and setup or market state performance as diagnostics that explain the result.'), 'Supporting metrics should explain the result.');
-  assert.ok(prompt.includes('Average R may be present in the data, but do not use it to grade, criticize, recommend, choose Biggest Weakness, or set the goal.'), 'Average R should not drive Doctor judgment.');
-  assert.ok(prompt.includes('Do not assume larger R targets or holding winners longer would improve the trader.'), 'The Doctor should not assume larger targets improve the trader.');
   assert.ok(prompt.includes('A profitable trading style with many small winners is acceptable when Net P/L and Profit Factor show that it works.'), 'Many small winners should be acceptable when profitability metrics work.');
-  assert.ok(prompt.includes('For a period with positive Net P/L, very strong Profit Factor, high Win Rate, and controlled realized losses, recognize the period as strong without downgrading it for Average R.'), 'Strong profitable periods should not be downgraded for Average R.');
+  assert.ok(prompt.includes('For a period with positive Net P/L, very strong Profit Factor, high Win Rate, and controlled realized losses, recognize the period as strong.'), 'Strong profitable periods should be recognized.');
   assert.ok(prompt.includes('Risk management matters when realized losses, sizing behavior, drawdown, or repeated exposure protects or threatens the ability to stay profitable.'), 'Risk should be tied to realized danger and profitability.');
   assert.ok(prompt.includes('Do not automatically reward lower risk, more protected trades, smaller position sizes, or defensive trade management.'), 'Defensive behavior should not be automatically rewarded.');
   assert.ok(prompt.includes('Do not make Return % a primary Doctor metric.'), 'Return % should not be a primary Doctor metric.');
@@ -76,6 +74,7 @@ test('the DNA Doctor system prompt uses the new evidence-based coaching style', 
   assert.equal(prompt.includes('Grade the trading process first, then the financial result.'), false, 'Old process-first grading should be removed.');
   assert.equal(prompt.includes('Risk control, selectivity, rule-following, execution, and behavior matter more than net P&L.'), false, 'Old risk-first grading should be removed.');
   assert.equal(prompt.includes('Average R is diagnostic only.'), false, 'Average R should no longer be part of Doctor assessment.');
+  assert.equal(prompt.includes('Average R'), false, 'Average R should not appear anywhere in the Doctor system prompt.');
 });
 
 test('data-honesty rules are unchanged: never invent data, and say so when trade count is low', () => {
