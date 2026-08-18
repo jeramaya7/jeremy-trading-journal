@@ -51,18 +51,24 @@ test('the DNA Doctor system prompt uses the new evidence-based coaching style', 
   assert.ok(prompt.includes('Do not infer focus, emotion, or discipline from session performance alone.'), 'Psychology Review should not infer mindset from session performance alone.');
   assert.ok(prompt.includes('Follow this report structure: Overall Grade, Biggest Strength, Biggest Weakness, Best Trade, Worst Trade, Risk Review, Psychology Review, Three Things Done Well, Three Improvements, Goal for Tomorrow, Quote of the Day.'), 'Prompt should request the Aug 7 report structure.');
   assert.ok(prompt.includes('Keep language simple, calm, direct, neutral, and professional.'), 'Prompt should keep the report language calm and professional.');
-  assert.ok(prompt.includes('Process and discipline matter more than P&L alone.'), 'Prompt should prioritize process and discipline.');
+  assert.ok(prompt.includes('Profitability is the objective. Risk management keeps the trader alive long enough to achieve it.'), 'Prompt should use the profitability-first philosophy.');
   assert.ok(prompt.includes('Overall Grade Scoring'), 'Prompt should include explicit Overall Grade scoring guidance.');
-  assert.ok(prompt.includes('Grade the trading process first, then the financial result.'), 'Overall Grade should prioritize process before outcome.');
-  assert.ok(prompt.includes('Risk control, selectivity, rule-following, execution, and behavior matter more than net P&L.'), 'Overall Grade should weigh process factors more than net P&L.');
-  assert.ok(prompt.includes('A profitable day with poor process, weak discipline, oversized risk, or broken rules can receive a low grade.'), 'Profitable bad-process days can receive low grades.');
-  assert.ok(prompt.includes('A losing day with strong discipline, clean execution, controlled risk, and good rule-following can receive a high grade.'), 'Losing disciplined days can receive high grades.');
-  assert.ok(prompt.includes('Do not reward profit that came from bad habits, and do not punish a controlled loss when the trader followed the plan.'), 'Prompt should separate good process from P&L outcome.');
+  assert.ok(prompt.includes('Grade the trading result first, with Net P/L, Profit Factor, and consistency of profitability as the primary assessment.'), 'Overall Grade should prioritize profitability metrics.');
+  assert.ok(prompt.includes('Use Win Rate, Average Winner, Average Loser, Biggest Winner, Biggest Loser, trade count, and setup or market state performance as diagnostics that explain the result.'), 'Supporting metrics should explain the result.');
+  assert.ok(prompt.includes('Risk management matters when it protects or threatens the ability to stay profitable.'), 'Risk should be tied to account survival and profitability.');
+  assert.ok(prompt.includes('Do not automatically reward lower risk, more protected trades, smaller position sizes, or defensive trade management.'), 'Defensive behavior should not be automatically rewarded.');
+  assert.ok(prompt.includes('Do not make Return % a primary Doctor metric.'), 'Return % should not be a primary Doctor metric.');
+  assert.ok(prompt.includes('Do not let CE drive the Overall grade, Biggest Weakness, recommendations, or goal.'), 'CE should be secondary only.');
+  assert.ok(prompt.includes('Risk Review'), 'Prompt should include Risk Review guidance.');
+  assert.ok(prompt.includes('Flag abnormally large losses, losses disproportionate to normal winners, dangerous increases in position size or risk, and behavior that materially threatens the account.'), 'Risk Review should flag account-threatening risk.');
   assert.ok(prompt.includes('Goal/quote style example: "The goal isn\'t to trade more. It\'s to need fewer trades."'), 'Prompt should include the requested calm goal/quote style example.');
   assert.ok(prompt.includes('Tomorrow\'s Focus must always be one practical behavior goal based on the clearest issue from that day\'s data. Keep it short and specific. Never make it primarily a profit target.'), 'Tomorrow focus guidance should be behavior-based and specific.');
 
   // Old brief style instruction should be fully replaced, not left alongside the new one.
   assert.equal(prompt.includes('Write in professional language. Be direct and specific. Avoid generic advice.'), false, 'The old one-line style instruction should be removed, not just supplemented.');
+  assert.equal(prompt.includes('Process and discipline matter more than P&L alone.'), false, 'The old process-first philosophy should be replaced.');
+  assert.equal(prompt.includes('Grade the trading process first, then the financial result.'), false, 'Old process-first grading should be removed.');
+  assert.equal(prompt.includes('Risk control, selectivity, rule-following, execution, and behavior matter more than net P&L.'), false, 'Old risk-first grading should be removed.');
 });
 
 test('data-honesty rules are unchanged: never invent data, and say so when trade count is low', () => {

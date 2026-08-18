@@ -1511,7 +1511,6 @@ const DNA_DOCTOR_PROVIDERS = {
 
 const DNA_DOCTOR_COACHING_FOCUS_OPTIONS = [
   'Overall',
-  'Capital Efficiency (CE)',
   'Risk / Position Sizing',
   'Trade Management',
   'Psychology / Discipline',

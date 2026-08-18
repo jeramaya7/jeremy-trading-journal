@@ -163,9 +163,10 @@ test('DNA Doctor payload includes selected trades without screenshots or invente
 
 test('DNA Doctor UI exposes Coaching Focus and sends the selected focus', () => {
   assert.ok(source.includes('const DNA_DOCTOR_COACHING_FOCUS_OPTIONS = ['), 'Coaching Focus options should be centralized.');
-  for (const option of ['Overall', 'Capital Efficiency (CE)', 'Risk / Position Sizing', 'Trade Management', 'Psychology / Discipline']) {
+  for (const option of ['Overall', 'Risk / Position Sizing', 'Trade Management', 'Psychology / Discipline']) {
     assert.ok(source.includes(`'${option}',`), `Coaching Focus should include ${option}.`);
   }
+  assert.equal(source.includes("'Capital Efficiency (CE)',"), false, 'Capital Efficiency should not be available as a Coaching Focus.');
   assert.ok(source.includes("const DEFAULT_DNA_DOCTOR_COACHING_FOCUS = 'Overall';"), 'Overall should be the default Coaching Focus.');
   assert.ok(source.includes('let selectedDnaDoctorCoachingFocus = \'Overall\';'), 'The selected Coaching Focus should start as Overall.');
   assert.ok(source.includes('<span>Coaching Focus</span>'), 'The Doctor UI should label the Coaching Focus dropdown.');
@@ -216,6 +217,7 @@ test('DNA Doctor backend includes risk and process metrics in the model data', (
 
 test('DNA Doctor backend includes Coaching Focus instructions in the prompt data', () => {
   assert.ok(serverSource.includes('const coachingFocus = typeof payload.coachingFocus === \'string\' && payload.coachingFocus.trim()'), 'Backend should read Coaching Focus from the payload.');
+  assert.ok(serverSource.includes("const activeCoachingFocus = coachingFocus === 'Capital Efficiency (CE)' ? 'Overall' : coachingFocus;"), 'Legacy CE focus payloads should fall back to Overall.');
   assert.ok(serverSource.includes('Coaching Focus: Overall. Use the current balanced DNA Doctor behavior and weigh all areas normally.'), 'Overall should preserve balanced Doctor behavior.');
   assert.ok(serverSource.includes('Still consider all provided data, but prioritize this area when determining the Overall grade, biggest weakness or issue, recommendations, and goal.'), 'A selected focus should prioritize grade, issue, recommendations, and goal while keeping all data.');
   assert.ok(serverSource.includes('${coachingFocusInstruction}'), 'The focus instruction should be included in the user prompt sent to the model.');
@@ -231,8 +233,8 @@ test('DNA Doctor prompt defines Capital Efficiency using the DNA formula and gua
   assert.ok(serverSource.includes('Do not use risk/reward, expectancy, win rate, or profit factor as substitutes for CE.'), 'The prompt should prevent substituting other performance metrics for CE.');
   assert.ok(serverSource.includes('Low R does not automatically mean poor CE.'), 'The prompt should state that low R is not automatically poor CE.');
   assert.ok(serverSource.includes("CE commentary must be based on the actual CE value and DNA's CE definition."), 'CE commentary should use the actual CE value and DNA definition.');
-  assert.ok(serverSource.includes('When Coaching Focus is Capital Efficiency (CE), the top Biggest Issue must identify the biggest problem affecting CE, such as maximum capital exposure, oversized risk, unrecovered drawdown, net profit, or exposure efficiency; do not choose low Average R unless it has a clear direct effect on CE.'), 'CE focus should prevent low Average R from becoming the Biggest Issue unless it directly affects CE.');
-  assert.ok(serverSource.includes('When Coaching Focus is Capital Efficiency (CE), the Overall grade, biggest issue, recommendations, and goal should primarily reflect CE using this definition.'), 'CE focus should prioritize CE using the DNA definition.');
+  assert.ok(serverSource.includes('CE is a secondary diagnostic only and must not drive the Overall grade, Biggest Weakness, recommendations, or goal.'), 'CE should remain secondary in Doctor assessment.');
+  assert.equal(serverSource.includes('When Coaching Focus is Capital Efficiency (CE), the Overall grade, biggest issue, recommendations, and goal should primarily reflect CE using this definition.'), false, 'CE should no longer drive grade, issue, recommendations, or goal.');
   assert.ok(serverSource.includes('${capitalEfficiencyInstruction}'), 'The CE instruction should be included in the user prompt sent to the model.');
 });
 
