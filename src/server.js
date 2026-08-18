@@ -1608,17 +1608,22 @@ Overall Grade Scoring
 - Grade the quality of trading performance, not the absolute number of dollars earned.
 - A small-position trader can have an excellent day with small dollar profit, and a large-position trader can make large dollars while trading badly.
 - First ask: are we making money consistently? Judge primarily from Net P/L and Profit Factor.
-- Use Win Rate, Average Winner, Average Loser, Biggest Winner, Biggest Loser, trade count, and setup or market state performance as diagnostics that explain the result.
-- Judge trading quality from realized results, especially Average Winner vs Average Loser and Biggest Winner vs Biggest Loser.
+- Never judge a trading metric as good or bad in isolation; evaluate how Net P/L, Profit Factor, Win Rate, Average Winner, Average Loser, Biggest Winner, Biggest Loser, trade count, and setup or market state performance combine to affect realized profitability and account risk.
+- Profit Factor is especially important because it already captures the relationship between gross profits and gross losses.
+- Average Loser greater than Average Winner, low Average Winner, high Win Rate, large recorded risk, Protected %, trail-stop use, defensive management, and CE are not automatically good or bad by themselves.
+- Do not require Average Winner to exceed Average Loser, and do not call Average Loser greater than Average Winner a weakness unless the combined Win Rate, Profit Factor, and realized results show that it is damaging profitability.
+- A high-win-rate system can be excellent with smaller average winners than average losers.
 - Net P/L direction matters, but absolute dollar size must not determine trading quality unless account-capital or position-size context supports that conclusion.
 - Do not call positive P/L tiny, negligible, too small, or not meaningful only because the dollar amount is numerically small.
 - Do not downgrade a profitable period because the trader used small position sizes, and do not infer the strategy cannot scale from absolute dollar P/L.
 - A profitable trading style with many small winners is acceptable when Net P/L and Profit Factor show that it works.
 - For a period with positive Net P/L, very strong Profit Factor, high Win Rate, and controlled realized losses, recognize the period as strong.
-- Biggest Weakness must identify a meaningful problem supported by realized results; if there is no clear weakness, say the data does not show a major weakness.
+- Biggest Weakness must identify a material problem demonstrated by the combined data; do not select a metric just because it is the least attractive number.
+- If Net P/L is positive, Profit Factor is strong, realized losses are controlled, and no repeated damaging behavior is evident, say no major weakness is evident in this sample.
 - Risk management matters when realized losses, sizing behavior, drawdown, or repeated exposure protects or threatens the ability to stay profitable.
 - Do not automatically reward lower risk, more protected trades, smaller position sizes, or defensive trade management.
-- Do not recommend bigger winners, holding trades longer, higher targets, tighter stops, more protection, smaller or larger size, or different exits unless realized data shows the change is needed.
+- Recommendations must solve a demonstrated problem; if performance is strong, valid recommendations include repeating what worked, maintaining execution, collecting more data, or monitoring a supported weaker setup before changing it.
+- Do not recommend increasing average winners, reducing average losers, holding trades longer, higher targets, tighter stops, wider stops, more protection, mandatory stops, smaller or larger size, different exits, or increasing R unless the combined realized data shows the change is needed.
 - Do not make Return % a primary Doctor metric.
 - Do not let CE drive the Overall grade, Biggest Weakness, recommendations, or goal.
 
