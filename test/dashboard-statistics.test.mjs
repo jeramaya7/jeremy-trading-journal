@@ -98,7 +98,8 @@ test('R and risk calculations remain available outside the dashboard summary', (
   assert.ok(source.includes('<span>Risk %: ${formatRiskPercent(riskPercent)}</span>'), 'Trade cards should still show Risk % values.');
   assert.ok(source.includes('<span class="${rTone}">R: ${formatRMultiple(rMultiple)}</span>'), 'Trade cards should still show R values.');
   assert.ok(source.includes('const rMultiple = calculateRMultiple(trade);'), 'Setup Analytics should still reuse R calculations.');
-  assert.ok(source.includes('${setupAnalyticsHeader(\'averageR\', \'Average R\')}'), 'Setup Analytics should still show Average R.');
+  assert.equal(source.includes('${setupAnalyticsHeader(\'averageR\', \'Average R\')}'), false, 'Setup Analytics should no longer show Average R.');
+  assert.ok(source.includes('${setupAnalyticsHeader(\'profitFactor\', \'Profit Factor\')}'), 'Setup Analytics should show Profit Factor.');
 });
 
 test('R and risk percent display with one decimal place without changing calculations', () => {

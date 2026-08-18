@@ -15,6 +15,7 @@ test('setup analytics groups non-blank setups using existing trade calculations'
   assertIncludes(source, 'if (!setupName) {', 'Blank setup values are ignored.');
   assertIncludes(source, 'const pnl = calculatePnl(trade);', 'Setup analytics reuses the existing P&L calculation.');
   assertIncludes(source, 'const rMultiple = calculateRMultiple(trade);', 'Setup analytics reuses the existing R calculation.');
+  assertIncludes(source, 'profitFactor: getProfitFactor(report.winningPnl, report.losingPnl),', 'Setup analytics calculates Profit Factor from shared win/loss P&L buckets.');
   assertIncludes(source, 'netPnl: report.netPnl,', 'Net P&L is included for each setup row.');
 });
 
@@ -35,4 +36,11 @@ test('setup analytics has clean production table styling', () => {
   assertIncludes(styles, '.setup-analytics-panel', 'Setup analytics panel has dedicated styling.');
   assertIncludes(styles, '.setup-analytics-table', 'Setup analytics table has dedicated styling.');
   assertIncludes(styles, '.table-sort-button', 'Sortable table headers have dedicated styling.');
+});
+
+test('setup analytics displays Profit Factor instead of Average R', () => {
+  assertIncludes(source, "${setupAnalyticsHeader('profitFactor', 'Profit Factor')}", 'Setup analytics renders a Profit Factor column.');
+  assertIncludes(source, "const sortLabels = { setupName: 'Setup Name', tradeCount: 'Number of Trades', winRate: 'Win Rate %', profitFactor: 'Profit Factor', netPnl: 'Net P&L' };", 'Setup analytics sorting labels include Profit Factor.');
+  assertIncludes(source, '<td class="${pfTone}">${formatProfitFactor(report.profitFactor)}</td>', 'Setup analytics rows render formatted Profit Factor.');
+  assert.equal(source.includes("${setupAnalyticsHeader('averageR', 'Average R')}"), false, 'Setup analytics no longer renders Average R.');
 });

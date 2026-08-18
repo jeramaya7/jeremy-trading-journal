@@ -1381,6 +1381,8 @@ function getSetupAnalytics(tradeList = trades) {
       breakevenCount: 0,
       rCount: 0,
       totalR: 0,
+      winningPnl: [],
+      losingPnl: [],
       netPnl: 0,
     };
 
@@ -1389,6 +1391,8 @@ function getSetupAnalytics(tradeList = trades) {
     report.lossCount += outcome === 'loss' ? 1 : 0;
     report.breakevenCount += outcome === 'breakeven' ? 1 : 0;
     report.netPnl += pnl;
+    if (outcome === 'win') report.winningPnl.push(pnl);
+    if (outcome === 'loss') report.losingPnl.push(pnl);
 
     if (rMultiple !== null) {
       report.rCount += 1;
@@ -1405,6 +1409,7 @@ function getSetupAnalytics(tradeList = trades) {
       winRate: calculateWinRate(report.winCount, report.lossCount),
       breakevenCount: report.breakevenCount,
       averageR: report.rCount ? report.totalR / report.rCount : null,
+      profitFactor: getProfitFactor(report.winningPnl, report.losingPnl),
       netPnl: report.netPnl,
     }))
     .sort(compareSetupAnalyticsRows);
@@ -1418,6 +1423,8 @@ function compareSetupAnalyticsRows(firstRow, secondRow) {
 
   if (typeof firstValue === 'string' || typeof secondValue === 'string') {
     result = String(firstValue ?? '').localeCompare(String(secondValue ?? ''), undefined, { sensitivity: 'base' });
+  } else if (firstValue === secondValue) {
+    result = 0;
   } else {
     result = (firstValue ?? Number.NEGATIVE_INFINITY) - (secondValue ?? Number.NEGATIVE_INFINITY);
   }
@@ -1459,6 +1466,8 @@ function getAssetAnalytics(tradeList = trades) {
       totalWinningPnl: 0,
       losingPnlCount: 0,
       totalLosingPnl: 0,
+      winningPnl: [],
+      losingPnl: [],
       netPnl: 0,
     };
 
@@ -1470,11 +1479,13 @@ function getAssetAnalytics(tradeList = trades) {
     if (outcome === 'win') {
       report.winningPnlCount += 1;
       report.totalWinningPnl += pnl;
+      report.winningPnl.push(pnl);
     }
 
     if (outcome === 'loss') {
       report.losingPnlCount += 1;
       report.totalLosingPnl += pnl;
+      report.losingPnl.push(pnl);
     }
 
     if (rMultiple !== null) {
@@ -1494,6 +1505,7 @@ function getAssetAnalytics(tradeList = trades) {
       breakevenCount: report.breakevenCount,
       netPnl: report.netPnl,
       averageR: report.rCount ? report.totalR / report.rCount : null,
+      profitFactor: getProfitFactor(report.winningPnl, report.losingPnl),
       averageWinner: report.winningPnlCount ? report.totalWinningPnl / report.winningPnlCount : null,
       averageLoser: report.losingPnlCount ? report.totalLosingPnl / report.losingPnlCount : null,
     }))
@@ -1917,6 +1929,8 @@ function buildSessionStats(tradeList, labelFn, labelOrder) {
       netPnl: r.netPnl,
       totalR: r.rCount ? r.totalR : null,
       averageR: r.rCount ? r.totalR / r.rCount : null,
+      averageWinner: r.winningPnl.length ? r.winningPnl.reduce((sum, value) => sum + value, 0) / r.winningPnl.length : null,
+      averageLoser: r.losingPnl.length ? r.losingPnl.reduce((sum, value) => sum + value, 0) / r.losingPnl.length : null,
       profitFactor: getProfitFactor(r.winningPnl, r.losingPnl),
     }));
 }
@@ -1986,8 +2000,8 @@ function tradingSessionRow(r, verdicts) {
   const verdictIcon = verdict === 'best' ? '🟢' : verdict === 'weak' ? '🔴' : '🟡';
   const verdictLabel = verdict === 'best' ? 'Best' : verdict === 'weak' ? 'Weak' : 'Average';
   const pnlTone = getPerformanceTone(r.netPnl);
-  const rTone = getPerformanceTone(r.averageR);
-  const totalRTone = getPerformanceTone(r.totalR);
+  const averageWinnerTone = getPerformanceTone(r.averageWinner);
+  const averageLoserTone = getPerformanceTone(r.averageLoser);
   const pfTone = getProfitFactorTone(r.profitFactor);
 
   return `
@@ -1996,8 +2010,8 @@ function tradingSessionRow(r, verdicts) {
       <td>${r.tradeCount}</td>
       <td>${formatPercent(r.winRate)}</td>
       <td class="${pnlTone}">${currency(r.netPnl)}</td>
-      <td class="${totalRTone}">${r.totalR !== null ? formatRMultiple(r.totalR) : '—'}</td>
-      <td class="${rTone}">${formatRMultiple(r.averageR)}</td>
+      <td class="${averageWinnerTone}">${r.averageWinner === null ? '—' : currency(r.averageWinner)}</td>
+      <td class="${averageLoserTone}">${r.averageLoser === null ? '—' : currency(r.averageLoser)}</td>
       <td class="${pfTone}">${formatProfitFactor(r.profitFactor)}</td>
       <td><span class="verdict-badge verdict-${verdict}">${verdictIcon} ${verdictLabel}</span></td>
     </tr>`;
@@ -2025,8 +2039,8 @@ function renderTimeOfDayAnalytics(tradeList = trades) {
               <th scope="col">Trades</th>
               <th scope="col">Win Rate</th>
               <th scope="col">Net P&amp;L</th>
-              <th scope="col">Total R</th>
-              <th scope="col">Average R</th>
+              <th scope="col">Average Winner</th>
+              <th scope="col">Average Loser</th>
               <th scope="col">Profit Factor</th>
               <th scope="col">Verdict</th>
             </tr>
@@ -2073,7 +2087,7 @@ function renderAssetAnalytics(tradeList = trades) {
                 <th scope="col">Total Trades</th>
                 <th scope="col">Win Rate</th>
                 <th scope="col">Net P&L</th>
-                <th scope="col">Average R</th>
+                <th scope="col">Profit Factor</th>
                 <th scope="col">Average Winner</th>
                 <th scope="col">Average Loser</th>
               </tr>
@@ -2088,7 +2102,7 @@ function renderAssetAnalytics(tradeList = trades) {
 
 function assetAnalyticsRow(report) {
   const pnlTone = getPerformanceTone(report.netPnl);
-  const rTone = getPerformanceTone(report.averageR);
+  const pfTone = getProfitFactorTone(report.profitFactor);
   const averageWinnerTone = getPerformanceTone(report.averageWinner);
   const averageLoserTone = getPerformanceTone(report.averageLoser);
 
@@ -2098,7 +2112,7 @@ function assetAnalyticsRow(report) {
                 <td>${report.tradeCount}</td>
                 <td>${formatPercent(report.winRate)}</td>
                 <td class="${pnlTone}">${currency(report.netPnl)}</td>
-                <td class="${rTone}">${formatRMultiple(report.averageR)}</td>
+                <td class="${pfTone}">${formatProfitFactor(report.profitFactor)}</td>
                 <td class="${averageWinnerTone}">${report.averageWinner === null ? '—' : currency(report.averageWinner)}</td>
                 <td class="${averageLoserTone}">${report.averageLoser === null ? '—' : currency(report.averageLoser)}</td>
               </tr>`;
@@ -2106,7 +2120,7 @@ function assetAnalyticsRow(report) {
 
 function renderSetupAnalytics(tradeList = trades) {
   const setupAnalytics = getSetupAnalytics(tradeList);
-  const sortLabels = { setupName: 'Setup Name', tradeCount: 'Number of Trades', winRate: 'Win Rate %', averageR: 'Average R', netPnl: 'Net P&L' };
+  const sortLabels = { setupName: 'Setup Name', tradeCount: 'Number of Trades', winRate: 'Win Rate %', profitFactor: 'Profit Factor', netPnl: 'Net P&L' };
 
   return `
       <section class="panel setup-analytics-panel" aria-label="Setup Analytics">
@@ -2124,7 +2138,7 @@ function renderSetupAnalytics(tradeList = trades) {
                 ${setupAnalyticsHeader('setupName', 'Setup Name')}
                 ${setupAnalyticsHeader('tradeCount', 'Number of Trades')}
                 ${setupAnalyticsHeader('winRate', 'Win Rate %')}
-                ${setupAnalyticsHeader('averageR', 'Average R')}
+                ${setupAnalyticsHeader('profitFactor', 'Profit Factor')}
                 ${setupAnalyticsHeader('netPnl', 'Net P&L')}
               </tr>
             </thead>
@@ -2146,14 +2160,14 @@ function setupAnalyticsHeader(key, label) {
 
 function setupAnalyticsRow(report) {
   const pnlTone = getPerformanceTone(report.netPnl);
-  const rTone = getPerformanceTone(report.averageR);
+  const pfTone = getProfitFactorTone(report.profitFactor);
 
   return `
               <tr>
                 <td>${escapeHtml(report.setupName)}</td>
                 <td>${report.tradeCount}</td>
                 <td>${formatPercent(report.winRate)}</td>
-                <td class="${rTone}">${formatRMultiple(report.averageR)}</td>
+                <td class="${pfTone}">${formatProfitFactor(report.profitFactor)}</td>
                 <td class="${pnlTone}">${currency(report.netPnl)}</td>
               </tr>`;
 }

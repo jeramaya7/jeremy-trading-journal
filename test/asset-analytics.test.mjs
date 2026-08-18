@@ -14,6 +14,7 @@ test('asset analytics groups trades by existing display symbol logic', () => {
   assertIncludes(source, 'const asset = getTradeDisplaySymbol(trade).trim();', 'Asset analytics reuses display-symbol logic.');
   assertIncludes(source, 'const pnl = calculatePnl(trade);', 'Asset analytics reuses existing P&L calculation.');
   assertIncludes(source, 'const rMultiple = calculateRMultiple(trade);', 'Asset analytics reuses existing R calculation.');
+  assertIncludes(source, 'profitFactor: getProfitFactor(report.winningPnl, report.losingPnl),', 'Asset analytics calculates Profit Factor from shared win/loss P&L buckets.');
   assertIncludes(source, 'averageWinner: report.winningPnlCount ? report.totalWinningPnl / report.winningPnlCount : null,', 'Asset analytics calculates average winner.');
   assertIncludes(source, 'averageLoser: report.losingPnlCount ? report.totalLosingPnl / report.losingPnlCount : null,', 'Asset analytics calculates average loser.');
 });
@@ -39,15 +40,33 @@ test('asset analytics renders near setup analytics with required columns', () =>
   assertIncludes(source, '<th scope="col">Total Trades</th>', 'Total Trades column is rendered.');
   assertIncludes(source, '<th scope="col">Win Rate</th>', 'Win Rate column is rendered.');
   assertIncludes(source, '<th scope="col">Net P&L</th>', 'Net P&L column is rendered.');
-  assertIncludes(source, '<th scope="col">Average R</th>', 'Average R column is rendered.');
+  assertIncludes(source, '<th scope="col">Profit Factor</th>', 'Profit Factor column is rendered.');
   assertIncludes(source, '<th scope="col">Average Winner</th>', 'Average Winner column is rendered.');
   assertIncludes(source, '<th scope="col">Average Loser</th>', 'Average Loser column is rendered.');
+  assertIncludes(source, '<td class="${pfTone}">${formatProfitFactor(report.profitFactor)}</td>', 'Asset rows render formatted Profit Factor.');
+  assert.equal(source.includes('<th scope="col">Average R</th>'), false, 'Asset analytics no longer renders Average R.');
 });
 
 test('asset analytics uses setup analytics table styling patterns', () => {
   assertIncludes(styles, '.asset-analytics-panel', 'Asset analytics has a section-specific style hook.');
   assertIncludes(styles, '.asset-analytics-table', 'Asset analytics has a table-specific style hook.');
   assertIncludes(source, '<table class="setup-analytics-table asset-analytics-table">', 'Asset analytics reuses setup analytics table styles.');
+});
+
+test('trading session analysis shows P/L and Profit Factor columns without R columns', () => {
+  assertIncludes(source, '<h2>Trading Session Analysis</h2>', 'Trading Session Analysis section has a title.');
+  assertIncludes(source, '<th scope="col">Trading Session</th>', 'Trading Session column is rendered.');
+  assertIncludes(source, '<th scope="col">Trades</th>', 'Trades column is rendered.');
+  assertIncludes(source, '<th scope="col">Win Rate</th>', 'Win Rate column is rendered.');
+  assertIncludes(source, '<th scope="col">Net P&amp;L</th>', 'Net P&L column is rendered.');
+  assertIncludes(source, '<th scope="col">Average Winner</th>', 'Average Winner column is rendered.');
+  assertIncludes(source, '<th scope="col">Average Loser</th>', 'Average Loser column is rendered.');
+  assertIncludes(source, '<th scope="col">Profit Factor</th>', 'Profit Factor column is rendered.');
+  assertIncludes(source, '<th scope="col">Verdict</th>', 'Verdict column is rendered.');
+  assertIncludes(source, 'averageWinner: r.winningPnl.length ? r.winningPnl.reduce((sum, value) => sum + value, 0) / r.winningPnl.length : null,', 'Session rows calculate Average Winner from winning P/L.');
+  assertIncludes(source, 'averageLoser: r.losingPnl.length ? r.losingPnl.reduce((sum, value) => sum + value, 0) / r.losingPnl.length : null,', 'Session rows calculate Average Loser from losing P/L.');
+  assert.equal(source.includes('<th scope="col">Total R</th>'), false, 'Trading Session Analysis no longer renders Total R.');
+  assert.equal(source.includes('<th scope="col">Average R</th>'), false, 'Trading Session Analysis no longer renders Average R.');
 });
 
 
