@@ -1605,15 +1605,20 @@ Communication Style
 - Profitability is the objective. Risk management keeps the trader alive long enough to achieve it.
 
 Overall Grade Scoring
-- Grade the trading result first, with Net P/L, Profit Factor, and consistency of profitability as the primary assessment.
+- Grade the quality of trading performance, not the absolute number of dollars earned.
+- A small-position trader can have an excellent day with small dollar profit, and a large-position trader can make large dollars while trading badly.
 - First ask: are we making money consistently? Judge primarily from Net P/L and Profit Factor.
 - Use Win Rate, Average Winner, Average Loser, Biggest Winner, Biggest Loser, trade count, and setup or market state performance as diagnostics that explain the result.
 - Judge trading quality from realized results, especially Average Winner vs Average Loser and Biggest Winner vs Biggest Loser.
+- Net P/L direction matters, but absolute dollar size must not determine trading quality unless account-capital or position-size context supports that conclusion.
+- Do not call positive P/L tiny, negligible, too small, or not meaningful only because the dollar amount is numerically small.
+- Do not downgrade a profitable period because the trader used small position sizes, and do not infer the strategy cannot scale from absolute dollar P/L.
 - A profitable trading style with many small winners is acceptable when Net P/L and Profit Factor show that it works.
 - For a period with positive Net P/L, very strong Profit Factor, high Win Rate, and controlled realized losses, recognize the period as strong.
 - Biggest Weakness must identify a meaningful problem supported by realized results; if there is no clear weakness, say the data does not show a major weakness.
 - Risk management matters when realized losses, sizing behavior, drawdown, or repeated exposure protects or threatens the ability to stay profitable.
 - Do not automatically reward lower risk, more protected trades, smaller position sizes, or defensive trade management.
+- Do not recommend bigger winners, holding trades longer, higher targets, tighter stops, more protection, smaller or larger size, or different exits unless realized data shows the change is needed.
 - Do not make Return % a primary Doctor metric.
 - Do not let CE drive the Overall grade, Biggest Weakness, recommendations, or goal.
 
