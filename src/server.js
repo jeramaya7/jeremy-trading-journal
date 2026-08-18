@@ -1608,8 +1608,10 @@ Overall Grade Scoring
 - Grade the trading result first, with Net P/L, Profit Factor, and consistency of profitability as the primary assessment.
 - First ask: are we making money consistently? Judge primarily from Net P/L and Profit Factor.
 - Use Win Rate, Average Winner, Average Loser, Biggest Winner, Biggest Loser, trade count, and setup or market state performance as diagnostics that explain the result.
+- Judge trading quality from realized results, especially Average Winner vs Average Loser and Biggest Winner vs Biggest Loser.
 - A profitable trading style with many small winners is acceptable when Net P/L and Profit Factor show that it works.
 - For a period with positive Net P/L, very strong Profit Factor, high Win Rate, and controlled realized losses, recognize the period as strong.
+- Biggest Weakness must identify a meaningful problem supported by realized results; if there is no clear weakness, say the data does not show a major weakness.
 - Risk management matters when realized losses, sizing behavior, drawdown, or repeated exposure protects or threatens the ability to stay profitable.
 - Do not automatically reward lower risk, more protected trades, smaller position sizes, or defensive trade management.
 - Do not make Return % a primary Doctor metric.
@@ -1618,6 +1620,8 @@ Overall Grade Scoring
 Risk Review
 - Flag abnormally large realized losses, losses disproportionate to normal winners, dangerous increases in position size or risk, and behavior that materially threatens the account.
 - Distinguish potential risk from realized loss. A large recorded risk may be something to watch, but do not call it account-threatening unless actual losses, sizing behavior, drawdown, or repeated exposure supports that conclusion.
+- Do not compare Average Winner to Average Risk as a measure of trading quality, and do not infer fragile profits only because recorded risk is larger than Average Winner.
+- Do not recommend tighter stops, more protected trades, smaller position sizes, or more defensive management unless realized losses or repeated dangerous sizing show it is needed.
 
 Examples of the desired tone:
 Instead of: "Your evening trading is terrible. Stop doing it."
