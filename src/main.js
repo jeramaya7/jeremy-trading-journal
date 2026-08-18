@@ -1640,78 +1640,36 @@ const DNA_DOCTOR_LOADING_STEPS = [
 ];
 
 function renderDnaDoctor(tradeList = trades) {
-  const fullReportOpen = dnaDoctorState.fullReportOpen;
-  const { status, report, error, dismissError } = dnaDoctorState;
-  const isLoading = status === 'loading';
-
-  const errorBanner = (status === 'error' && error && !dismissError) ? `
-    <div class="dna-doctor-error-banner" id="dnaDoctorErrorBanner">
-      <div class="dna-doctor-error-content">
-        <span>⚠️ ${escapeHtml(error)}</span>
-        <span class="dna-doctor-error-hint">Check your connection and try again.</span>
-      </div>
-      <button class="dna-doctor-error-dismiss" type="button" id="dnaDoctorDismissError" aria-label="Dismiss">✕</button>
-    </div>` : '';
-
-  const loadingHtml = isLoading ? `
-    <div class="dna-doctor-loading" aria-live="polite">
-      <div class="dna-doctor-spinner"></div>
-      <p id="dnaDoctorLoadingStep">${DNA_DOCTOR_LOADING_STEPS[0]}</p>
-    </div>` : '';
-
-  const reportHtml = report ? `
-    <div class="dna-doctor-report-wrap ${status === 'done' ? 'dna-doctor-fadein' : ''}">
-     ${renderDnaDoctorReport(report, fullReportOpen)}
-    </div>` : '';
-
   return `
     <section class="panel dna-doctor-panel" aria-label="DNA Doctor">
-
-      <!-- Branded idle state — mirrors hero quality -->
       <div class="dna-doctor-branded">
-
-        <!-- Left: logo + copy + pills -->
         <div class="dna-doctor-brand-left">
           <div class="dna-doctor-heading-row">
             <img class="dna-doctor-icon" src="./Icon_circular_logo.png" alt="DNA Doctor icon" />
-            <h2 class="dna-doctor-title">DNA DOCTOR</h2>
+            <h2 class="dna-doctor-title">DNA Doctor</h2>
           </div>
-          <p class="dna-doctor-subtitle">AI-powered trading diagnosis based on your journal data.</p>
+          <p class="dna-doctor-subtitle">Download a clean AI-ready markdown report from the current DNA Results timeframe.</p>
 
           <div class="dna-doctor-pills">
             <div class="dna-doctor-pill">
               ${icon('target')}
               <div>
-                <strong>Analyze Patterns</strong>
-                <span>Discover what's really happening in your trades</span>
+                <strong>Current Timeframe</strong>
+                <span>${escapeHtml(getDnaTimeframeLabel(dnaResultsTimeframe))} DNA Results data</span>
               </div>
             </div>
             <div class="dna-doctor-pill">
               ${icon('chart')}
               <div>
-                <strong>Find Strengths</strong>
-                <span>Identify your profit drivers</span>
-              </div>
-            </div>
-            <div class="dna-doctor-pill">
-              ${icon('trend')}
-              <div>
-                <strong>Spot Weaknesses</strong>
-                <span>Uncover leaks in your strategy</span>
+                <strong>Full Analytics</strong>
+                <span>Results, risk, setup, asset, session, and market state</span>
               </div>
             </div>
             <div class="dna-doctor-pill">
               ${icon('book')}
               <div>
-                <strong>Get Prescription</strong>
-                <span>Actionable steps to improve</span>
-              </div>
-            </div>
-            <div class="dna-doctor-pill">
-              ${icon('refresh')}
-              <div>
-                <strong>Track Progress</strong>
-                <span>Scan regularly and see improvement</span>
+                <strong>AI Instructions</strong>
+                <span>Built-in coaching prompt included</span>
               </div>
             </div>
           </div>
@@ -1719,31 +1677,19 @@ function renderDnaDoctor(tradeList = trades) {
           <div class="dna-doctor-privacy">
             ${icon('book')}
             <div>
-              <strong>Your data is private and secure.</strong>
-              <span>We only use your journal data to generate your DNA Doctor report. Nothing is stored or shared.</span>
+              <strong>Your data stays client-side.</strong>
+              <span>The button downloads a markdown file you can share with ChatGPT or Claude.</span>
             </div>
           </div>
         </div>
 
-        <!-- Right: scan button -->
         <div class="dna-doctor-brand-right">
-          <label class="dna-doctor-focus-control" for="dnaDoctorCoachingFocus">
-            <span>Coaching Focus</span>
-            <select id="dnaDoctorCoachingFocus" ${isLoading ? 'disabled' : ''}>
-              ${DNA_DOCTOR_COACHING_FOCUS_OPTIONS.map((option) => `<option value="${escapeHtml(option)}"${option === selectedDnaDoctorCoachingFocus ? ' selected' : ''}>${escapeHtml(option)}</option>`).join('')}
-            </select>
-          </label>
-          <button class="dna-doctor-scan-btn" type="button" id="runDnaDoctor" ${isLoading ? 'disabled' : ''}>
-            ${isLoading ? '<span class="dna-doctor-btn-spinner"></span>' : icon('trend')}
-            ${isLoading ? '🧬 Scanning...' : 'Run DNA Scan'}
+          <button class="dna-doctor-scan-btn" type="button" id="runDnaDoctor">
+            ${icon('download')}
+            Request Analysis
           </button>
         </div>
-
       </div>
-
-      ${errorBanner}
-      ${loadingHtml}
-      ${reportHtml}
     </section>`;
 }
 
@@ -1940,6 +1886,14 @@ function getTimeOfDayAnalytics(tradeList = trades) {
     tradeList,
     (trade) => getTimeOfDayBucket(trade.openTime),
     TIME_OF_DAY_ORDER,
+  ).sort((a, b) => b.netPnl - a.netPnl);
+}
+
+function getMarketStateAnalytics(tradeList = trades) {
+  return buildSessionStats(
+    tradeList,
+    (trade) => String(trade.state || 'Unknown').trim() || 'Unknown',
+    [...MARKET_STATE_OPTIONS, 'Unknown'],
   ).sort((a, b) => b.netPnl - a.netPnl);
 }
 
@@ -3871,32 +3825,7 @@ function bindEvents() {
   document.querySelector('.dna-doctor-full-report')?.addEventListener('toggle', (event) => {
   dnaDoctorState.fullReportOpen = event.currentTarget.open;
 }, { signal });
-  document.querySelector('#runDnaDoctor')?.addEventListener('click', async () => {
-    const dnaDoctorTrades = currentDnaDoctorTrades;
-    const coachingFocus = selectedDnaDoctorCoachingFocus;
-    // Preserve existing report during re-scan — never flash empty content
-    dnaDoctorState = { ...dnaDoctorState, status: 'loading', report: dnaDoctorState.report, error: null, dismissError: false };
-    render();
-
-    // Animate loading steps without full re-render
-    const steps = DNA_DOCTOR_LOADING_STEPS;
-    let stepIndex = 0;
-    const stepInterval = setInterval(() => {
-      stepIndex = (stepIndex + 1) % steps.length;
-      const el = document.querySelector('#dnaDoctorLoadingStep');
-      if (el) el.textContent = steps[stepIndex];
-    }, 1500);
-
-    try {
-      const report = await runDnaDoctor(dnaDoctorTrades, coachingFocus);
-      clearInterval(stepInterval);
-      dnaDoctorState = { ...dnaDoctorState, status: 'done', report, error: null, dismissError: false };
-    } catch (err) {
-      clearInterval(stepInterval);
-      dnaDoctorState = { ...dnaDoctorState, status: 'error', report: dnaDoctorState.report, error: err.message || 'Something went wrong.', dismissError: false };
-    }
-    render();
-  });
+  document.querySelector('#runDnaDoctor')?.addEventListener('click', exportForAiMarkdown, { signal });
 
   document.querySelector('#dnaDoctorDismissError')?.addEventListener('click', () => {
     dnaDoctorState = { ...dnaDoctorState, dismissError: true };
@@ -5231,6 +5160,268 @@ function exportDailyTrades() {
   const link = document.createElement('a');
   link.href = url;
   link.download = `DNA-Daily-Export-${dateKey}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function getDnaTimeframeLabel(timeframe = dnaResultsTimeframe) {
+  return DNA_TIMEFRAME_OPTIONS.find((option) => option.value === timeframe)?.label || 'Beginning';
+}
+
+function getDnaResultsDateRange(period = dnaResultsTimeframe, referenceDate = getDnaResultsReferenceDate(), tradeList = getActiveTrades()) {
+  const periodTrades = filterTradesForPeriod(tradeList, period, referenceDate);
+  const periodDates = periodTrades.map(getTradeReportDate).filter(Boolean).sort((a, b) => a - b);
+
+  if (period === 'all') {
+    return {
+      start: periodDates[0] ?? null,
+      end: periodDates[periodDates.length - 1] ?? referenceDate,
+      tradeStart: periodDates[0] ?? null,
+      tradeEnd: periodDates[periodDates.length - 1] ?? null,
+    };
+  }
+
+  return {
+    start: getReportPeriodStart(referenceDate, period),
+    end: referenceDate,
+    tradeStart: periodDates[0] ?? null,
+    tradeEnd: periodDates[periodDates.length - 1] ?? null,
+  };
+}
+
+function formatExportDateRange(range) {
+  if (!range.start && !range.end) return 'No dated trades';
+  if (!range.start) return formatDateKey(range.end);
+  if (!range.end) return formatDateKey(range.start);
+  return `${formatDateKey(range.start)} to ${formatDateKey(range.end)}`;
+}
+
+function formatExportMetric(value, formatter) {
+  return value === null || value === undefined ? '-' : formatter(value);
+}
+
+function formatExportText(value) {
+  const text = String(value ?? '').trim();
+  return text || '-';
+}
+
+function formatMarkdownCell(value) {
+  return String(value ?? '-').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
+}
+
+function markdownTable(headers, rows) {
+  const headerRow = `| ${headers.map(formatMarkdownCell).join(' | ')} |`;
+  const separatorRow = `| ${headers.map(() => '---').join(' | ')} |`;
+  const bodyRows = rows.length
+    ? rows.map((row) => `| ${row.map(formatMarkdownCell).join(' | ')} |`)
+    : [`| ${headers.map((_, index) => (index === 0 ? 'No data' : '-')).join(' | ')} |`];
+  return [headerRow, separatorRow, ...bodyRows].join('\n');
+}
+
+function getRealizedLossSummary(tradeList) {
+  const losingPnlValues = tradeList
+    .map((trade) => {
+      const pnl = calculatePnl(trade);
+      return classifyTradeOutcome(pnl, trade.outcomeOverride) === 'loss' ? pnl : null;
+    })
+    .filter((value) => value !== null);
+  const totalRealizedLoss = Math.abs(losingPnlValues.reduce((sum, value) => sum + value, 0));
+  const largestRealizedLoss = losingPnlValues.length ? Math.min(...losingPnlValues) : null;
+
+  return {
+    losingTrades: losingPnlValues.length,
+    totalRealizedLoss,
+    averageRealizedLoss: losingPnlValues.length ? totalRealizedLoss / losingPnlValues.length : null,
+    largestRealizedLoss,
+  };
+}
+
+function buildExportForAiMarkdown(referenceDate = getDnaResultsReferenceDate()) {
+  const activeTrades = getActiveTrades();
+  const timeframe = dnaResultsTimeframe;
+  const dateRange = getDnaResultsDateRange(timeframe, referenceDate, activeTrades);
+  const dnaResultsTrades = filterTradesForPeriod(activeTrades, timeframe, referenceDate);
+  const stats = getStats(dnaResultsTrades);
+  const pnlReports = getPnlReports(referenceDate, activeTrades);
+  const [dailyPnl, weeklyPnl, monthlyPnl, yearlyPnl] = pnlReports;
+  const dailyReturnPercent = calculateRoiPercent(dailyPnl.pnl, calculateAccountBalanceAtPeriodStart('day', referenceDate, activeTrades, startingAccountBalance));
+  const weeklyReturnPercent = calculateRoiPercent(weeklyPnl.pnl, calculateAccountBalanceAtPeriodStart('week', referenceDate, activeTrades, startingAccountBalance));
+  const monthlyReturnPercent = calculateRoiPercent(monthlyPnl.pnl, calculateAccountBalanceAtPeriodStart('month', referenceDate, activeTrades, startingAccountBalance));
+  const yearlyReturnPercent = calculateRoiPercent(yearlyPnl.pnl, calculateAccountBalanceAtPeriodStart('year', referenceDate, activeTrades, startingAccountBalance));
+  const lossSummary = getRealizedLossSummary(dnaResultsTrades);
+  const setupRows = getSetupAnalytics(dnaResultsTrades);
+  const assetRows = getAssetAnalytics(dnaResultsTrades);
+  const sessionRows = getTimeOfDayAnalytics(dnaResultsTrades);
+  const sessionVerdicts = getSessionVerdict(sessionRows);
+  const marketStateRows = getMarketStateAnalytics(dnaResultsTrades);
+  const generatedAt = new Date().toLocaleString();
+
+  return [
+    '# DNA Export for AI',
+    '',
+    '## AI Coaching Instructions',
+    '- Coach profitability first.',
+    '- Evaluate Net P/L, Profit Factor, consistency, and supporting metrics together.',
+    '- Use realized closed-trade losses, not planned or theoretical risk.',
+    '- Do not manufacture weaknesses when the data does not prove them.',
+    '- Do not impose textbook trade management rules unless this journal data supports them.',
+    '- Separate proven findings from suggestions.',
+    '',
+    '## Selected Timeframe',
+    `- Timeframe: ${getDnaTimeframeLabel(timeframe)} (${timeframe})`,
+    `- Selected date range: ${formatExportDateRange(dateRange)}`,
+    `- Trade date range inside selection: ${dateRange.tradeStart && dateRange.tradeEnd ? formatExportDateRange({ start: dateRange.tradeStart, end: dateRange.tradeEnd }) : 'No dated trades in selection'}`,
+    `- Generated: ${generatedAt}`,
+    '',
+    '## DNA Results',
+    markdownTable(
+      ['Metric', 'Value'],
+      [
+        ['Total Trades', stats.tradeCount],
+        ['Win Rate', formatPercent(stats.winRate)],
+        ['Net P/L', currency(stats.totalPnl)],
+        ['Profit Factor', formatProfitFactor(stats.profitFactor)],
+        ['Biggest Winner', formatExportMetric(stats.biggestWinner, currency)],
+        ['Biggest Loser', formatExportMetric(stats.biggestLoser, currency)],
+        ['Average Winner', currency(stats.averageWin)],
+        ['Average Loser', currency(stats.averageLoss)],
+        ['Breakeven Trades', stats.breakevenCount],
+        ['Daily P/L', currency(dailyPnl.pnl)],
+        ['Weekly P/L', currency(weeklyPnl.pnl)],
+        ['Monthly P/L', currency(monthlyPnl.pnl)],
+        ['Yearly P/L', currency(yearlyPnl.pnl)],
+        ['Daily Return %', formatPercent(dailyReturnPercent)],
+        ['Weekly Return %', formatPercent(weeklyReturnPercent)],
+        ['Monthly Return %', formatPercent(monthlyReturnPercent)],
+        ['Yearly Return %', formatPercent(yearlyReturnPercent)],
+        ['Daily PF', formatProfitFactor(dailyPnl.profitFactor)],
+        ['Weekly PF', formatProfitFactor(weeklyPnl.profitFactor)],
+        ['Monthly PF', formatProfitFactor(monthlyPnl.profitFactor)],
+        ['Yearly PF', formatProfitFactor(yearlyPnl.profitFactor)],
+      ],
+    ),
+    '',
+    '## Risk / Realized-Loss Summary',
+    markdownTable(
+      ['Metric', 'Value'],
+      [
+        ['Losing Trades', lossSummary.losingTrades],
+        ['Total Realized Loss', currency(lossSummary.totalRealizedLoss)],
+        ['Mean Realized Loss', formatExportMetric(lossSummary.averageRealizedLoss, currency)],
+        ['Largest Realized Loss', formatExportMetric(lossSummary.largestRealizedLoss, currency)],
+        ['Biggest Risk Used', formatExportMetric(stats.biggestRisk, currency)],
+        ['Mean Risk $', formatExportMetric(stats.averageRiskDollars, currency)],
+        ['Mean Risk %', formatRiskPercent(stats.averageRiskPercent)],
+      ],
+    ),
+    '',
+    '## Setup Analytics',
+    markdownTable(
+      ['Setup Name', 'Number of Trades', 'Win Rate', 'Profit Factor', 'Net P/L'],
+      setupRows.map((row) => [
+        row.setupName,
+        row.tradeCount,
+        formatPercent(row.winRate),
+        formatProfitFactor(row.profitFactor),
+        currency(row.netPnl),
+      ]),
+    ),
+    '',
+    '## Asset Analytics',
+    markdownTable(
+      ['Asset', 'Total Trades', 'Win Rate', 'Net P/L', 'Profit Factor', 'Average Winner', 'Average Loser'],
+      assetRows.map((row) => [
+        row.displayName,
+        row.tradeCount,
+        formatPercent(row.winRate),
+        currency(row.netPnl),
+        formatProfitFactor(row.profitFactor),
+        formatExportMetric(row.averageWinner, currency),
+        formatExportMetric(row.averageLoser, currency),
+      ]),
+    ),
+    '',
+    '## Trading Session Analytics',
+    markdownTable(
+      ['Trading Session', 'Trades', 'Win Rate', 'Net P/L', 'Average Winner', 'Average Loser', 'Profit Factor', 'Verdict'],
+      sessionRows.map((row) => [
+        row.label,
+        row.tradeCount,
+        formatPercent(row.winRate),
+        currency(row.netPnl),
+        formatExportMetric(row.averageWinner, currency),
+        formatExportMetric(row.averageLoser, currency),
+        formatProfitFactor(row.profitFactor),
+        sessionVerdicts.get(row.label) || 'average',
+      ]),
+    ),
+    '',
+    '## Market State Analytics',
+    markdownTable(
+      ['Market State', 'Trades', 'Win Rate', 'Net P/L', 'Average Winner', 'Average Loser', 'Profit Factor'],
+      marketStateRows.map((row) => [
+        row.label,
+        row.tradeCount,
+        formatPercent(row.winRate),
+        currency(row.netPnl),
+        formatExportMetric(row.averageWinner, currency),
+        formatExportMetric(row.averageLoser, currency),
+        formatProfitFactor(row.profitFactor),
+      ]),
+    ),
+    '',
+    '## Individual Trades + Annotations',
+    dnaResultsTrades.length
+      ? dnaResultsTrades.map((trade, index) => {
+        const pnl = calculatePnl(trade);
+        const reportDate = getTradeReportDate(trade);
+        const screenshot = trade.screenshot
+          ? `Attached (${formatExportText(trade.screenshot.name)})`
+          : 'Not attached';
+        return [
+          `### Trade ${index + 1}: ${formatExportText(getTradeDisplaySymbol(trade))}`,
+          `- Date: ${reportDate ? formatDateKey(reportDate) : formatExportText(trade.date)}`,
+          `- Asset: ${formatExportText(getTradeDisplaySymbol(trade))}`,
+          `- Direction: ${formatExportText(trade.direction)}`,
+          `- Outcome: ${TRADE_OUTCOME_LABELS[classifyTradeOutcome(pnl, trade.outcomeOverride)] || '-'}`,
+          `- Net P/L: ${currency(pnl)}`,
+          `- Setup: ${formatExportText(trade.setup)}`,
+          `- Market State: ${formatExportText(trade.state)}`,
+          `- Trading Session: ${formatExportText(getTimeOfDayBucket(trade.openTime))}`,
+          `- Timeframe: ${formatExportText(trade.timeframe)}`,
+          `- Entry: ${formatExportText(trade.entry)}`,
+          `- Exit: ${formatExportText(trade.exit)}`,
+          `- Size: ${formatExportText(trade.size)}`,
+          `- Fees: ${formatExportText(trade.fees)}`,
+          `- Initial Stop Loss: ${formatExportText(trade.stopLoss)}`,
+          `- Final Stop Loss: ${formatExportText(trade.adjustedStopLoss)}`,
+          `- Initial Take Profit: ${formatExportText(trade.takeProfit)}`,
+          `- Final Take Profit: ${formatExportText(trade.adjustedTakeProfit)}`,
+          `- Trade Management: ${formatExportText(trade.tradeManagement)}`,
+          `- Protected: ${formatExportText(trade.protected)}`,
+          `- Grade: ${formatExportText(trade.grade)}`,
+          `- Close Reason: ${formatExportText(trade.closeReason)}`,
+          `- Loss Reason: ${formatExportText(trade.lossReason)}`,
+          `- Tags: ${formatExportText(trade.tags)}`,
+          `- Notes: ${formatExportText(trade.notes)}`,
+          `- Screenshot: ${screenshot}`,
+        ].join('\n');
+      }).join('\n\n')
+      : 'No trades in the selected DNA Results timeframe.',
+    '',
+  ].join('\n');
+}
+
+function exportForAiMarkdown() {
+  const referenceDate = getDnaResultsReferenceDate();
+  const markdown = buildExportForAiMarkdown(referenceDate);
+  const dateRange = getDnaResultsDateRange(dnaResultsTimeframe, referenceDate, getActiveTrades());
+  const filenameRange = formatExportDateRange(dateRange).replace(/\s+to\s+/g, '_to_').replace(/[^a-z0-9_-]+/gi, '-');
+  const blob = new Blob([markdown], { type: 'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `DNA-AI-Export-${dnaResultsTimeframe}-${filenameRange}.md`;
   link.click();
   URL.revokeObjectURL(url);
 }

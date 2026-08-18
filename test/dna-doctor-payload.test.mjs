@@ -164,7 +164,7 @@ test('DNA Doctor payload includes selected trades without screenshots or invente
   assert.equal('lossReason' in payload.trades[0], false);
 });
 
-test('DNA Doctor UI exposes Coaching Focus and sends the selected focus', () => {
+test('DNA Doctor backend keeps Coaching Focus support while the visible UI uses Request Analysis', () => {
   assert.ok(source.includes('const DNA_DOCTOR_COACHING_FOCUS_OPTIONS = ['), 'Coaching Focus options should be centralized.');
   for (const option of ['Overall', 'Risk / Position Sizing', 'Trade Management', 'Psychology / Discipline']) {
     assert.ok(source.includes(`'${option}',`), `Coaching Focus should include ${option}.`);
@@ -172,9 +172,10 @@ test('DNA Doctor UI exposes Coaching Focus and sends the selected focus', () => 
   assert.equal(source.includes("'Capital Efficiency (CE)',"), false, 'Capital Efficiency should not be available as a Coaching Focus.');
   assert.ok(source.includes("const DEFAULT_DNA_DOCTOR_COACHING_FOCUS = 'Overall';"), 'Overall should be the default Coaching Focus.');
   assert.ok(source.includes('let selectedDnaDoctorCoachingFocus = \'Overall\';'), 'The selected Coaching Focus should start as Overall.');
-  assert.ok(source.includes('<span>Coaching Focus</span>'), 'The Doctor UI should label the Coaching Focus dropdown.');
-  assert.ok(source.includes('<select id="dnaDoctorCoachingFocus" ${isLoading ? \'disabled\' : \'\'}>'), 'The dropdown should render immediately before the scan button and disable while loading.');
-  assert.ok(source.indexOf('id="dnaDoctorCoachingFocus"') < source.indexOf('id="runDnaDoctor"'), 'The Coaching Focus dropdown should appear before Run DNA Scan.');
+  assert.equal(source.includes('<span>Coaching Focus</span>'), false, 'The visible Doctor UI should no longer show the Coaching Focus dropdown.');
+  assert.equal(source.includes('<select id="dnaDoctorCoachingFocus" ${isLoading ? \'disabled\' : \'\'}>'), false, 'The visible Doctor UI should no longer render the old dropdown.');
+  assert.ok(source.includes('Request Analysis'), 'The visible Doctor UI should show Request Analysis.');
+  assert.ok(source.includes("document.querySelector('#runDnaDoctor')?.addEventListener('click', exportForAiMarkdown, { signal });"), 'Request Analysis should download the AI markdown export.');
   assert.ok(source.includes('selectedDnaDoctorCoachingFocus = getDnaDoctorCoachingFocus(event.target.value);'), 'Changing the dropdown should update the selected focus.');
   assert.ok(styles.includes('.dna-doctor-focus-control'), 'The dropdown should have compact Doctor-scoped styling.');
 });
@@ -195,19 +196,17 @@ test('DNA Doctor backend includes individual trades in the data sent to the mode
   assert.ok(serverSource.includes('JSON.stringify(payload.trades || [], null, 2)'), 'Individual trades should be passed through as JSON data.');
 });
 
-test('DNA Doctor scan uses the dashboard-filtered trade list', () => {
-  const clickStart = source.indexOf("document.querySelector('#runDnaDoctor')?.addEventListener('click', async () => {");
-  const clickEnd = source.indexOf("\n  document.querySelector('#dnaDoctorDismissError')", clickStart);
+test('DNA Doctor Request Analysis uses the dashboard timeframe export instead of the backend scan UI', () => {
+  const clickStart = source.indexOf("document.querySelector('#runDnaDoctor')?.addEventListener('click', exportForAiMarkdown, { signal });");
+  const clickEnd = clickStart + "document.querySelector('#runDnaDoctor')?.addEventListener('click', exportForAiMarkdown, { signal });".length;
   assert.notEqual(clickStart, -1, 'DNA Doctor click handler should exist.');
-  assert.notEqual(clickEnd, -1, 'DNA Doctor click handler should end before the dismiss handler.');
   const clickHandler = source.slice(clickStart, clickEnd);
 
   assert.ok(source.includes('let currentDnaDoctorTrades = [];'), 'The current dashboard-filtered Doctor trade list should be tracked.');
   assert.ok(source.includes('currentDnaDoctorTrades = dnaResultsTrades;'), 'Render should store the same filtered trade list used by the dashboard.');
   assert.ok(source.includes('renderDnaDoctor(dnaResultsTrades)'), 'The Doctor panel should be rendered from the dashboard-filtered trade list.');
-  assert.ok(clickHandler.includes('const dnaDoctorTrades = currentDnaDoctorTrades;'), 'The scan should capture the currently displayed dashboard-filtered trade list.');
-  assert.ok(clickHandler.includes('const coachingFocus = selectedDnaDoctorCoachingFocus;'), 'The scan should capture the currently selected Coaching Focus.');
-  assert.ok(clickHandler.includes('const report = await runDnaDoctor(dnaDoctorTrades, coachingFocus);'), 'The scan should send the captured trade list and focus to DNA Doctor.');
+  assert.ok(clickHandler.includes('exportForAiMarkdown'), 'The visible Doctor button should run the markdown export.');
+  assert.equal(source.includes('const report = await runDnaDoctor(dnaDoctorTrades, coachingFocus);'), false, 'The visible Doctor click path should not call the backend scan.');
   assert.equal(clickHandler.includes('getDnaResultsTrades('), false, 'The scan click handler should not recompute a separate timeframe filter.');
   assert.equal(clickHandler.includes("'day'"), false, 'The Doctor data path should not hardcode today/day filtering.');
 });
