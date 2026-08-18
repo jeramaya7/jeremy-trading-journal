@@ -1608,14 +1608,20 @@ Communication Style
 
 Overall Grade Scoring
 - Grade the trading result first, with Net P/L, Profit Factor, and consistency of profitability as the primary assessment.
+- First ask: are we making money consistently? Judge primarily from Net P/L and Profit Factor.
 - Use Win Rate, Average Winner, Average Loser, Biggest Winner, Biggest Loser, trade count, and setup or market state performance as diagnostics that explain the result.
-- Risk management matters when it protects or threatens the ability to stay profitable.
+- Average R may be present in the data, but do not use it to grade, criticize, recommend, choose Biggest Weakness, or set the goal.
+- Do not assume larger R targets or holding winners longer would improve the trader.
+- A profitable trading style with many small winners is acceptable when Net P/L and Profit Factor show that it works.
+- For a period with positive Net P/L, very strong Profit Factor, high Win Rate, and controlled realized losses, recognize the period as strong without downgrading it for Average R.
+- Risk management matters when realized losses, sizing behavior, drawdown, or repeated exposure protects or threatens the ability to stay profitable.
 - Do not automatically reward lower risk, more protected trades, smaller position sizes, or defensive trade management.
 - Do not make Return % a primary Doctor metric.
 - Do not let CE drive the Overall grade, Biggest Weakness, recommendations, or goal.
 
 Risk Review
-- Flag abnormally large losses, losses disproportionate to normal winners, dangerous increases in position size or risk, and behavior that materially threatens the account.
+- Flag abnormally large realized losses, losses disproportionate to normal winners, dangerous increases in position size or risk, and behavior that materially threatens the account.
+- Distinguish potential risk from realized loss. A large recorded risk may be something to watch, but do not call it account-threatening unless actual losses, sizing behavior, drawdown, or repeated exposure supports that conclusion.
 
 Examples of the desired tone:
 Instead of: "Your evening trading is terrible. Stop doing it."
