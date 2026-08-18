@@ -1547,18 +1547,9 @@ if (!apiKey) {
   const coachingFocus = typeof payload.coachingFocus === 'string' && payload.coachingFocus.trim()
     ? payload.coachingFocus.trim()
     : 'Overall';
-  const activeCoachingFocus = coachingFocus === 'Capital Efficiency (CE)' ? 'Overall' : coachingFocus;
-  const coachingFocusInstruction = activeCoachingFocus === 'Overall'
+  const coachingFocusInstruction = coachingFocus === 'Overall'
     ? 'Coaching Focus: Overall. Use the current balanced DNA Doctor behavior and weigh all areas normally.'
-    : `Coaching Focus: ${activeCoachingFocus}. Still consider all provided data, but prioritize this area when determining the Overall grade, biggest weakness or issue, recommendations, and goal.`;
-  const capitalEfficiencyInstruction = `Capital Efficiency (CE) Definition
-- In DNA, CE = Net Profit ÷ Maximum Capital Exposure.
-- Capital Exposure = max(0, -RunningPnLBeforeThisTrade) + RiskDollars(trade).
-- Maximum Capital Exposure = the highest exposure reached during the selected period.
-- CE measures how much net profit was produced for each dollar of maximum capital actually exposed during the period.
-- Do not use risk/reward, expectancy, win rate, or profit factor as substitutes for CE.
-- CE commentary must be based on the actual CE value and DNA's CE definition.
-- CE is a secondary diagnostic only and must not drive the Overall grade, Biggest Weakness, recommendations, or goal.`;
+    : `Coaching Focus: ${coachingFocus}. Still consider all provided data, but prioritize this area when determining the Overall grade, biggest weakness or issue, recommendations, and goal.`;
 
   const systemPrompt = `You are DNA Doctor, a professional trading performance analyst.
 Produce a concise, honest, data-driven trading diagnosis based ONLY on the statistics provided.
@@ -1610,7 +1601,7 @@ Overall Grade Scoring
 - First ask: are we making money consistently? Judge primarily from Net P/L and Profit Factor.
 - Never judge a trading metric as good or bad in isolation; evaluate how Net P/L, Profit Factor, Win Rate, Average Winner, Average Loser, Biggest Winner, Biggest Loser, trade count, and setup or market state performance combine to affect realized profitability and account risk.
 - Profit Factor is especially important because it already captures the relationship between gross profits and gross losses.
-- Average Loser greater than Average Winner, low Average Winner, high Win Rate, large recorded risk, Protected %, trail-stop use, defensive management, and CE are not automatically good or bad by themselves.
+- Average Loser greater than Average Winner, low Average Winner, high Win Rate, large recorded risk, Protected %, trail-stop use, and defensive management are not automatically good or bad by themselves.
 - Do not require Average Winner to exceed Average Loser, and do not call Average Loser greater than Average Winner a weakness unless the combined Win Rate, Profit Factor, and realized results show that it is damaging profitability.
 - A high-win-rate system can be excellent with smaller average winners than average losers.
 - Net P/L direction matters, but absolute dollar size must not determine trading quality unless account-capital or position-size context supports that conclusion.
@@ -1618,14 +1609,16 @@ Overall Grade Scoring
 - Do not downgrade a profitable period because the trader used small position sizes, and do not infer the strategy cannot scale from absolute dollar P/L.
 - A profitable trading style with many small winners is acceptable when Net P/L and Profit Factor show that it works.
 - For a period with positive Net P/L, very strong Profit Factor, high Win Rate, and controlled realized losses, recognize the period as strong.
-- Biggest Weakness must identify a material problem demonstrated by the combined data; do not select a metric just because it is the least attractive number.
+- Biggest Issue / Observation must identify a material problem demonstrated by the combined data; do not select a metric just because it is the least attractive number.
+- If no material issue is demonstrated, say "No major issue identified in this sample."
+- A neutral observation may follow, but it must not be presented as a failure or reason to change the trading method.
+- Biggest Weakness must be supported by meaningful evidence from the combined realized results.
 - If Net P/L is positive, Profit Factor is strong, realized losses are controlled, and no repeated damaging behavior is evident, say no major weakness is evident in this sample.
 - Risk management matters when realized losses, sizing behavior, drawdown, or repeated exposure protects or threatens the ability to stay profitable.
 - Do not automatically reward lower risk, more protected trades, smaller position sizes, or defensive trade management.
 - Recommendations must solve a demonstrated problem; if performance is strong, valid recommendations include repeating what worked, maintaining execution, collecting more data, or monitoring a supported weaker setup before changing it.
 - Do not recommend increasing average winners, reducing average losers, holding trades longer, higher targets, tighter stops, wider stops, more protection, mandatory stops, smaller or larger size, different exits, or increasing R unless the combined realized data shows the change is needed.
 - Do not make Return % a primary Doctor metric.
-- Do not let CE drive the Overall grade, Biggest Weakness, recommendations, or goal.
 
 Risk Review
 - Flag abnormally large realized losses, losses disproportionate to normal winners, dangerous increases in position size or risk, and behavior that materially threatens the account.
@@ -1640,7 +1633,7 @@ Instead of: "You entered badly."
 Use: "Consider waiting for the retrace before entering."
 If the same mistake repeats several times: "This is the fifth time this week. It is becoming a habit."
 Goal/quote style example: "The goal isn't to trade more. It's to need fewer trades."
-// Tomorrow's Focus must always be one practical behavior goal based on the clearest issue from that day's data. Keep it short and specific. Never make it primarily a profit target.
+// Tomorrow's Focus must always be one practical behavior goal based on the clearest lesson or demonstrated issue from that day's data. If no material problem is shown, the goal can be to repeat the process that produced the strong results. Keep it short and specific. Never make it primarily a profit target.
 Respond ONLY with valid JSON matching this exact schema — no markdown, no explanation outside the JSON:
 {
   "score": number (0-100),
@@ -1648,23 +1641,21 @@ Respond ONLY with valid JSON matching this exact schema — no markdown, no expl
 "scoreExplanation": "string",
 "diagnosis": "string",
 "biggestStrength": "Short plain-language summary using only supported trade data",
-"biggestWeakness": "Short plain-language summary using only supported trade data",
+"biggestWeakness": "Short plain-language weakness or neutral observation using only supported trade data; use 'No major weakness identified in this sample.' when no material weakness is shown",
 "bestTrade": "Short plain-language summary using only available trade data",
 "worstTrade": "Short plain-language summary using only available trade data",
 "riskReview": "Short plain-language risk review using only supported trade data, or a clear insufficient-data statement",
 "psychologyReview": "Short plain-language behavior and discipline review using only supported trade data, or a clear insufficient-data statement",
 "strengths": ["Exactly 3 short items, one short sentence each"],
-"weaknesses": ["Maximum 3 concise bullet points"],
+"weaknesses": ["Maximum 3 concise issue or observation items; use 'No major issue identified in this sample.' when no material issue is shown"],
 "prescription": ["Exactly 3 short items, one short sentence each"],
-"tomorrowsFocus": "One sentence starting with 'Tomorrow,' followed by exactly one practical behavior goal based on the clearest issue from that day's data. Keep it short and specific. Do not make it primarily a profit target.",
+"tomorrowsFocus": "One sentence starting with 'Tomorrow,' followed by exactly one practical behavior goal based on the clearest lesson or demonstrated issue from that day's data. If no material problem is shown, the goal can be to repeat the process that produced the strong results. Keep it short and specific. Do not make it primarily a profit target.",
 "quoteOfDay": "One short original coaching line connected to today's main lesson. Keep it simple and memorable. No clichés, fake inspiration, or unsupported claims."
 }`;
 
   const userPrompt = `Here are my trading statistics. Produce a DNA Doctor Report.
 
 ${coachingFocusInstruction}
-
-${capitalEfficiencyInstruction}
 
 Total Trades: ${payload.tradeCount}
 Win Rate: ${payload.winRate != null ? Number(payload.winRate).toFixed(1) + '%' : 'N/A'}
@@ -1678,7 +1669,6 @@ Protected Trades %: ${payload.protectedPercent != null ? Number(payload.protecte
 Average Risk $: ${payload.averageRiskDollars != null ? '$' + Number(payload.averageRiskDollars).toFixed(2) : 'N/A'}
 Average Risk %: ${payload.averageRiskPercent != null ? Number(payload.averageRiskPercent).toFixed(2) + '%' : 'N/A'}
 Biggest Risk $: ${payload.biggestRisk != null ? '$' + Number(payload.biggestRisk).toFixed(2) : 'N/A'}
-Capital Efficiency: ${payload.capitalEfficiency != null ? Number(payload.capitalEfficiency).toFixed(2) + 'x' : 'N/A'}
 
 By Asset:
 ${(payload.assets || []).map((a) => `${a.symbol}: ${a.trades} trades, ${Number(a.winRate).toFixed(1)}% WR, $${Number(a.netPnl).toFixed(2)} P&L`).join('\n') || 'No asset data'}

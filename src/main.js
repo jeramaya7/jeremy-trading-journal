@@ -1590,7 +1590,6 @@ function buildDnaScanPayload(tradeList, coachingFocus = DEFAULT_DNA_DOCTOR_COACH
     averageRiskDollars: stats.averageRiskDollars,
     averageRiskPercent: stats.averageRiskPercent,
     biggestRisk: stats.biggestRisk,
-    capitalEfficiency: stats.capitalEfficiency,
     trades: tradeList.map(buildDnaDoctorTradePayload),
     assets: assetRows.map((r) => ({ symbol: r.asset, trades: r.tradeCount, winRate: r.winRate, netPnl: r.netPnl })),
     setups: setupRows.map((r) => ({ name: r.setupName, trades: r.tradeCount, winRate: r.winRate, netPnl: r.netPnl })),
@@ -1777,7 +1776,7 @@ function renderDnaDoctorReport(report, fullReportOpen = false) {
             <span class="dna-doctor-scan-time">Last scan: ${scannedAt}</span>
           </div>
           <p class="dna-doctor-summary-text">${escapeHtml(report.diagnosis)}</p>
-          ${biggestIssue ? `<p class="dna-doctor-biggest-issue"><strong>Biggest issue:</strong> ${escapeHtml(biggestIssue)}</p>` : ''}
+          ${biggestIssue ? `<p class="dna-doctor-biggest-issue"><strong>Biggest issue / observation:</strong> ${escapeHtml(biggestIssue)}</p>` : ''}
         </div>
       </div>
 

@@ -74,7 +74,6 @@ function buildPayload(trades, coachingFocus) {
       averageRiskDollars: 5,
       averageRiskPercent: 1,
       biggestRisk: 15,
-      capitalEfficiency: 1.25,
     }),
     getAssetAnalytics: () => [],
     getSetupAnalytics: () => [],
@@ -126,10 +125,11 @@ test('DNA Doctor payload includes selected trades without screenshots or invente
   assert.equal(payload.coachingFocus, 'Overall');
   assert.equal(payload.protectedPercent, 75);
   assert.equal(payload.biggestRisk, 15);
-  assert.equal(payload.capitalEfficiency, 1.25);
+  assert.equal('capitalEfficiency' in payload, false, 'Capital Efficiency should not be sent to DNA Doctor.');
   assert.equal('averageR' in payload, false, 'Average R should not be sent as a top-level Doctor payload field.');
   assert.equal(source.includes('averageR: stats.averageR,'), false, 'Doctor payload should not include stats.averageR.');
   assert.equal(source.includes('averageR: r.averageR'), false, 'Doctor asset/setup/session payload rows should not include Average R.');
+  assert.equal(source.includes('capitalEfficiency: stats.capitalEfficiency,'), false, 'Doctor payload should not include Capital Efficiency.');
   assert.deepEqual(JSON.parse(JSON.stringify(payload.trades)), [{
     date: '2026-08-08',
     openTime: '2026-08-08T13:00:00.000Z',
@@ -215,33 +215,26 @@ test('DNA Doctor scan uses the dashboard-filtered trade list', () => {
 test('DNA Doctor backend includes risk and process metrics in the model data', () => {
   assert.ok(serverSource.includes('Protected Trades %: ${payload.protectedPercent != null ? Number(payload.protectedPercent).toFixed(1) + \'%\' : \'N/A\'}'), 'User prompt data should include protected trade percentage.');
   assert.ok(serverSource.includes('Biggest Risk $: ${payload.biggestRisk != null ? \'$\' + Number(payload.biggestRisk).toFixed(2) : \'N/A\'}'), 'User prompt data should include biggest risk dollars.');
-  assert.ok(serverSource.includes('Capital Efficiency: ${payload.capitalEfficiency != null ? Number(payload.capitalEfficiency).toFixed(2) + \'x\' : \'N/A\'}'), 'User prompt data should include capital efficiency.');
+  assert.equal(serverSource.includes('Capital Efficiency:'), false, 'User prompt data should not include Capital Efficiency.');
   assert.equal(serverSource.includes('Average R:'), false, 'User prompt data should not include Average R.');
   assert.equal(serverSource.includes('avg R'), false, 'Asset/setup/session prompt rows should not include Average R.');
 });
 
 test('DNA Doctor backend includes Coaching Focus instructions in the prompt data', () => {
   assert.ok(serverSource.includes('const coachingFocus = typeof payload.coachingFocus === \'string\' && payload.coachingFocus.trim()'), 'Backend should read Coaching Focus from the payload.');
-  assert.ok(serverSource.includes("const activeCoachingFocus = coachingFocus === 'Capital Efficiency (CE)' ? 'Overall' : coachingFocus;"), 'Legacy CE focus payloads should fall back to Overall.');
   assert.ok(serverSource.includes('Coaching Focus: Overall. Use the current balanced DNA Doctor behavior and weigh all areas normally.'), 'Overall should preserve balanced Doctor behavior.');
   assert.ok(serverSource.includes('Still consider all provided data, but prioritize this area when determining the Overall grade, biggest weakness or issue, recommendations, and goal.'), 'A selected focus should prioritize grade, issue, recommendations, and goal while keeping all data.');
   assert.ok(serverSource.includes('${coachingFocusInstruction}'), 'The focus instruction should be included in the user prompt sent to the model.');
 });
 
-test('DNA Doctor prompt defines Capital Efficiency using the DNA formula and guardrails', () => {
-  assert.ok(serverSource.includes('Capital Efficiency (CE) Definition'), 'The prompt should include a Capital Efficiency definition section.');
-  assert.ok(serverSource.includes('CE = Net Profit ÷ Maximum Capital Exposure.'), 'CE should be defined as net profit divided by maximum capital exposure.');
-  assert.ok(serverSource.includes('Capital Exposure = max(0, -RunningPnLBeforeThisTrade) + RiskDollars(trade).'), 'Capital Exposure should use the DNA running drawdown plus trade risk formula.');
-  assert.ok(serverSource.includes('Maximum Capital Exposure = the highest exposure reached during the selected period.'), 'Maximum Capital Exposure should be defined as the selected period peak exposure.');
-  assert.ok(serverSource.includes('CE measures how much net profit was produced for each dollar of maximum capital actually exposed during the period.'), 'The prompt should explain what CE measures.');
-  assert.ok(serverSource.includes('Do not use risk/reward, expectancy, win rate, or profit factor as substitutes for CE.'), 'The prompt should prevent substituting other performance metrics for CE.');
-  assert.ok(serverSource.includes("CE commentary must be based on the actual CE value and DNA's CE definition."), 'CE commentary should use the actual CE value and DNA definition.');
-  assert.ok(serverSource.includes('CE is a secondary diagnostic only and must not drive the Overall grade, Biggest Weakness, recommendations, or goal.'), 'CE should remain secondary in Doctor assessment.');
-  assert.equal(serverSource.includes('When Coaching Focus is Capital Efficiency (CE), the Overall grade, biggest issue, recommendations, and goal should primarily reflect CE using this definition.'), false, 'CE should no longer drive grade, issue, recommendations, or goal.');
-  assert.ok(serverSource.includes('${capitalEfficiencyInstruction}'), 'The CE instruction should be included in the user prompt sent to the model.');
+test('DNA Doctor prompt and payload do not include Capital Efficiency', () => {
+  assert.equal(serverSource.includes('Capital Efficiency'), false, 'Doctor backend prompt should not mention Capital Efficiency.');
+  assert.equal(serverSource.includes('capitalEfficiency'), false, 'Doctor backend should not read Capital Efficiency.');
+  assert.equal(serverSource.includes('CE '), false, 'Doctor backend prompt should not mention CE.');
 });
 
 test('DNA Doctor report renders Best Trade and Worst Trade sections', () => {
+  assert.ok(source.includes('<strong>Biggest issue / observation:</strong>'), 'Top report summary should label the first issue item as an issue or observation.');
   assert.ok(source.includes('<span class="dna-doctor-section-icon">✅</span><h4>Best Trade</h4>'), 'Report should render a Best Trade section.');
   assert.ok(source.includes('<p>${escapeHtml(report.bestTrade || \'\')}</p>'), 'Best Trade should render from report.bestTrade.');
   assert.ok(source.includes('<span class="dna-doctor-section-icon">⚠️</span><h4>Worst Trade</h4>'), 'Report should render a Worst Trade section.');
