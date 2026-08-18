@@ -1153,7 +1153,7 @@ function getReportPeriodStart(referenceDate, period) {
 // date is still the *previous* calendar day locally, so a manual trade
 // dated "today" was silently read back as dated "yesterday" everywhere
 // this function is used — which is every dashboard stat and period filter
-// (Net P/L, Trades, Win Rate, Protected %, ROI, Profit Factor, the
+// (Net P/L, Trades, Win Rate, Profit Factor, Return %, PF, the
 // day/week/month/year/all toggle, the monthly calendar, and setup/asset/
 // time-of-day analytics all call this one shared helper). Imported cTrader
 // trades are unaffected: `trade.closeTime` is always a full ISO timestamp
@@ -1187,15 +1187,18 @@ function filterTradesForPeriod(tradeList, period, referenceDate = new Date()) {
 
 function calculatePnlForPeriod(tradeList, period, referenceDate = new Date()) {
   const periodTrades = filterTradesForPeriod(tradeList, period, referenceDate);
+  const pnlValues = periodTrades.map(calculatePnl);
+  const outcomes = periodTrades.map((trade, index) => classifyTradeOutcome(pnlValues[index], trade.outcomeOverride));
+  const wins = pnlValues.filter((value, index) => outcomes[index] === 'win');
+  const losses = pnlValues.filter((value, index) => outcomes[index] === 'loss');
   const baseReport = periodTrades.reduce((report, trade) => ({
     pnl: report.pnl + calculatePnl(trade),
     tradeCount: report.tradeCount + 1,
   }), { pnl: 0, tradeCount: 0 });
 
-  // Capital Efficiency for this same period-filtered trade set — see
-  // getCapitalExposureWalk/calculateCapitalEfficiency above. Drives the
-  // Daily/Weekly/Monthly/Yearly CE metrics under DNA Results.
-  return { ...baseReport, capitalEfficiency: calculateCapitalEfficiency(periodTrades) };
+  // Keep CE available for historical/reporting logic, and add period PF for
+  // the Daily/Weekly/Monthly/Yearly DNA Results cards.
+  return { ...baseReport, capitalEfficiency: calculateCapitalEfficiency(periodTrades), profitFactor: getProfitFactor(wins, losses) };
 }
 
 function getPnlReports(referenceDate = new Date(), tradeList = trades) {
@@ -2812,17 +2815,6 @@ function statCard(iconName, label, value, tone = '', options = {}) {
   `;
 }
 
-function renderRoiCard(roiPercent) {
-  const valueClass = getPerformanceTone(roiPercent);
-  return `
-    <article class="stat-card roi-stat-card">
-      <div class="stat-icon">${icon('target')}</div>
-      <span>ROI %</span>
-      <strong class="${valueClass}">${formatPercent(roiPercent)}</strong>
-    </article>
-  `;
-}
-
 function signedCurrency(value) {
   const amount = Number(value) || 0;
   return `${amount > 0 ? '+' : ''}${currency(amount)}`;
@@ -2846,11 +2838,9 @@ function renderTodayKpiStrip(todayTrades, todayStats) {
         </div>
         <section class="stats-grid hero-stats-row trading-today-kpi-strip" aria-label="Today trading statistics">
           ${statCard('calendar', 'Today P/L', currency(todayPnl), getMoneyTone(todayPnl))}
-          ${statCard('trend', 'Today %', formatPercent(getTodayPnlPercent(todayTrades, todayPnl)))}
-          ${statCard('target', 'Win Rate', formatPercent(todayStats.winRate))}
           ${statCard('chart', 'Trades', todayStats.tradeCount)}
+          ${statCard('target', 'Win Rate', formatPercent(todayStats.winRate))}
           ${statCard('line', 'Profit Factor', formatProfitFactor(todayStats.profitFactor), getProfitFactorTone(todayStats.profitFactor))}
-          ${statCard('line', 'CE', formatCapitalEfficiency(todayStats.capitalEfficiency), getPerformanceTone(todayStats.capitalEfficiency))}
         </section>`;
 }
 
@@ -2861,7 +2851,6 @@ function renderHeroStatsRow(stats) {
           ${statCard('chart', 'Trades', stats.tradeCount)}
           ${statCard('target', 'Win Rate', formatPercent(stats.winRate))}
           ${statCard('line', 'Profit Factor', formatProfitFactor(stats.profitFactor), getProfitFactorTone(stats.profitFactor))}
-          ${statCard('line', 'CE', formatCapitalEfficiency(stats.capitalEfficiency), getPerformanceTone(stats.capitalEfficiency))}
         </section>`;
 }
 
@@ -3539,29 +3528,22 @@ function render(options = {}) {
   const stats = getStats(dnaResultsTrades);
   const pnlReports = getPnlReports(dnaReferenceDate, activeTrades);
   const [dailyPnl, weeklyPnl, monthlyPnl, yearlyPnl] = pnlReports;
-  const roiAccountBalance = calculateAccountBalanceAtPeriodStart(dnaResultsTimeframe, dnaReferenceDate, activeTrades, startingAccountBalance);
-  const roiPercent = calculateRoiPercent(stats.totalPnl, roiAccountBalance);
+  const dailyReturnPercent = calculateRoiPercent(dailyPnl.pnl, calculateAccountBalanceAtPeriodStart('day', dnaReferenceDate, activeTrades, startingAccountBalance));
+  const weeklyReturnPercent = calculateRoiPercent(weeklyPnl.pnl, calculateAccountBalanceAtPeriodStart('week', dnaReferenceDate, activeTrades, startingAccountBalance));
+  const monthlyReturnPercent = calculateRoiPercent(monthlyPnl.pnl, calculateAccountBalanceAtPeriodStart('month', dnaReferenceDate, activeTrades, startingAccountBalance));
+  const yearlyReturnPercent = calculateRoiPercent(yearlyPnl.pnl, calculateAccountBalanceAtPeriodStart('year', dnaReferenceDate, activeTrades, startingAccountBalance));
   const dashboardCardRows = [
     {
-      label: 'R Metrics',
+      label: 'Trade Outcomes',
       cards: [
-        renderRoiCard(roiPercent),
         statCard('trend', 'Biggest Winner', stats.biggestWinner === null ? '—' : currency(stats.biggestWinner)),
         statCard('trend', 'Biggest Loser', stats.biggestLoser === null ? '—' : currency(stats.biggestLoser), getMoneyTone(stats.biggestLoser)),
-        statCard('chart', 'Protected %', formatPercent(stats.protectedPercent)),
-      ],
-    },
-    {
-      label: 'Risk Metrics',
-      cards: [
         statCard('trend', 'Average Winner', currency(stats.averageWin)),
         statCard('trend', 'Average Loser', currency(stats.averageLoss), getMoneyTone(stats.averageLoss)),
-        statCard('target', 'Average Risk $', stats.averageRiskDollars === null ? '—' : currency(stats.averageRiskDollars)),
-        statCard('target', 'Average Risk %', formatRiskPercent(stats.averageRiskPercent)),
       ],
     },
     {
-      label: 'Time Performance',
+      label: 'P/L Performance',
       cards: [
         statCard('calendar', 'Daily P/L', currency(dailyPnl.pnl), getMoneyTone(dailyPnl.pnl)),
         statCard('calendar', 'Weekly P/L', currency(weeklyPnl.pnl), getMoneyTone(weeklyPnl.pnl)),
@@ -3570,12 +3552,21 @@ function render(options = {}) {
       ],
     },
     {
-      label: 'Capital Efficiency',
+      label: 'Return %',
       cards: [
-        statCard('line', 'Daily CE', formatCapitalEfficiency(dailyPnl.capitalEfficiency), getPerformanceTone(dailyPnl.capitalEfficiency)),
-        statCard('line', 'Weekly CE', formatCapitalEfficiency(weeklyPnl.capitalEfficiency), getPerformanceTone(weeklyPnl.capitalEfficiency)),
-        statCard('line', 'Monthly CE', formatCapitalEfficiency(monthlyPnl.capitalEfficiency), getPerformanceTone(monthlyPnl.capitalEfficiency)),
-        statCard('line', 'Yearly CE', formatCapitalEfficiency(yearlyPnl.capitalEfficiency), getPerformanceTone(yearlyPnl.capitalEfficiency)),
+        statCard('trend', 'Daily Return %', formatPercent(dailyReturnPercent), getPerformanceTone(dailyReturnPercent)),
+        statCard('trend', 'Weekly Return %', formatPercent(weeklyReturnPercent), getPerformanceTone(weeklyReturnPercent)),
+        statCard('trend', 'Monthly Return %', formatPercent(monthlyReturnPercent), getPerformanceTone(monthlyReturnPercent)),
+        statCard('trend', 'Yearly Return %', formatPercent(yearlyReturnPercent), getPerformanceTone(yearlyReturnPercent)),
+      ],
+    },
+    {
+      label: 'Profit Factor',
+      cards: [
+        statCard('line', 'Daily PF', formatProfitFactor(dailyPnl.profitFactor), getProfitFactorTone(dailyPnl.profitFactor)),
+        statCard('line', 'Weekly PF', formatProfitFactor(weeklyPnl.profitFactor), getProfitFactorTone(weeklyPnl.profitFactor)),
+        statCard('line', 'Monthly PF', formatProfitFactor(monthlyPnl.profitFactor), getProfitFactorTone(monthlyPnl.profitFactor)),
+        statCard('line', 'Yearly PF', formatProfitFactor(yearlyPnl.profitFactor), getProfitFactorTone(yearlyPnl.profitFactor)),
       ],
     },
   ];

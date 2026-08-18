@@ -3,22 +3,14 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
 
-// Guards the ROI % dashboard metric and its Starting Account Balance setting
-// (src/main.js).
+// Guards the Return % dashboard metrics and the Starting Account Balance
+// setting (src/main.js).
 //
-// ROI % now follows the same DNA Results period selector as the rest of the
-// dashboard (Day / WTD / MTD / YTD / Beginning): each period's ROI is period
-// P/L ÷ the account balance as of the *start* of that period, except
-// Beginning, which uses the flat Starting Account Balance setting (there are
-// no prior trades before "the beginning"). The Starting Account Balance
-// itself (default $5,600) is configured from the Settings modal — not the
-// ROI card, which shows only the label and value.
+// Daily/Weekly/Monthly/Yearly Return % use each period's P/L divided by the
+// account balance as of the start of that period. The Starting Account Balance
+// itself (default $5,600) is configured from the Settings modal.
 //
-// Also guards the DNA Results 4x3 grid (ROI %, Biggest Winner, Biggest
-// Loser, Profit Factor / Average Winner, Average Loser, Average Risk $,
-// Average Risk % / Daily P/L, Weekly P/L, Monthly P/L, Yearly P/L) with
-// Biggest Risk removed entirely and Profit Factor moved out of the top KPI
-// row.
+// Also guards the DNA Results 4x4 grid requested for the headline display.
 
 const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
 
@@ -227,34 +219,20 @@ test('end-to-end: Day/WTD/MTD/YTD/Beginning ROI all compute correctly together',
   assert.equal(calculateRoiPercent(yearPnl, yearBalance), (yearPnl / yearBalance) * 100);
 });
 
-test('the ROI % card follows the shared DNA Results period selector and shows only the label and value', () => {
-  assert.ok(
-    source.includes('function renderRoiCard(roiPercent)'),
-    'renderRoiCard should take only roiPercent — the account balance is no longer displayed on the card.',
-  );
-  assert.ok(
-    source.includes("<span>ROI %</span>"),
-    'The ROI % card should show the ROI % label.',
-  );
+test('DNA Results renders Daily/Weekly/Monthly/Yearly Return % from period-start balances', () => {
   assert.equal(source.includes('roi-starting-balance-note'), false, 'The "Based on $X starting balance" note should be fully removed from the card.');
   assert.equal(source.includes('Based on $'), false, 'No starting-balance text should remain anywhere in the ROI card markup.');
   assert.equal(source.includes('data-starting-account-balance'), false, 'The ROI % card should not render an editable Starting Account Balance input.');
   assert.equal(source.includes('roi-starting-balance-edit'), false, 'The old inline-edit markup/styling should be fully removed.');
 
-  // ROI must be wired to the same dnaResultsTimeframe/dnaReferenceDate the
-  // rest of DNA Results uses, so it updates automatically when the period
-  // toggle changes.
-  // activeTrades = all non-deleted trades (Trash/Undo Delete added a
-  // soft-delete exclusion here; ROI still tracks dnaResultsTimeframe/
-  // dnaReferenceDate exactly as before).
-  assert.ok(
-    source.includes('const roiAccountBalance = calculateAccountBalanceAtPeriodStart(dnaResultsTimeframe, dnaReferenceDate, activeTrades, startingAccountBalance);'),
-    'ROI\'s account balance should be derived from the current DNA Results period (dnaResultsTimeframe) and reference date.',
-  );
-  assert.ok(
-    source.includes('const roiPercent = calculateRoiPercent(stats.totalPnl, roiAccountBalance);'),
-    'ROI % should use the period-filtered stats.totalPnl over the period-start account balance.',
-  );
+  assert.ok(source.includes("const dailyReturnPercent = calculateRoiPercent(dailyPnl.pnl, calculateAccountBalanceAtPeriodStart('day', dnaReferenceDate, activeTrades, startingAccountBalance));"), 'Daily Return % should use Daily P/L over the day-start balance.');
+  assert.ok(source.includes("const weeklyReturnPercent = calculateRoiPercent(weeklyPnl.pnl, calculateAccountBalanceAtPeriodStart('week', dnaReferenceDate, activeTrades, startingAccountBalance));"), 'Weekly Return % should use Weekly P/L over the week-start balance.');
+  assert.ok(source.includes("const monthlyReturnPercent = calculateRoiPercent(monthlyPnl.pnl, calculateAccountBalanceAtPeriodStart('month', dnaReferenceDate, activeTrades, startingAccountBalance));"), 'Monthly Return % should use Monthly P/L over the month-start balance.');
+  assert.ok(source.includes("const yearlyReturnPercent = calculateRoiPercent(yearlyPnl.pnl, calculateAccountBalanceAtPeriodStart('year', dnaReferenceDate, activeTrades, startingAccountBalance));"), 'Yearly Return % should use Yearly P/L over the year-start balance.');
+  assert.ok(source.includes("statCard('trend', 'Daily Return %', formatPercent(dailyReturnPercent), getPerformanceTone(dailyReturnPercent))"), 'Daily Return % should render.');
+  assert.ok(source.includes("statCard('trend', 'Weekly Return %', formatPercent(weeklyReturnPercent), getPerformanceTone(weeklyReturnPercent))"), 'Weekly Return % should render.');
+  assert.ok(source.includes("statCard('trend', 'Monthly Return %', formatPercent(monthlyReturnPercent), getPerformanceTone(monthlyReturnPercent))"), 'Monthly Return % should render.');
+  assert.ok(source.includes("statCard('trend', 'Yearly Return %', formatPercent(yearlyReturnPercent), getPerformanceTone(yearlyReturnPercent))"), 'Yearly Return % should render.');
 });
 
 test('Starting Account Balance is editable from the Settings modal, and is only used for the Beginning calculation', () => {
@@ -296,17 +274,17 @@ test('Starting Account Balance is editable from the Settings modal, and is only 
   );
 });
 
-test('DNA Results first row renders ROI %, Biggest Winner, Biggest Loser, Protected % in that order', () => {
-  const roiIndex = source.indexOf('renderRoiCard(roiPercent),');
+test('DNA Results first row renders Biggest Winner, Biggest Loser, Average Winner, Average Loser in that order', () => {
   const biggestWinnerIndex = source.indexOf("statCard('trend', 'Biggest Winner'");
   const biggestLoserIndex = source.indexOf("statCard('trend', 'Biggest Loser'");
-  const protectedPercentIndex = source.indexOf("statCard('chart', 'Protected %', formatPercent(stats.protectedPercent))");
+  const averageWinnerIndex = source.indexOf("statCard('trend', 'Average Winner'");
+  const averageLoserIndex = source.indexOf("statCard('trend', 'Average Loser'");
 
-  assert.notEqual(roiIndex, -1, 'ROI % card should render in the DNA Results first row.');
-  assert.notEqual(protectedPercentIndex, -1, 'Protected % card should render in the DNA Results first row.');
+  assert.notEqual(biggestWinnerIndex, -1, 'Biggest Winner card should render in the DNA Results first row.');
+  assert.notEqual(averageLoserIndex, -1, 'Average Loser card should render in the DNA Results first row.');
   assert.ok(
-    roiIndex < biggestWinnerIndex && biggestWinnerIndex < biggestLoserIndex && biggestLoserIndex < protectedPercentIndex,
-    'DNA Results first row order should be: ROI %, Biggest Winner, Biggest Loser, Protected %.',
+    biggestWinnerIndex < biggestLoserIndex && biggestLoserIndex < averageWinnerIndex && averageWinnerIndex < averageLoserIndex,
+    'DNA Results first row order should be: Biggest Winner, Biggest Loser, Average Winner, Average Loser.',
   );
 });
 
@@ -331,12 +309,12 @@ test('Biggest Risk is removed from the dashboard entirely (display only — the 
   assert.ok(source.includes('const biggestRisk = riskDollarValues.length ? Math.max(...riskDollarValues) : null;'), 'The Biggest Risk calculation itself should be unchanged.');
 });
 
-test('DNA Results is a consistent 4x3 grid — every row has exactly four cards', () => {
+test('DNA Results is a consistent 4x4 grid — every row has exactly four cards', () => {
   const dashboardCardRowsStart = source.indexOf('const dashboardCardRows = [');
   const dashboardCardRowsEnd = source.indexOf('\n  ];', dashboardCardRowsStart) + '\n  ];'.length;
   const dashboardCardRowsBody = source.slice(dashboardCardRowsStart, dashboardCardRowsEnd);
 
-  const rowLabels = ['R Metrics', 'Risk Metrics', 'Time Performance'];
+  const rowLabels = ['Trade Outcomes', 'P/L Performance', 'Return %', 'Profit Factor'];
   const rowBoundaries = rowLabels.map((label) => dashboardCardRowsBody.indexOf(`label: '${label}'`));
   rowBoundaries.forEach((index, i) => assert.notEqual(index, -1, `${rowLabels[i]} row should exist.`));
 
@@ -346,13 +324,13 @@ test('DNA Results is a consistent 4x3 grid — every row has exactly four cards'
   });
 
   // Each row's card list is a `cards: [ ... ]` array — count top-level
-  // entries by counting statCard(/renderRoiCard( calls between its `cards: [`
+  // entries by counting statCard( calls between its `cards: [`
   // and the matching closing `],`.
   rowBodies.forEach((rowBody, i) => {
     const cardsStart = rowBody.indexOf('cards: [');
     const cardsEnd = rowBody.indexOf('\n      ],', cardsStart);
     const cardsBody = rowBody.slice(cardsStart, cardsEnd);
-    const cardCount = (cardsBody.match(/(?:statCard|renderRoiCard)\(/g) ?? []).length;
+    const cardCount = (cardsBody.match(/statCard\(/g) ?? []).length;
     assert.equal(cardCount, 4, `${rowLabels[i]} row should have exactly 4 cards, found ${cardCount}.`);
   });
 

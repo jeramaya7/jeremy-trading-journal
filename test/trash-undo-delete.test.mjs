@@ -222,9 +222,11 @@ test('an Undo toast appears immediately after deleting and can undo the delete',
 test('every journal and dashboard read path was switched from `trades` to the active (non-deleted) list', () => {
   assertIncludes(source, 'return filterTradesForPeriod(getActiveTrades(), dnaResultsTimeframe, referenceDate);', 'getDnaResultsTrades excludes deleted trades — this feeds Net P/L, Trades, Win Rate, Protected %, Profit Factor, and every period filter.');
   assertIncludes(source, 'return getActiveTrades().filter((trade) => {', 'getFilteredTrades (the journal list) excludes deleted trades.');
-  assertIncludes(source, 'const activeTrades = getActiveTrades();', 'render() computes one active-trades list for Daily/Weekly/Monthly/Yearly P/L, ROI, the calendar, and Trading Mode\'s Today KPIs.');
+  assertIncludes(source, 'const activeTrades = getActiveTrades();', 'render() computes one active-trades list for Daily/Weekly/Monthly/Yearly P/L, Return %, PF, the calendar, and Trading Mode\'s Today KPIs.');
   assertIncludes(source, 'getPnlReports(dnaReferenceDate, activeTrades)', 'Daily/Weekly/Monthly/Yearly P/L exclude deleted trades.');
-  assertIncludes(source, 'calculateAccountBalanceAtPeriodStart(dnaResultsTimeframe, dnaReferenceDate, activeTrades, startingAccountBalance)', 'ROI\'s account balance calculation excludes deleted trades.');
+  for (const period of ['day', 'week', 'month', 'year']) {
+    assertIncludes(source, `calculateAccountBalanceAtPeriodStart('${period}', dnaReferenceDate, activeTrades, startingAccountBalance)`, `${period} Return % account balance calculation excludes deleted trades.`);
+  }
   assertIncludes(source, 'renderMonthlyTradingCalendar(monthlyCalendarDate, activeTrades)', 'The monthly calendar excludes deleted trades.');
   assertIncludes(source, "filterTradesForPeriod(activeTrades, 'day', dnaReferenceDate)", 'Trading Mode\'s Today KPI strip excludes deleted trades.');
 });

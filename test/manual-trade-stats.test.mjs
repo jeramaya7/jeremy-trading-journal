@@ -209,6 +209,7 @@ test('Outcome Override flows through getStats(): a Breakeven-overridden loss no 
   assert.equal(stats.tradeCount, 2, 'Both trades should still be counted.');
   assert.ok(Math.abs(stats.totalPnl - 50) < 0.01, 'Total P/L should still reflect the real dollar P/L (-50 + 100 = 50), override or not.');
   assert.equal(stats.winRate, 100, 'Win Rate should be 1 win / 1 decided trade = 100%, since the overridden loss is excluded as Breakeven, not counted as a loss.');
+  assert.equal(stats.profitFactor, Infinity, 'Profit Factor should not count the overridden Breakeven trade as gross loss.');
 });
 
 test('Outcome Override flows through getStats(): a Win-overridden breakeven trade counts as a win', () => {

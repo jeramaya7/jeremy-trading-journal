@@ -212,52 +212,38 @@ test('getStats() returns capitalEfficiency computed from the exact same tradeLis
 
 test('calculatePnlForPeriod() returns capitalEfficiency for the same period-filtered trades used for pnl/tradeCount', () => {
   assertIncludes(source, 'const periodTrades = filterTradesForPeriod(tradeList, period, referenceDate);', 'The period trade set should be computed once and reused.');
-  assertIncludes(source, 'return { ...baseReport, capitalEfficiency: calculateCapitalEfficiency(periodTrades) };', 'capitalEfficiency should be computed from the same periodTrades as pnl/tradeCount, so Daily/Weekly/Monthly/Yearly CE can never disagree with Daily/Weekly/Monthly/Yearly P/L about which trades were included.');
+  assertIncludes(source, 'capitalEfficiency: calculateCapitalEfficiency(periodTrades)', 'capitalEfficiency should still be computed from the same periodTrades as pnl/tradeCount.');
 });
 
-test('CE renders as the final KPI in the Trading Mode header, after Profit Factor', () => {
+test('CE no longer renders in the Trading Mode header', () => {
   const todayStripStart = source.indexOf('function renderTodayKpiStrip(todayTrades, todayStats)');
   const todayStripEnd = source.indexOf('\nfunction ', todayStripStart + 1);
   const todayStripBody = source.slice(todayStripStart, todayStripEnd);
 
-  const profitFactorIndex = todayStripBody.indexOf("statCard('line', 'Profit Factor'");
   const ceIndex = todayStripBody.indexOf("statCard('line', 'CE'");
-  assert.notEqual(profitFactorIndex, -1, 'Profit Factor should still render in the Trading Mode header.');
-  assert.notEqual(ceIndex, -1, 'CE should render in the Trading Mode header.');
-  assert.ok(profitFactorIndex < ceIndex, 'CE should render after Profit Factor: Today P/L | Today % | Win Rate | Trades | Profit Factor | CE.');
-  assertIncludes(todayStripBody, "formatCapitalEfficiency(todayStats.capitalEfficiency)", 'Trading Mode CE should use the shared formatter and todayStats.capitalEfficiency.');
+  assert.equal(ceIndex, -1, 'CE should not render in the Trading Mode header.');
+  assert.equal(todayStripBody.includes("formatCapitalEfficiency(todayStats.capitalEfficiency)"), false, 'Trading Mode should not format CE for the header.');
 });
 
-test('CE renders as the final KPI in the Dashboard header, after Profit Factor', () => {
+test('CE no longer renders in the Dashboard header', () => {
   const heroRowStart = source.indexOf('function renderHeroStatsRow(stats)');
   const heroRowEnd = source.indexOf('\nfunction ', heroRowStart + 1);
   const heroRowBody = source.slice(heroRowStart, heroRowEnd);
 
-  const profitFactorIndex = heroRowBody.indexOf("statCard('line', 'Profit Factor'");
   const ceIndex = heroRowBody.indexOf("statCard('line', 'CE'");
-  assert.notEqual(profitFactorIndex, -1, 'Profit Factor should still render in the Dashboard header.');
-  assert.notEqual(ceIndex, -1, 'CE should render in the Dashboard header.');
-  assert.ok(profitFactorIndex < ceIndex, 'CE should render after Profit Factor: Net P/L | Trades | Win Rate | Profit Factor | CE.');
-  assertIncludes(heroRowBody, "formatCapitalEfficiency(stats.capitalEfficiency)", 'Dashboard CE should use the shared formatter and stats.capitalEfficiency.');
+  assert.equal(ceIndex, -1, 'CE should not render in the Dashboard header.');
+  assert.equal(heroRowBody.includes("formatCapitalEfficiency(stats.capitalEfficiency)"), false, 'Dashboard should not format CE for the header.');
 });
 
-test('DNA Results has a Capital Efficiency row with Daily/Weekly/Monthly/Yearly CE, after Time Performance', () => {
+test('DNA Results no longer renders Daily/Weekly/Monthly/Yearly CE cards', () => {
   const dashboardCardRowsStart = source.indexOf('const dashboardCardRows = [');
   const dashboardCardRowsEnd = source.indexOf('\n  ];', dashboardCardRowsStart) + '\n  ];'.length;
   const dashboardCardRowsBody = source.slice(dashboardCardRowsStart, dashboardCardRowsEnd);
 
-  assertIncludes(dashboardCardRowsBody, "label: 'Capital Efficiency'", 'A Capital Efficiency row should exist in DNA Results.');
-  assertIncludes(dashboardCardRowsBody, "statCard('line', 'Daily CE', formatCapitalEfficiency(dailyPnl.capitalEfficiency)", 'Daily CE should render.');
-  assertIncludes(dashboardCardRowsBody, "statCard('line', 'Weekly CE', formatCapitalEfficiency(weeklyPnl.capitalEfficiency)", 'Weekly CE should render.');
-  assertIncludes(dashboardCardRowsBody, "statCard('line', 'Monthly CE', formatCapitalEfficiency(monthlyPnl.capitalEfficiency)", 'Monthly CE should render.');
-  assertIncludes(dashboardCardRowsBody, "statCard('line', 'Yearly CE', formatCapitalEfficiency(yearlyPnl.capitalEfficiency)", 'Yearly CE should render.');
-
-  const timePerformanceIndex = dashboardCardRowsBody.indexOf("label: 'Time Performance'");
-  const capitalEfficiencyIndex = dashboardCardRowsBody.indexOf("label: 'Capital Efficiency'");
-  assert.ok(timePerformanceIndex !== -1 && timePerformanceIndex < capitalEfficiencyIndex, 'Capital Efficiency should be the row after Time Performance, so existing rows are unmoved.');
-
-  // No existing metric was removed or replaced — every prior row/card is still present.
-  assertIncludes(dashboardCardRowsBody, "label: 'R Metrics'", 'R Metrics row is untouched.');
-  assertIncludes(dashboardCardRowsBody, "label: 'Risk Metrics'", 'Risk Metrics row is untouched.');
+  assert.equal(dashboardCardRowsBody.includes("label: 'Capital Efficiency'"), false, 'Capital Efficiency should not render as a DNA Results row.');
+  assert.equal(dashboardCardRowsBody.includes("statCard('line', 'Daily CE'"), false, 'Daily CE should not render.');
+  assert.equal(dashboardCardRowsBody.includes("statCard('line', 'Weekly CE'"), false, 'Weekly CE should not render.');
+  assert.equal(dashboardCardRowsBody.includes("statCard('line', 'Monthly CE'"), false, 'Monthly CE should not render.');
+  assert.equal(dashboardCardRowsBody.includes("statCard('line', 'Yearly CE'"), false, 'Yearly CE should not render.');
   assertIncludes(dashboardCardRowsBody, "statCard('calendar', 'Daily P/L'", 'Daily P/L is untouched.');
 });

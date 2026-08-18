@@ -535,19 +535,17 @@ h2 {
      equal-specificity, two-class selectors would otherwise just be decided
      by source order, which is exactly what broke six-column Trading Mode
      here previously — the Dashboard-only .hero-stats-row rule kept winning
-     since it came second). Today P/L, Today %, Win Rate, Trades, Profit
-     Factor, CE — six KPI cards, kept on a single row (was five before CE
-     was added). */
+     since it came second). Today P/L, Trades, Win Rate, Profit Factor —
+     four KPI cards, kept on a single row. */
   .stats-grid.hero-stats-row.trading-today-kpi-strip {
     gap: clamp(0.65rem, 1vw, 0.9rem);
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   /* Dashboard header only (no trading-today-kpi-strip class): Net P/L,
-     Trades, Win Rate, Profit Factor, CE — five KPI cards, kept on a single
-     row (was four before CE was added). */
+     Trades, Win Rate, Profit Factor — four KPI cards, kept on a single row. */
   .stats-grid.hero-stats-row {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 

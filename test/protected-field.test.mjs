@@ -244,9 +244,11 @@ test('Protected % formula behaves correctly across edge cases (mirrors the shipp
   );
 });
 
-test('Protected % renders on the dashboard top KPI row, fourth, after Net P/L / Trades / Win Rate', () => {
-  assert.ok(
+test('Protected % is calculated but no longer renders in the headline dashboard cards', () => {
+  assert.ok(source.includes('const protectedYesCount = tradeList.filter((trade) => String(trade.protected || \'\').trim() === \'Yes\').length;'), 'Protected % calculation should remain available.');
+  assert.equal(
     source.includes("statCard('chart', 'Protected %', formatPercent(stats.protectedPercent))"),
-    'Protected % should render using the shared formatPercent() helper (one decimal place, em dash when null).',
+    false,
+    'Protected % should not render in the headline dashboard cards.',
   );
 });

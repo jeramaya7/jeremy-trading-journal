@@ -72,7 +72,7 @@ test('risk metrics render on trade cards and focused dashboard summary', () => {
   assertIncludes(source, 'Risk %: ${formatRiskPercent(riskPercent)}', 'Trade cards render risk percent.');
   assertIncludes(source, 'R: ${formatRMultiple(rMultiple)}', 'Trade cards render R multiple.');
   assertIncludes(source, "statCard('trend', 'Net P/L', currency(stats.totalPnl), getMoneyTone(stats.totalPnl))", 'The top KPI summary includes Net P/L.');
-  assertIncludes(source, "statCard('target', 'Average Risk $'", 'The summary includes average risk dollars.');
-  assertIncludes(source, "statCard('target', 'Average Risk %'", 'The summary includes average risk percent.');
-  assertIncludes(source, "statCard('chart', 'Protected %', formatPercent(stats.protectedPercent))", 'The summary includes Protected %.');
+  assert.equal(source.includes("statCard('target', 'Average Risk $'"), false, 'The summary no longer includes average risk dollars.');
+  assert.equal(source.includes("statCard('target', 'Average Risk %'"), false, 'The summary no longer includes average risk percent.');
+  assert.equal(source.includes("statCard('chart', 'Protected %', formatPercent(stats.protectedPercent))"), false, 'The summary no longer includes Protected %.');
 });

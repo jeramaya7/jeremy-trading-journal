@@ -25,10 +25,11 @@ test('dashboard renders top KPI row above the DNA Results with requested perform
   assert.ok(source.includes("statCard('chart', 'Trades', stats.tradeCount)"), 'Trades should render in the top KPI row.');
   assert.ok(source.includes("statCard('target', 'Win Rate'"), 'Win Rate should render in the hero stats row.');
   assert.ok(source.includes("statCard('line', 'Profit Factor', formatProfitFactor(stats.profitFactor), getProfitFactorTone(stats.profitFactor))"), 'Profit Factor should render as the fourth card in the top KPI row.');
+  assert.equal(source.includes("statCard('line', 'CE', formatCapitalEfficiency(stats.capitalEfficiency)"), false, 'CE should no longer render in the top KPI row.');
   assert.equal(source.includes("statCard('trend', 'Expectancy', formatRMultiple(stats.averageR))"), false, 'Expectancy (Average R) should no longer render in the top KPI row.');
   assert.equal(source.includes("statCard('target', 'Average R', formatRMultiple(stats.averageR))"), false, 'Average R should no longer render as a DNA Results dashboard card.');
-  assert.ok(source.includes("statCard('target', 'Average Risk $'"), 'Average Risk $ should render as a dashboard card.');
-  assert.ok(source.includes("statCard('target', 'Average Risk %'"), 'Average Risk % should render as a dashboard card.');
+  assert.equal(source.includes("statCard('target', 'Average Risk $'"), false, 'Average Risk $ should no longer render as a DNA Results dashboard card.');
+  assert.equal(source.includes("statCard('target', 'Average Risk %'"), false, 'Average Risk % should no longer render as a DNA Results dashboard card.');
 
   const netPnlIndex = source.indexOf("statCard('trend', 'Net P/L', currency(stats.totalPnl), getMoneyTone(stats.totalPnl))");
   const tradesIndex = source.indexOf("statCard('chart', 'Trades', stats.tradeCount)");
@@ -41,20 +42,21 @@ test('dashboard renders top KPI row above the DNA Results with requested perform
     'The top KPI row should render in order: Net P/L, Trades, Win Rate, Profit Factor.',
   );
 
-  // Protected % must render under DNA Results as the fourth card in the
-  // first row, alongside ROI %, Biggest Winner, Biggest Loser.
-  assert.ok(source.includes("renderRoiCard(roiPercent),"), 'ROI % should render as the first DNA Results card.');
   assert.ok(source.includes("statCard('trend', 'Biggest Winner'"), 'Biggest Winner should render as a DNA Results card.');
   assert.ok(source.includes("statCard('trend', 'Biggest Loser'"), 'Biggest Loser should render as a DNA Results card.');
-  const roiIndex = source.indexOf('renderRoiCard(roiPercent),');
+  assert.ok(source.includes("statCard('trend', 'Average Winner'"), 'Average Winner should render as a DNA Results card.');
+  assert.ok(source.includes("statCard('trend', 'Average Loser'"), 'Average Loser should render as a DNA Results card.');
+  assert.equal(source.includes("renderRoiCard(roiPercent),"), false, 'ROI % should no longer render as a DNA Results card.');
+  assert.equal(source.includes("statCard('chart', 'Protected %', formatPercent(stats.protectedPercent))"), false, 'Protected % should no longer render as a DNA Results dashboard card.');
   const biggestWinnerIndex = source.indexOf("statCard('trend', 'Biggest Winner'");
   const biggestLoserIndex = source.indexOf("statCard('trend', 'Biggest Loser'");
-  const dnaProtectedPercentIndex = source.indexOf("statCard('chart', 'Protected %', formatPercent(stats.protectedPercent))");
+  const averageWinnerIndex = source.indexOf("statCard('trend', 'Average Winner'");
+  const averageLoserIndex = source.indexOf("statCard('trend', 'Average Loser'");
   assert.ok(
-    roiIndex !== -1 && roiIndex < biggestWinnerIndex
-      && biggestWinnerIndex < biggestLoserIndex
-      && biggestLoserIndex < dnaProtectedPercentIndex,
-    'DNA Results first row should render in order: ROI %, Biggest Winner, Biggest Loser, Protected %.',
+    biggestWinnerIndex !== -1 && biggestWinnerIndex < biggestLoserIndex
+      && biggestLoserIndex < averageWinnerIndex
+      && averageWinnerIndex < averageLoserIndex,
+    'DNA Results first row should render in order: Biggest Winner, Biggest Loser, Average Winner, Average Loser.',
   );
 });
 
@@ -109,11 +111,13 @@ test('R and risk percent display with one decimal place without changing calcula
 });
 
 
-test('dashboard renders eleven cards across three grouped rows', () => {
+test('dashboard renders sixteen cards across four grouped rows', () => {
   assert.ok(source.includes('const dashboardCardRows = ['), 'Dashboard cards should be assembled in grouped rows.');
-  assert.equal((source.match(/statCard\('/g) ?? []).length >= 11, true, 'Dashboard should define at least eleven stat cards.');
+  assert.equal((source.match(/statCard\('/g) ?? []).length >= 16, true, 'Dashboard should define at least sixteen stat cards.');
   assert.ok(source.includes("statCard('trend', 'Biggest Winner'"), 'Biggest Winner should render as a dashboard card.');
   assert.ok(source.includes("statCard('calendar', 'Yearly P/L'"), 'Yearly P/L should render as a dashboard card.');
+  assert.ok(source.includes("statCard('trend', 'Yearly Return %'"), 'Yearly Return % should render as a dashboard card.');
+  assert.ok(source.includes("statCard('line', 'Yearly PF'"), 'Yearly PF should render as a dashboard card.');
 });
 
 test('biggest winner and loser calculate from closed trade P&L', () => {
