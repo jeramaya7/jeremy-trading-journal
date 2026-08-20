@@ -67,8 +67,11 @@ const STATS_MATH_FUNCTIONS = [
   'getProfitFactor',
   'calculateBiggestWinner',
   'calculateBiggestLoser',
+  'getTradingDayDateKey',
   'getTradeReportDate',
+  'getTradeTradingDayDateKey',
   'getReportPeriodStart',
+  'formatDateKey',
   'filterTradesForPeriod',
   'getEquityCurveTrades',
   'getCapitalExposureWalk',
@@ -81,6 +84,8 @@ function loadStatsModuleWithTrades(initialTrades) {
   const code = [
     'let trades = ' + JSON.stringify(initialTrades) + ';',
     extractConst('OUTCOME_DOLLAR_THRESHOLD'),
+    extractConst('TRADING_DAY_TIME_ZONE'),
+    extractConst('TRADING_DAY_RESET_HOUR'),
     // classifyTradeOutcome's Outcome Override lookup also references this.
     extractConst('OUTCOME_OVERRIDE_LABEL_TO_KEY'),
     'function getActiveTrades() { return trades.filter((trade) => !trade.deletedAt); }',

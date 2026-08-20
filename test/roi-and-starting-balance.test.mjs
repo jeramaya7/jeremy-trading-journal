@@ -33,6 +33,14 @@ function extractFunction(name) {
   return source.slice(start, cursor + 1);
 }
 
+function extractConst(name) {
+  const marker = `const ${name} = `;
+  const markerIndex = source.indexOf(marker);
+  assert.notEqual(markerIndex, -1, `Expected to find const ${name} in src/main.js`);
+  const semicolonIndex = source.indexOf(';', markerIndex);
+  return source.slice(markerIndex, semicolonIndex + 1);
+}
+
 // The functions ROI depends on transitively (calculatePnl -> getTradeContractSize
 // -> getTradeDisplaySymbol -> ...), extracted from the live source rather than
 // reimplemented, so the tests exercise the actual shipped code.
@@ -43,14 +51,19 @@ const ROI_MATH_FUNCTIONS = [
   'firstReadableTradeSymbol',
   'getTradeContractSize',
   'calculatePnl',
+  'getTradingDayDateKey',
   'getTradeReportDate',
+  'getTradeTradingDayDateKey',
   'getReportPeriodStart',
+  'formatDateKey',
   'calculateAccountBalanceAtPeriodStart',
   'calculateRoiPercent',
 ];
 
 function loadRoiModule() {
   const code = [
+    extractConst('TRADING_DAY_TIME_ZONE'),
+    extractConst('TRADING_DAY_RESET_HOUR'),
     ...ROI_MATH_FUNCTIONS.map(extractFunction),
     'module.exports = { ' + ROI_MATH_FUNCTIONS.join(', ') + ' };',
   ].join('\n\n');

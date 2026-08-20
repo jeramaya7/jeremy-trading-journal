@@ -25,8 +25,8 @@ test('monthly trading calendar renders Monday-first weekdays and offsets dates f
 
 test('monthly trading calendar highlights only the matching today date', () => {
   assert.ok(
-    source.includes('function monthlyCalendarDayCell(calendarDay, todayKey = formatDateKey(new Date()))'),
-    'Monthly trading calendar should compare each rendered date against today.',
+    source.includes('function monthlyCalendarDayCell(calendarDay, todayKey = getTradingDayDateKey(new Date()))'),
+    'Monthly trading calendar should compare each rendered date against the current New York trading day.',
   );
   assert.ok(
     source.includes('const isToday = calendarDay.dateKey === todayKey;'),

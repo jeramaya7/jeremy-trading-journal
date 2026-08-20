@@ -75,8 +75,10 @@ const EXPORT_FOR_AI_FUNCTIONS = [
   'calculatePnl',
   'classifyTradeOutcome',
   'calculateWinRate',
+  'getTradingDayDateKey',
   'getReportPeriodStart',
   'getTradeReportDate',
+  'getTradeTradingDayDateKey',
   'filterTradesForPeriod',
   'calculatePnlForPeriod',
   'getPnlReports',
@@ -123,6 +125,8 @@ function createExportContext(tradesFixture, timeframe = 'week') {
     extractConst('FRIENDLY_ASSET_NAMES'),
     extractConst('TIME_OF_DAY_ORDER'),
     extractConst('OUTCOME_DOLLAR_THRESHOLD'),
+    extractConst('TRADING_DAY_TIME_ZONE'),
+    extractConst('TRADING_DAY_RESET_HOUR'),
     extractConst('TRADE_OUTCOME_LABELS'),
     extractConst('OUTCOME_OVERRIDE_LABEL_TO_KEY'),
     ...EXPORT_FOR_AI_FUNCTIONS.map(extractFunction),
@@ -334,6 +338,20 @@ test('buildExportForAiMarkdown numbers match existing DNA Results calculations',
   assertIncludes(markdown, '| EURUSD | 1 | 0.0% | -$10.00 | 0.00 | - | -$10.00 |', 'Asset analytics should include the selected losing asset.');
 });
 
+test('Day AI export uses the 5 PM New York boundary and trading-day date label', () => {
+  const tradesFixture = [
+    { id: 'before', closeTime: '2026-08-20T20:59:59.999Z', symbol: 'AAPL', direction: 'Long', netProfitLoss: 1, notes: 'Prior trading day' },
+    { id: 'inside', closeTime: '2026-08-20T21:00:00.000Z', symbol: 'MSFT', direction: 'Long', netProfitLoss: 2, notes: 'Current trading day' },
+  ];
+  const { exports } = createExportContext(tradesFixture, 'day');
+  const markdown = exports.buildExportForAiMarkdown(new Date('2026-08-21T20:59:59.999Z'));
+
+  assertIncludes(markdown, 'Timeframe: Day (day)', 'The selected Day timeframe should remain visible.');
+  assertIncludes(markdown, 'Selected date range: 2026-08-21 to 2026-08-21', 'The date range should use the trading-day label.');
+  assertIncludes(markdown, 'Current trading day', 'The trade at the opening cutoff should be included.');
+  assert.equal(markdown.includes('Prior trading day'), false, 'The trade before the opening cutoff should be excluded.');
+});
+
 test('Export for AI markdown has clean single sections and timeframe changes alter the export', () => {
   const tradesFixture = realisticTrades();
   const weekMarkdown = buildMarkdown(tradesFixture, 'week');
@@ -361,12 +379,17 @@ test('Export for AI markdown has clean single sections and timeframe changes alt
 });
 
 test('exportForAiMarkdown downloads a sensible markdown filename for the selected timeframe and date range', () => {
-  const runner = createExportContext(realisticTrades(), 'week');
+  const tradesFixture = realisticTrades();
+  const runner = createExportContext(tradesFixture, 'week');
   runner.exports.exportForAiMarkdown();
   const { link, markdown } = runner.getCapturedDownload();
+  const expectedRange = runner.exports
+    .formatExportDateRange(runner.exports.getDnaResultsDateRange('week', new Date(), tradesFixture))
+    .replace(/\s+to\s+/g, '_to_')
+    .replace(/[^a-z0-9_-]+/gi, '-');
 
   assert.equal(link.clicked, true, 'The download link should be clicked.');
   assert.equal(link.href, 'blob:mock-ai-export', 'The download should use the Blob URL pattern.');
-  assert.equal(link.download, 'DNA-AI-Export-week-2026-08-17_to_2026-08-18.md', 'The filename should include timeframe and date range.');
+  assert.equal(link.download, `DNA-AI-Export-week-${expectedRange}.md`, 'The filename should include the current trading timeframe and date range.');
   assert.ok(markdown.startsWith('# DNA Export for AI'), 'The downloaded markdown should be the AI export content.');
 });

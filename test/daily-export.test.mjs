@@ -82,8 +82,11 @@ const EXPORT_FUNCTIONS = [
   'getProfitFactor',
   'calculateBiggestWinner',
   'calculateBiggestLoser',
+  'getTradingDayDateKey',
   'getTradeReportDate',
+  'getTradeTradingDayDateKey',
   'getReportPeriodStart',
+  'formatDateKey',
   'filterTradesForPeriod',
   'getEquityCurveTrades',
   'getCapitalExposureWalk',
@@ -102,20 +105,33 @@ function makeFakeLink() {
 // Blob/URL/document stubbed just enough to capture what would have been
 // downloaded, so the test exercises the actual shipped save/build logic
 // instead of reimplementing it.
-function runExportDailyTrades(tradesFixture) {
+function runExportDailyTrades(tradesFixture, referenceDate = '2026-08-20T21:00:00.000Z') {
   const code = [
     extractConst('OUTCOME_DOLLAR_THRESHOLD'),
+    extractConst('TRADING_DAY_TIME_ZONE'),
+    extractConst('TRADING_DAY_RESET_HOUR'),
     extractConst('TRADE_OUTCOME_LABELS'),
     // classifyTradeOutcome's Outcome Override lookup also references this.
     extractConst('OUTCOME_OVERRIDE_LABEL_TO_KEY'),
     ...EXPORT_FUNCTIONS.map(extractFunction),
-    'module.exports = { exportDailyTrades };',
+    'module.exports = { exportDailyTrades, getTradingDayDateKey };',
   ].join('\n\n');
 
   const capturedLinks = [];
   let capturedBlobParts = null;
+  const fixedTimestamp = new Date(referenceDate).getTime();
+  class FixedDate extends Date {
+    constructor(...args) {
+      super(...(args.length ? args : [fixedTimestamp]));
+    }
+
+    static now() {
+      return fixedTimestamp;
+    }
+  }
   const context = {
     trades: tradesFixture,
+    Date: FixedDate,
     Blob: function (parts) {
       capturedBlobParts = parts;
       return { parts };
@@ -137,6 +153,7 @@ function runExportDailyTrades(tradesFixture) {
   return {
     link: capturedLinks[0],
     payload: JSON.parse(capturedBlobParts.join('')),
+    tradingDayKey: context.module.exports.getTradingDayDateKey(new FixedDate()),
   };
 }
 
@@ -164,22 +181,18 @@ test('the Daily Export button is wired to exportDailyTrades, optionally (it only
   );
 });
 
-test('exportDailyTrades downloads a file named DNA-Daily-Export-YYYY-MM-DD.json using today\'s local date', () => {
-  const { link } = runExportDailyTrades([]);
-  const todayKey = new Date().toLocaleDateString('en-CA');
-  assert.equal(link.download, `DNA-Daily-Export-${todayKey}.json`, 'Filename should match the requested DNA-Daily-Export-YYYY-MM-DD.json pattern using the local date.');
+test('exportDailyTrades downloads a file named for the current New York trading day', () => {
+  const { link, tradingDayKey } = runExportDailyTrades([]);
+  assert.equal(link.download, `DNA-Daily-Export-${tradingDayKey}.json`, 'Filename should use the current 5 PM New York trading-day date.');
   assert.equal(link.clicked, true, 'The download link should be clicked to trigger the download.');
 });
 
-test('exportDailyTrades only includes trades dated today, and includes a daily summary', () => {
-  // en-CA formatting (not toISOString) deliberately avoids the UTC-vs-local
-  // date shift documented on getTradeReportDate() above — same convention
-  // exportDailyTrades itself uses for the export filename.
-  const today = new Date();
-  const todayKey = today.toLocaleDateString('en-CA');
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayKey = yesterday.toLocaleDateString('en-CA');
+test('exportDailyTrades only includes trades assigned to the current trading day and includes its summary', () => {
+  const initialRun = runExportDailyTrades([]);
+  const todayKey = initialRun.tradingDayKey;
+  const yesterday = new Date(`${todayKey}T12:00:00Z`);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  const yesterdayKey = yesterday.toISOString().slice(0, 10);
 
   const todayTrade = {
     id: 'today-1', date: todayKey, symbol: 'EURUSD', direction: 'Long',
@@ -196,11 +209,25 @@ test('exportDailyTrades only includes trades dated today, and includes a daily s
   assert.equal(payload.trades[0].id, 'today-1');
   assert.ok(payload.summary, 'A daily summary object should be included.');
   assert.equal(payload.summary.tradeCount, 1, 'The summary should reflect only today\'s trades, matching the Today KPI strip.');
-  assert.equal(payload.date, new Date().toLocaleDateString('en-CA'), 'The payload date should be today\'s local date.');
+  assert.equal(payload.date, todayKey, 'The payload date should be the current New York trading-day date.');
+});
+
+test('exportDailyTrades applies the exact EDT cutoff to imported close timestamps', () => {
+  const trades = [
+    { id: 'before', closeTime: '2026-08-20T20:59:59.999Z', symbol: 'AAPL', netProfitLoss: 1 },
+    { id: 'open', closeTime: '2026-08-20T21:00:00.000Z', symbol: 'AAPL', netProfitLoss: 2 },
+    { id: 'close', closeTime: '2026-08-21T20:59:59.999Z', symbol: 'AAPL', netProfitLoss: 3 },
+    { id: 'next', closeTime: '2026-08-21T21:00:00.000Z', symbol: 'AAPL', netProfitLoss: 4 },
+  ];
+  const { payload, link } = runExportDailyTrades(trades, '2026-08-21T20:59:59.999Z');
+
+  assert.deepEqual(payload.trades.map((trade) => trade.id), ['open', 'close']);
+  assert.equal(payload.date, '2026-08-21');
+  assert.equal(link.download, 'DNA-Daily-Export-2026-08-21.json');
 });
 
 test('exportDailyTrades includes every saved trade-card field plus outcome, P/L, and R — but never the screenshot image data', () => {
-  const todayKey = new Date().toLocaleDateString('en-CA');
+  const { tradingDayKey: todayKey } = runExportDailyTrades([]);
   const tradeWithScreenshot = {
     id: 'a', date: todayKey, symbol: 'XAUUSD', direction: 'Long',
     entry: 2000, exit: 2010, size: 1, fees: 0, stopLoss: 1990,
@@ -234,7 +261,7 @@ test('exportDailyTrades includes every saved trade-card field plus outcome, P/L,
 });
 
 test('exportDailyTrades marks trades with no screenshot as not attached, without inventing a screenshot object', () => {
-  const todayKey = new Date().toLocaleDateString('en-CA');
+  const { tradingDayKey: todayKey } = runExportDailyTrades([]);
   const tradeWithoutScreenshot = { id: 'b', date: todayKey, symbol: 'EURUSD', direction: 'Long', entry: 1, exit: 1, size: 1, fees: 0 };
 
   const { payload } = runExportDailyTrades([tradeWithoutScreenshot]);

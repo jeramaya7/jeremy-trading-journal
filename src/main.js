@@ -12,6 +12,8 @@ const PAGE_MODE_STORAGE_KEY = 'jeremy-trading-journal:page-mode:v1';
 const SESSION_NOTES_STORAGE_KEY = 'jeremy-trading-journal:session-notes-by-day:v1';
 const STARTING_ACCOUNT_BALANCE_STORAGE_KEY = 'jeremy-trading-journal:starting-account-balance:v1';
 const DEFAULT_STARTING_ACCOUNT_BALANCE = 5600;
+const TRADING_DAY_TIME_ZONE = 'America/New_York';
+const TRADING_DAY_RESET_HOUR = 17;
 const PAGE_MODES = {
   dashboard: 'dashboard',
   trading: 'trading',
@@ -190,7 +192,7 @@ let isSyncingCloudAnnotations = false;
 let lastCloudAnnotationsSyncAt = 0;
 const CLOUD_ANNOTATIONS_MIN_REFRESH_INTERVAL_MS = 20 * 1000;
 const pendingAnnotationPushes = new Set();
-let manualTradeDateKey = formatDateKey(new Date());
+let manualTradeDateKey = getTradingDayDateKey(new Date());
 let setupAnalyticsSort = { key: 'netPnl', direction: 'desc' };
 let selectedAssetFilter = '';
 let monthlyCalendarDate = new Date();
@@ -405,7 +407,16 @@ function persistSessionNotesByDay(nextNotesByDay) {
 }
 
 function getSessionNotesForDay(dateKey) {
-  return [...(sessionNotesByDay[dateKey] || [])].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  return Object.entries(sessionNotesByDay)
+    .flatMap(([storedDateKey, notes]) => notes.map((note) => ({ note, storedDateKey })))
+    .filter(({ note, storedDateKey }) => {
+      const createdAt = new Date(note.createdAt);
+      return Number.isNaN(createdAt.getTime())
+        ? storedDateKey === dateKey
+        : getTradingDayDateKey(createdAt) === dateKey;
+    })
+    .map(({ note }) => note)
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 }
 
 function saveTodaySessionNote(text) {
@@ -415,7 +426,7 @@ function saveTodaySessionNote(text) {
   }
 
   const now = new Date();
-  const todayKey = formatDateKey(now);
+  const todayKey = getTradingDayDateKey(now);
   const note = {
     id: crypto.randomUUID ? crypto.randomUUID() : `session-note-${now.getTime()}`,
     createdAt: now.toISOString(),
@@ -1115,9 +1126,35 @@ function calculateWinRate(winCount, lossCount) {
   return decidedCount > 0 ? (winCount / decidedCount) * 100 : null;
 }
 
+function getTradingDayDateKey(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: TRADING_DAY_TIME_ZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(date).map((part) => [part.type, part.value]),
+  );
+  const tradingDate = new Date(Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day) + (Number(parts.hour) >= TRADING_DAY_RESET_HOUR ? 1 : 0),
+  ));
+
+  return tradingDate.toISOString().slice(0, 10);
+}
+
 function getReportPeriodStart(referenceDate, period) {
-  const periodStart = new Date(referenceDate);
-  periodStart.setHours(0, 0, 0, 0);
+  const tradingDayKey = getTradingDayDateKey(referenceDate);
+  const [year, month, day] = tradingDayKey.split('-').map(Number);
+  const periodStart = new Date(year, month - 1, day);
 
   if (period === 'week') {
     const dayOfWeek = periodStart.getDay();
@@ -1137,9 +1174,7 @@ function getReportPeriodStart(referenceDate, period) {
 }
 
 // Bug fix: manual trades only ever set `trade.date` as a plain "YYYY-MM-DD"
-// string (no `closeTime`). JS parses date-only strings as UTC midnight, but
-// this function's result is always compared against locally-constructed
-// Date objects (see getReportPeriodStart/filterTradesForPeriod below). In
+// string (no `closeTime`). JS parses date-only strings as UTC midnight. In
 // any timezone behind UTC (all of the Americas), UTC midnight on a given
 // date is still the *previous* calendar day locally, so a manual trade
 // dated "today" was silently read back as dated "yesterday" everywhere
@@ -1161,18 +1196,27 @@ function getTradeReportDate(trade) {
   return Number.isNaN(tradeDate.getTime()) ? null : tradeDate;
 }
 
+function getTradeTradingDayDateKey(trade) {
+  const dateValue = trade.closeTime || trade.date;
+  if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+    return dateValue;
+  }
+
+  const tradeDate = getTradeReportDate(trade);
+  return tradeDate ? getTradingDayDateKey(tradeDate) : '';
+}
+
 function filterTradesForPeriod(tradeList, period, referenceDate = new Date()) {
   if (period === 'all') {
     return tradeList.filter((trade) => getTradeReportDate(trade) !== null);
   }
 
-  const periodStart = getReportPeriodStart(referenceDate, period);
-  const periodEnd = new Date(referenceDate);
-  periodEnd.setHours(23, 59, 59, 999);
+  const periodStartKey = formatDateKey(getReportPeriodStart(referenceDate, period));
+  const periodEndKey = getTradingDayDateKey(referenceDate);
 
   return tradeList.filter((trade) => {
-    const tradeDate = getTradeReportDate(trade);
-    return tradeDate && tradeDate >= periodStart && tradeDate <= periodEnd;
+    const tradeDateKey = getTradeTradingDayDateKey(trade);
+    return tradeDateKey && tradeDateKey >= periodStartKey && tradeDateKey <= periodEndKey;
   });
 }
 
@@ -1911,9 +1955,12 @@ function getMonthlyCalendarMonthKey(date) {
 
 function getMonthlyTradingCalendarNavigationState(referenceDate = new Date(), tradeList = trades) {
   const tradeMonthKeys = tradeList
-    .map((trade) => getTradeReportDate(trade))
+    .map((trade) => getTradeTradingDayDateKey(trade))
     .filter(Boolean)
-    .map(getMonthlyCalendarMonthKey);
+    .map((dateKey) => {
+      const [year, month] = dateKey.split('-').map(Number);
+      return year * 12 + month - 1;
+    });
 
   if (!tradeMonthKeys.length) {
     return { canGoPrevious: false, canGoNext: false };
@@ -1933,13 +1980,16 @@ function getMonthlyTradingCalendarDays(referenceDate = new Date(), tradeList = t
   const dailyReports = new Map();
 
   tradeList.forEach((trade) => {
-    const tradeDate = getTradeReportDate(trade);
-    if (!tradeDate || tradeDate < monthStart || tradeDate > monthEnd) {
+    const dateKey = getTradeTradingDayDateKey(trade);
+    if (!dateKey) {
       return;
     }
 
-    const day = tradeDate.getDate();
-    const dateKey = formatDateKey(tradeDate);
+    const [tradeYear, tradeMonth, day] = dateKey.split('-').map(Number);
+    if (tradeYear !== referenceDate.getFullYear() || tradeMonth !== referenceDate.getMonth() + 1) {
+      return;
+    }
+
     const report = dailyReports.get(day) ?? { pnl: 0, tradeCount: 0, dateKey, startingBalance: null };
     report.pnl += calculatePnl(trade);
     report.startingBalance ??= getTradeStartingBalance(trade);
@@ -1988,7 +2038,7 @@ function renderMonthlyTradingCalendar(referenceDate = new Date(), tradeList = tr
       </section>`;
 }
 
-function monthlyCalendarDayCell(calendarDay, todayKey = formatDateKey(new Date())) {
+function monthlyCalendarDayCell(calendarDay, todayKey = getTradingDayDateKey(new Date())) {
   if (!calendarDay) {
     return '<div class="monthly-calendar-day monthly-calendar-day-empty" aria-hidden="true"></div>';
   }
@@ -2015,10 +2065,7 @@ function monthlyCalendarDayCell(calendarDay, todayKey = formatDateKey(new Date()
 }
 
 function getTradesForCalendarDate(dateKey) {
-  return getActiveTrades().filter((trade) => {
-    const tradeDate = getTradeReportDate(trade);
-    return tradeDate && formatDateKey(tradeDate) === dateKey;
-  });
+  return getActiveTrades().filter((trade) => getTradeTradingDayDateKey(trade) === dateKey);
 }
 
 function renderCalendarDayReviewPanel() {
@@ -2322,10 +2369,10 @@ function calculateAccountBalanceAtPeriodStart(period, referenceDate, allTrades, 
     return startingBalance;
   }
 
-  const periodStart = getReportPeriodStart(referenceDate, period);
+  const periodStartKey = formatDateKey(getReportPeriodStart(referenceDate, period));
   const priorPnl = allTrades.reduce((sum, trade) => {
-    const tradeDate = getTradeReportDate(trade);
-    return tradeDate && tradeDate < periodStart ? sum + calculatePnl(trade) : sum;
+    const tradeDateKey = getTradeTradingDayDateKey(trade);
+    return tradeDateKey && tradeDateKey < periodStartKey ? sum + calculatePnl(trade) : sum;
   }, 0);
 
   return startingBalance + priorPnl;
@@ -2416,10 +2463,7 @@ function getStats(tradeList = trades) {
 
 
 function hasTradesForDate(dateKey) {
-  return getActiveTrades().some((trade) => {
-    const tradeDate = getTradeReportDate(trade);
-    return tradeDate && formatDateKey(tradeDate) === dateKey;
-  });
+  return getActiveTrades().some((trade) => getTradeTradingDayDateKey(trade) === dateKey);
 }
 
 function openCalendarDayReview(dateKey) {
@@ -2452,8 +2496,7 @@ function getFilteredTrades() {
   const normalizedAssetFilter = selectedAssetFilter.trim().toLowerCase();
 
   return getActiveTrades().filter((trade) => {
-    const tradeDate = getTradeReportDate(trade);
-    const matchesCalendarDate = !selectedCalendarDateKey || (tradeDate && formatDateKey(tradeDate) === selectedCalendarDateKey);
+    const matchesCalendarDate = !selectedCalendarDateKey || getTradeTradingDayDateKey(trade) === selectedCalendarDateKey;
     const matchesAsset = !normalizedAssetFilter || getTradeDisplaySymbol(trade).trim().toLowerCase() === normalizedAssetFilter;
     const matchesSearch = !normalizedQuery || [trade.symbol, trade.setup, trade.direction, trade.tags, trade.notes]
       .join(' ')
@@ -3281,7 +3324,7 @@ function render(options = {}) {
   const assetAnalyticsSection = renderAssetAnalytics(dnaResultsTrades);
   const timeOfDayAnalyticsSection = renderTimeOfDayAnalytics(dnaResultsTrades);
   const dnaDoctorSection = renderDnaDoctor(dnaResultsTrades);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTradingDayDateKey(dnaReferenceDate);
   const todayTrades = filterTradesForPeriod(activeTrades, 'day', dnaReferenceDate);
   // Manual Trade panel is shown in Trading Mode too now — same button,
   // same renderManualTradeForm(), same submitTrade() save logic. No second
@@ -3944,7 +3987,7 @@ function removeEditScreenshot(event) {
 }
 
 function toggleManualTradeForm() {
-  manualTradeDateKey = selectedCalendarDateKey || formatDateKey(new Date());
+  manualTradeDateKey = selectedCalendarDateKey || getTradingDayDateKey(new Date());
   isManualTradeFormOpen = !isManualTradeFormOpen;
   if (!isManualTradeFormOpen) {
     selectedScreenshot = null;
@@ -4855,7 +4898,8 @@ function exportTrades() {
   URL.revokeObjectURL(url);
 }
 
-// Trading Mode's "Daily Export": every trade dated today (same 'day' period
+// Trading Mode's "Daily Export": every trade in today's New York trading day
+// (same 'day' period
 // filter used everywhere else — getTradeReportDate/filterTradesForPeriod —
 // so this always matches what the Today KPI strip itself shows), plus the
 // same daily summary getStats() computes for that strip. Every saved
@@ -4866,8 +4910,9 @@ function exportTrades() {
 // size/attached) — the dataUrl (actual image bytes) is deliberately left
 // out so the export stays small and shareable.
 function exportDailyTrades() {
-  const dateKey = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD, local date — same convention as openShareDashboardView's PNG filename
-  const todayTrades = filterTradesForPeriod(getActiveTrades(), 'day', new Date());
+  const referenceDate = new Date();
+  const dateKey = getTradingDayDateKey(referenceDate);
+  const todayTrades = filterTradesForPeriod(getActiveTrades(), 'day', referenceDate);
   const summary = getStats(todayTrades);
 
   const sanitizedTrades = todayTrades.map((trade) => {
@@ -4899,7 +4944,11 @@ function getDnaTimeframeLabel(timeframe = dnaResultsTimeframe) {
 
 function getDnaResultsDateRange(period = dnaResultsTimeframe, referenceDate = getDnaResultsReferenceDate(), tradeList = getActiveTrades()) {
   const periodTrades = filterTradesForPeriod(tradeList, period, referenceDate);
-  const periodDates = periodTrades.map(getTradeReportDate).filter(Boolean).sort((a, b) => a - b);
+  const periodDates = periodTrades
+    .map((trade) => getTradeTradingDayDateKey(trade))
+    .filter(Boolean)
+    .sort()
+    .map((dateKey) => getTradeReportDate({ date: dateKey }));
 
   if (period === 'all') {
     return {
@@ -4912,7 +4961,7 @@ function getDnaResultsDateRange(period = dnaResultsTimeframe, referenceDate = ge
 
   return {
     start: getReportPeriodStart(referenceDate, period),
-    end: referenceDate,
+    end: getTradeReportDate({ date: getTradingDayDateKey(referenceDate) }),
     tradeStart: periodDates[0] ?? null,
     tradeEnd: periodDates[periodDates.length - 1] ?? null,
   };
@@ -5103,13 +5152,13 @@ function buildExportForAiMarkdown(referenceDate = getDnaResultsReferenceDate()) 
     dnaResultsTrades.length
       ? dnaResultsTrades.map((trade, index) => {
         const pnl = calculatePnl(trade);
-        const reportDate = getTradeReportDate(trade);
+        const tradingDateKey = getTradeTradingDayDateKey(trade);
         const screenshot = trade.screenshot
           ? `Attached (${formatExportText(trade.screenshot.name)})`
           : 'Not attached';
         return [
           `### Trade ${index + 1}: ${formatExportText(getTradeDisplaySymbol(trade))}`,
-          `- Date: ${reportDate ? formatDateKey(reportDate) : formatExportText(trade.date)}`,
+          `- Date: ${tradingDateKey || formatExportText(trade.date)}`,
           `- Asset: ${formatExportText(getTradeDisplaySymbol(trade))}`,
           `- Direction: ${formatExportText(trade.direction)}`,
           `- Outcome: ${TRADE_OUTCOME_LABELS[classifyTradeOutcome(pnl, trade.outcomeOverride)] || '-'}`,
