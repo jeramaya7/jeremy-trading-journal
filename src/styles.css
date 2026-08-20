@@ -3425,6 +3425,33 @@ h2,
   padding-left: clamp(1.5rem, 3vw, 3rem);
 }
 
+.dna-doctor-focus-control {
+  color: var(--dna-muted);
+  display: grid;
+  font-size: 0.75rem;
+  font-weight: 700;
+  gap: 0.25rem;
+}
+
+.dna-doctor-focus-control select,
+.dna-doctor-focus-control input {
+  border: 1px solid var(--dna-border);
+  border-radius: 10px;
+  color: var(--dna-navy);
+  font: inherit;
+  min-height: 2.25rem;
+  padding: 0.45rem 0.65rem;
+}
+
+.ai-export-custom-range {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ai-export-custom-range[hidden] {
+  display: none;
+}
+
 @media (max-width: 700px) {
   .dna-doctor-branded {
     grid-template-columns: 1fr;
@@ -3470,5 +3497,6 @@ h2,
 
 @media (max-width: 640px) {
   .dna-doctor-brand-right { align-items: stretch; flex-direction: column; width: 100%; }
+  .ai-export-custom-range { flex-direction: column; }
   .dna-doctor-scan-btn { align-self: stretch; justify-content: center; }
 }

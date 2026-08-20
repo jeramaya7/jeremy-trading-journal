@@ -25,6 +25,14 @@ const DNA_TIMEFRAME_OPTIONS = [
   { value: 'year', label: 'YTD' },
   { value: 'all', label: 'Beginning' },
 ];
+const AI_EXPORT_TIMEFRAME_OPTIONS = [
+  { value: 'today', label: 'Today' },
+  { value: 'yesterday', label: 'Yesterday' },
+  { value: 'week', label: 'WTD' },
+  { value: 'month', label: 'MTD' },
+  { value: 'custom', label: 'Custom' },
+];
+const DEFAULT_AI_EXPORT_TIMEFRAME = 'today';
 
 // Legacy Setup names (renamed or retired from the current Play Book list)
 // mapped to their current canonical name. Unknown legacy/custom setup values
@@ -205,6 +213,9 @@ let pageMode = loadPageMode();
 let sessionNotesByDay = loadSessionNotesByDay();
 let isSessionNotesModalOpen = false;
 let isSettingsModalOpen = false;
+let selectedAiExportTimeframe = DEFAULT_AI_EXPORT_TIMEFRAME;
+let aiExportCustomStartDate = '';
+let aiExportCustomEndDate = '';
 
 const FRIENDLY_ASSET_NAMES = {
   XAUUSD: 'Gold',
@@ -1560,14 +1571,14 @@ function renderDnaDoctor(tradeList = trades) {
             <img class="dna-doctor-icon" src="./Icon_circular_logo.png" alt="DNA Doctor icon" />
             <h2 class="dna-doctor-title">DNA Doctor</h2>
           </div>
-          <p class="dna-doctor-subtitle">Download a clean AI-ready markdown report from the current DNA Results timeframe.</p>
+          <p class="dna-doctor-subtitle">Download a clean AI-ready markdown report from the selected export period.</p>
 
           <div class="dna-doctor-pills">
             <div class="dna-doctor-pill">
               ${icon('target')}
               <div>
-                <strong>Current Timeframe</strong>
-                <span>${escapeHtml(getDnaTimeframeLabel(dnaResultsTimeframe))} DNA Results data</span>
+                <strong>Export Period</strong>
+                <span>${escapeHtml(getAiExportTimeframeLabel(selectedAiExportTimeframe))} AI export data</span>
               </div>
             </div>
             <div class="dna-doctor-pill">
@@ -1596,9 +1607,25 @@ function renderDnaDoctor(tradeList = trades) {
         </div>
 
         <div class="dna-doctor-brand-right">
+          <label class="dna-doctor-focus-control" for="aiExportTimeframe">
+            <span>Export Period</span>
+            <select id="aiExportTimeframe">
+              ${AI_EXPORT_TIMEFRAME_OPTIONS.map((option) => `<option value="${escapeHtml(option.value)}"${option.value === selectedAiExportTimeframe ? ' selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}
+            </select>
+          </label>
+          <div class="ai-export-custom-range" ${selectedAiExportTimeframe === 'custom' ? '' : 'hidden'}>
+            <label class="dna-doctor-focus-control" for="aiExportCustomStart">
+              <span>Start</span>
+              <input id="aiExportCustomStart" type="date" value="${escapeHtml(aiExportCustomStartDate)}" />
+            </label>
+            <label class="dna-doctor-focus-control" for="aiExportCustomEnd">
+              <span>End</span>
+              <input id="aiExportCustomEnd" type="date" value="${escapeHtml(aiExportCustomEndDate)}" />
+            </label>
+          </div>
           <button class="dna-doctor-scan-btn" type="button" id="requestAnalysis">
             ${icon('download')}
-            Request Analysis
+            Download for AI
           </button>
         </div>
       </div>
@@ -3606,6 +3633,16 @@ function bindEvents() {
   document.querySelector('#toggleManualTrade')?.addEventListener('click', toggleManualTradeForm, { signal });
   document.querySelector('#shareDashboard')?.addEventListener('click', openShareDashboardView, { signal });
   document.querySelector('#requestAnalysis')?.addEventListener('click', exportForAiMarkdown, { signal });
+  document.querySelector('#aiExportTimeframe')?.addEventListener('change', (event) => {
+    setAiExportTimeframe(event.target.value);
+    render();
+  }, { signal });
+  document.querySelector('#aiExportCustomStart')?.addEventListener('change', (event) => {
+    aiExportCustomStartDate = event.target.value;
+  }, { signal });
+  document.querySelector('#aiExportCustomEnd')?.addEventListener('change', (event) => {
+    aiExportCustomEndDate = event.target.value;
+  }, { signal });
 
   document.querySelector('[data-save-all-trades]')?.addEventListener('click', saveAllEditedTrades, { signal });
 
@@ -4942,6 +4979,99 @@ function getDnaTimeframeLabel(timeframe = dnaResultsTimeframe) {
   return DNA_TIMEFRAME_OPTIONS.find((option) => option.value === timeframe)?.label || 'Beginning';
 }
 
+function getAiExportTimeframeLabel(timeframe = selectedAiExportTimeframe) {
+  return AI_EXPORT_TIMEFRAME_OPTIONS.find((option) => option.value === timeframe)?.label || 'Today';
+}
+
+function isValidAiExportTimeframe(timeframe) {
+  return AI_EXPORT_TIMEFRAME_OPTIONS.some((option) => option.value === timeframe);
+}
+
+function setAiExportTimeframe(timeframe) {
+  selectedAiExportTimeframe = isValidAiExportTimeframe(timeframe) ? timeframe : DEFAULT_AI_EXPORT_TIMEFRAME;
+}
+
+function addDaysToDateKey(dateKey, days) {
+  const date = getTradeReportDate({ date: dateKey });
+  if (!date) return '';
+  date.setDate(date.getDate() + days);
+  return formatDateKey(date);
+}
+
+function filterTradesForTradingDayRange(tradeList, startDateKey, endDateKey) {
+  const startKey = String(startDateKey || '').trim();
+  const endKey = String(endDateKey || '').trim();
+  if (!startKey || !endKey) return [];
+  const [rangeStart, rangeEnd] = startKey <= endKey ? [startKey, endKey] : [endKey, startKey];
+  return tradeList.filter((trade) => {
+    const tradeDateKey = getTradeTradingDayDateKey(trade);
+    return tradeDateKey && tradeDateKey >= rangeStart && tradeDateKey <= rangeEnd;
+  });
+}
+
+function getAiExportSelection(referenceDate = getDnaResultsReferenceDate(), tradeList = getActiveTrades()) {
+  const timeframe = isValidAiExportTimeframe(selectedAiExportTimeframe)
+    ? selectedAiExportTimeframe
+    : DEFAULT_AI_EXPORT_TIMEFRAME;
+  const todayKey = getTradingDayDateKey(referenceDate);
+
+  if (timeframe === 'today') {
+    return {
+      timeframe,
+      label: getAiExportTimeframeLabel(timeframe),
+      startKey: todayKey,
+      endKey: todayKey,
+      trades: filterTradesForPeriod(tradeList, 'day', referenceDate),
+    };
+  }
+
+  if (timeframe === 'yesterday') {
+    const yesterdayKey = addDaysToDateKey(todayKey, -1);
+    return {
+      timeframe,
+      label: getAiExportTimeframeLabel(timeframe),
+      startKey: yesterdayKey,
+      endKey: yesterdayKey,
+      trades: filterTradesForTradingDayRange(tradeList, yesterdayKey, yesterdayKey),
+    };
+  }
+
+  if (timeframe === 'week' || timeframe === 'month') {
+    return {
+      timeframe,
+      label: getAiExportTimeframeLabel(timeframe),
+      startKey: formatDateKey(getReportPeriodStart(referenceDate, timeframe)),
+      endKey: todayKey,
+      trades: filterTradesForPeriod(tradeList, timeframe, referenceDate),
+    };
+  }
+
+  const startKey = aiExportCustomStartDate || todayKey;
+  const endKey = aiExportCustomEndDate || startKey;
+  return {
+    timeframe,
+    label: getAiExportTimeframeLabel(timeframe),
+    startKey,
+    endKey,
+    trades: filterTradesForTradingDayRange(tradeList, startKey, endKey),
+  };
+}
+
+function getAiExportDateRange(selection) {
+  const periodDates = selection.trades
+    .map((trade) => getTradeTradingDayDateKey(trade))
+    .filter(Boolean)
+    .sort()
+    .map((dateKey) => getTradeReportDate({ date: dateKey }));
+
+  return {
+    start: getTradeReportDate({ date: selection.startKey }),
+    end: getTradeReportDate({ date: selection.endKey }),
+    tradeStart: periodDates[0] ?? null,
+    tradeEnd: periodDates[periodDates.length - 1] ?? null,
+  };
+}
+
 function getDnaResultsDateRange(period = dnaResultsTimeframe, referenceDate = getDnaResultsReferenceDate(), tradeList = getActiveTrades()) {
   const periodTrades = filterTradesForPeriod(tradeList, period, referenceDate);
   const periodDates = periodTrades
@@ -5016,16 +5146,10 @@ function getRealizedLossSummary(tradeList) {
 
 function buildExportForAiMarkdown(referenceDate = getDnaResultsReferenceDate()) {
   const activeTrades = getActiveTrades();
-  const timeframe = dnaResultsTimeframe;
-  const dateRange = getDnaResultsDateRange(timeframe, referenceDate, activeTrades);
-  const dnaResultsTrades = filterTradesForPeriod(activeTrades, timeframe, referenceDate);
+  const selection = getAiExportSelection(referenceDate, activeTrades);
+  const dateRange = getAiExportDateRange(selection);
+  const dnaResultsTrades = selection.trades;
   const stats = getStats(dnaResultsTrades);
-  const pnlReports = getPnlReports(referenceDate, activeTrades);
-  const [dailyPnl, weeklyPnl, monthlyPnl, yearlyPnl] = pnlReports;
-  const dailyReturnPercent = calculateRoiPercent(dailyPnl.pnl, calculateAccountBalanceAtPeriodStart('day', referenceDate, activeTrades, startingAccountBalance));
-  const weeklyReturnPercent = calculateRoiPercent(weeklyPnl.pnl, calculateAccountBalanceAtPeriodStart('week', referenceDate, activeTrades, startingAccountBalance));
-  const monthlyReturnPercent = calculateRoiPercent(monthlyPnl.pnl, calculateAccountBalanceAtPeriodStart('month', referenceDate, activeTrades, startingAccountBalance));
-  const yearlyReturnPercent = calculateRoiPercent(yearlyPnl.pnl, calculateAccountBalanceAtPeriodStart('year', referenceDate, activeTrades, startingAccountBalance));
   const lossSummary = getRealizedLossSummary(dnaResultsTrades);
   const setupRows = getSetupAnalytics(dnaResultsTrades);
   const assetRows = getAssetAnalytics(dnaResultsTrades);
@@ -5049,7 +5173,7 @@ function buildExportForAiMarkdown(referenceDate = getDnaResultsReferenceDate()) 
     '- Separate proven findings from suggestions.',
     '',
     '## Selected Timeframe',
-    `- Timeframe: ${getDnaTimeframeLabel(timeframe)} (${timeframe})`,
+    `- Timeframe: ${selection.label} (${selection.timeframe})`,
     `- Selected date range: ${formatExportDateRange(dateRange)}`,
     `- Trade date range inside selection: ${dateRange.tradeStart && dateRange.tradeEnd ? formatExportDateRange({ start: dateRange.tradeStart, end: dateRange.tradeEnd }) : 'No dated trades in selection'}`,
     `- Generated: ${generatedAt}`,
@@ -5067,18 +5191,6 @@ function buildExportForAiMarkdown(referenceDate = getDnaResultsReferenceDate()) 
         ['Average Winner', currency(stats.averageWin)],
         ['Average Loser', currency(stats.averageLoss)],
         ['Breakeven Trades', stats.breakevenCount],
-        ['Daily P/L', currency(dailyPnl.pnl)],
-        ['Weekly P/L', currency(weeklyPnl.pnl)],
-        ['Monthly P/L', currency(monthlyPnl.pnl)],
-        ['Yearly P/L', currency(yearlyPnl.pnl)],
-        ['Daily Return %', formatPercent(dailyReturnPercent)],
-        ['Weekly Return %', formatPercent(weeklyReturnPercent)],
-        ['Monthly Return %', formatPercent(monthlyReturnPercent)],
-        ['Yearly Return %', formatPercent(yearlyReturnPercent)],
-        ['Daily PF', formatProfitFactor(dailyPnl.profitFactor)],
-        ['Weekly PF', formatProfitFactor(weeklyPnl.profitFactor)],
-        ['Monthly PF', formatProfitFactor(monthlyPnl.profitFactor)],
-        ['Yearly PF', formatProfitFactor(yearlyPnl.profitFactor)],
       ],
     ),
     '',
@@ -5193,13 +5305,14 @@ function buildExportForAiMarkdown(referenceDate = getDnaResultsReferenceDate()) 
 function exportForAiMarkdown() {
   const referenceDate = getDnaResultsReferenceDate();
   const markdown = buildExportForAiMarkdown(referenceDate);
-  const dateRange = getDnaResultsDateRange(dnaResultsTimeframe, referenceDate, getActiveTrades());
+  const selection = getAiExportSelection(referenceDate, getActiveTrades());
+  const dateRange = getAiExportDateRange(selection);
   const filenameRange = formatExportDateRange(dateRange).replace(/\s+to\s+/g, '_to_').replace(/[^a-z0-9_-]+/gi, '-');
   const blob = new Blob([markdown], { type: 'text/markdown' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `DNA-AI-Export-${dnaResultsTimeframe}-${filenameRange}.md`;
+  link.download = `DNA-AI-Export-${selection.timeframe}-${filenameRange}.md`;
   link.click();
   URL.revokeObjectURL(url);
 }

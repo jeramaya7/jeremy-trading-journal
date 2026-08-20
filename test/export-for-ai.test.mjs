@@ -107,6 +107,13 @@ const EXPORT_FOR_AI_FUNCTIONS = [
   'formatDateKey',
   'getDnaResultsReferenceDate',
   'getDnaTimeframeLabel',
+  'getAiExportTimeframeLabel',
+  'isValidAiExportTimeframe',
+  'setAiExportTimeframe',
+  'addDaysToDateKey',
+  'filterTradesForTradingDayRange',
+  'getAiExportSelection',
+  'getAiExportDateRange',
   'getDnaResultsDateRange',
   'formatExportDateRange',
   'formatExportMetric',
@@ -118,9 +125,11 @@ const EXPORT_FOR_AI_FUNCTIONS = [
   'exportForAiMarkdown',
 ];
 
-function createExportContext(tradesFixture, timeframe = 'week') {
+function createExportContext(tradesFixture, exportTimeframe = 'week', customStart = '', customEnd = '', dnaTimeframe = 'all') {
   const code = [
     extractConst('DNA_TIMEFRAME_OPTIONS'),
+    extractConst('AI_EXPORT_TIMEFRAME_OPTIONS'),
+    extractConst('DEFAULT_AI_EXPORT_TIMEFRAME'),
     extractConst('MARKET_STATE_OPTIONS'),
     extractConst('FRIENDLY_ASSET_NAMES'),
     extractConst('TIME_OF_DAY_ORDER'),
@@ -130,14 +139,17 @@ function createExportContext(tradesFixture, timeframe = 'week') {
     extractConst('TRADE_OUTCOME_LABELS'),
     extractConst('OUTCOME_OVERRIDE_LABEL_TO_KEY'),
     ...EXPORT_FOR_AI_FUNCTIONS.map(extractFunction),
-    'module.exports = { buildExportForAiMarkdown, exportForAiMarkdown, getStats, filterTradesForPeriod, getDnaResultsDateRange, formatExportDateRange };',
+    'module.exports = { buildExportForAiMarkdown, exportForAiMarkdown, getStats, filterTradesForPeriod, filterTradesForTradingDayRange, getAiExportSelection, getAiExportDateRange, getDnaResultsDateRange, formatExportDateRange };',
   ].join('\n\n');
 
   const capturedLinks = [];
   let capturedBlobParts = null;
   const context = {
     trades: tradesFixture,
-    dnaResultsTimeframe: timeframe,
+    dnaResultsTimeframe: dnaTimeframe,
+    selectedAiExportTimeframe: exportTimeframe,
+    aiExportCustomStartDate: customStart,
+    aiExportCustomEndDate: customEnd,
     startingAccountBalance: 5600,
     setupAnalyticsSort: { key: 'netPnl', direction: 'desc' },
     window: {},
@@ -174,8 +186,8 @@ function createExportContext(tradesFixture, timeframe = 'week') {
   };
 }
 
-function buildMarkdown(tradesFixture, timeframe = 'week') {
-  const { exports } = createExportContext(tradesFixture, timeframe);
+function buildMarkdown(tradesFixture, timeframe = 'week', customStart = '', customEnd = '', dnaTimeframe = 'all') {
+  const { exports } = createExportContext(tradesFixture, timeframe, customStart, customEnd, dnaTimeframe);
   return exports.buildExportForAiMarkdown(new Date('2026-08-18T12:00:00'));
 }
 
@@ -246,9 +258,11 @@ function countOccurrences(text, value) {
 
 test('DNA Doctor Request Analysis button is wired to the markdown download function', () => {
   assert.equal(source.includes('id="exportForAi"'), false, 'The temporary Export for AI hero button should be removed.');
-  assertIncludes(source, 'Request Analysis', 'The DNA Doctor panel should use the new Request Analysis label.');
+  assertIncludes(source, 'Download for AI', 'The DNA Doctor panel should use the new download label.');
   assertIncludes(source, 'id="requestAnalysis"', 'The Doctor button should use the Request Analysis id.');
   assertIncludes(source, "document.querySelector('#requestAnalysis')?.addEventListener('click', exportForAiMarkdown, { signal });", 'The Doctor button should call the markdown export function.');
+  assertIncludes(source, 'id="aiExportTimeframe"', 'The export should have its own timeframe selector.');
+  assertIncludes(source, "document.querySelector('#aiExportTimeframe')?.addEventListener('change'", 'The export timeframe selector should update only export state.');
   assertIncludes(source, 'function buildExportForAiMarkdown(', 'The markdown builder should exist for Step 1.');
 });
 
@@ -262,10 +276,10 @@ test('old DNA Doctor API scan implementation is removed while Request Analysis r
   assert.equal(styles.includes(['dna', 'doctor', 'loading'].join('-')), false, 'The old loading styles should be removed.');
   assert.equal(styles.includes(['dna', 'doctor', 'report'].join('-')), false, 'The old report styles should be removed.');
   assertIncludes(source, '<h2 class="dna-doctor-title">DNA Doctor</h2>', 'The DNA Doctor section should remain.');
-  assertIncludes(source, 'Request Analysis', 'The Request Analysis button should remain.');
+  assertIncludes(source, 'Download for AI', 'The Request Analysis download button should remain.');
 });
 
-test('buildExportForAiMarkdown uses the selected DNA Results timeframe and includes required sections', () => {
+test('buildExportForAiMarkdown uses the selected AI export timeframe and includes required sections', () => {
   const markdown = buildMarkdown(realisticTrades());
 
   assertIncludes(markdown, '# DNA Export for AI', 'The export should have a clear title.');
@@ -276,7 +290,7 @@ test('buildExportForAiMarkdown uses the selected DNA Results timeframe and inclu
   assertIncludes(markdown, 'Judge profitability using Net P/L, Profit Factor, consistency, and supporting metrics together.', 'The coaching prompt should define profitability judgment.');
   assertIncludes(markdown, 'Use realized trading results and realized closed-trade losses rather than theoretical risk assumptions.', 'The coaching prompt should emphasize realized results.');
   assertIncludes(markdown, 'Do not impose generic textbook trading rules when the trader\'s actual results do not support them.', 'The coaching prompt should reject unsupported textbook rules.');
-  assertIncludes(markdown, 'Timeframe: WTD (week)', 'The export should use the selected DNA timeframe.');
+  assertIncludes(markdown, 'Timeframe: WTD (week)', 'The export should use the selected AI export timeframe.');
   assertIncludes(markdown, 'Selected date range: 2026-08-17 to 2026-08-18', 'The export should include the actual selected date range.');
   assertIncludes(markdown, '## DNA Results', 'DNA Results should be included.');
   assertIncludes(markdown, '## Risk / Realized-Loss Summary', 'Risk / realized-loss summary should be included.');
@@ -338,24 +352,99 @@ test('buildExportForAiMarkdown numbers match existing DNA Results calculations',
   assertIncludes(markdown, '| EURUSD | 1 | 0.0% | -$10.00 | 0.00 | - | -$10.00 |', 'Asset analytics should include the selected losing asset.');
 });
 
-test('Day AI export uses the 5 PM New York boundary and trading-day date label', () => {
+test('Today AI export after 5 PM New York can correctly return zero trades', () => {
+  const tradesFixture = [
+    { id: 'prior', closeTime: '2026-08-20T20:59:59.999Z', symbol: 'AAPL', direction: 'Long', netProfitLoss: 1, notes: 'Prior complete trading day' },
+  ];
+  const { exports } = createExportContext(tradesFixture, 'today');
+  const markdown = exports.buildExportForAiMarkdown(new Date('2026-08-20T21:30:00.000Z'));
+
+  assertIncludes(markdown, 'Timeframe: Today (today)', 'The selected Today timeframe should be visible.');
+  assertIncludes(markdown, 'Selected date range: 2026-08-21 to 2026-08-21', 'Today should mean the current DNA trading day after the cutoff.');
+  assertIncludes(markdown, '| Total Trades | 0 |', 'Today can correctly contain zero trades after the 5 PM New York reset.');
+  assert.equal(markdown.includes('Prior complete trading day'), false, 'Today must not include trades from the prior complete trading day.');
+});
+
+test('Yesterday AI export returns the immediately previous complete DNA trading day', () => {
+  const tradesFixture = [
+    { id: 'previous-open', closeTime: '2026-08-19T21:00:00.000Z', symbol: 'AAPL', direction: 'Long', netProfitLoss: 1, notes: 'Previous day open' },
+    { id: 'previous-close', closeTime: '2026-08-20T20:59:59.999Z', symbol: 'MSFT', direction: 'Long', netProfitLoss: 2, notes: 'Previous day close' },
+    { id: 'current-open', closeTime: '2026-08-20T21:00:00.000Z', symbol: 'TSLA', direction: 'Long', netProfitLoss: 3, notes: 'Current day open' },
+  ];
+  const { exports } = createExportContext(tradesFixture, 'yesterday');
+  const markdown = exports.buildExportForAiMarkdown(new Date('2026-08-20T21:30:00.000Z'));
+
+  assertIncludes(markdown, 'Timeframe: Yesterday (yesterday)', 'The selected Yesterday timeframe should be visible.');
+  assertIncludes(markdown, 'Selected date range: 2026-08-20 to 2026-08-20', 'Yesterday should be the prior complete DNA trading day.');
+  assertIncludes(markdown, 'Previous day open', 'Yesterday should include the first trade in the prior full trading day.');
+  assertIncludes(markdown, 'Previous day close', 'Yesterday should include the last trade in the prior full trading day.');
+  assert.equal(markdown.includes('Current day open'), false, 'Yesterday must not include the current trading day.');
+});
+
+test('Today AI export uses the exact 5 PM New York boundary and trading-day date label', () => {
   const tradesFixture = [
     { id: 'before', closeTime: '2026-08-20T20:59:59.999Z', symbol: 'AAPL', direction: 'Long', netProfitLoss: 1, notes: 'Prior trading day' },
     { id: 'inside', closeTime: '2026-08-20T21:00:00.000Z', symbol: 'MSFT', direction: 'Long', netProfitLoss: 2, notes: 'Current trading day' },
+    { id: 'close', closeTime: '2026-08-21T20:59:59.999Z', symbol: 'TSLA', direction: 'Long', netProfitLoss: 3, notes: 'Current trading day close' },
+    { id: 'next', closeTime: '2026-08-21T21:00:00.000Z', symbol: 'NVDA', direction: 'Long', netProfitLoss: 4, notes: 'Next trading day' },
   ];
-  const { exports } = createExportContext(tradesFixture, 'day');
+  const { exports } = createExportContext(tradesFixture, 'today');
   const markdown = exports.buildExportForAiMarkdown(new Date('2026-08-21T20:59:59.999Z'));
 
-  assertIncludes(markdown, 'Timeframe: Day (day)', 'The selected Day timeframe should remain visible.');
+  assertIncludes(markdown, 'Timeframe: Today (today)', 'The selected Today timeframe should remain visible.');
   assertIncludes(markdown, 'Selected date range: 2026-08-21 to 2026-08-21', 'The date range should use the trading-day label.');
   assertIncludes(markdown, 'Current trading day', 'The trade at the opening cutoff should be included.');
+  assertIncludes(markdown, 'Current trading day close', 'The trade at the closing edge should be included.');
   assert.equal(markdown.includes('Prior trading day'), false, 'The trade before the opening cutoff should be excluded.');
+  assert.equal(markdown.includes('Next trading day'), false, 'The trade at the next opening cutoff should be excluded.');
+});
+
+test('WTD and MTD AI exports use the independent export selector with trading-day boundaries', () => {
+  const tradesFixture = [
+    { id: 'july', closeTime: '2026-07-31T20:59:59.999Z', symbol: 'AAPL', direction: 'Long', netProfitLoss: 1, notes: 'July trading day' },
+    { id: 'month-open', closeTime: '2026-07-31T21:00:00.000Z', symbol: 'MSFT', direction: 'Long', netProfitLoss: 2, notes: 'August month open' },
+    { id: 'prior-week', closeTime: '2026-08-14T20:59:59.999Z', symbol: 'TSLA', direction: 'Long', netProfitLoss: 3, notes: 'Prior week trade' },
+    { id: 'week-open', closeTime: '2026-08-17T21:00:00.000Z', symbol: 'NVDA', direction: 'Long', netProfitLoss: 4, notes: 'Current week trade' },
+  ];
+  const weekRunner = createExportContext(tradesFixture, 'week');
+  const monthRunner = createExportContext(tradesFixture, 'month');
+  const referenceDate = new Date('2026-08-20T20:00:00.000Z');
+  const weekMarkdown = weekRunner.exports.buildExportForAiMarkdown(referenceDate);
+  const monthMarkdown = monthRunner.exports.buildExportForAiMarkdown(referenceDate);
+
+  assertIncludes(weekMarkdown, 'Timeframe: WTD (week)', 'WTD should be available in the export selector.');
+  assertIncludes(weekMarkdown, 'Selected date range: 2026-08-17 to 2026-08-20', 'WTD should start from the Monday trading-day label.');
+  assertIncludes(weekMarkdown, 'Current week trade', 'WTD should include current-week trades.');
+  assert.equal(weekMarkdown.includes('Prior week trade'), false, 'WTD must not include trades before the week start.');
+  assertIncludes(monthMarkdown, 'Timeframe: MTD (month)', 'MTD should be available in the export selector.');
+  assertIncludes(monthMarkdown, 'Selected date range: 2026-08-01 to 2026-08-20', 'MTD should start from the month trading-day label.');
+  assertIncludes(monthMarkdown, 'August month open', 'MTD should include trades from the first August trading day.');
+  assertIncludes(monthMarkdown, 'Prior week trade', 'MTD should include prior-week trades in the same month.');
+  assert.equal(monthMarkdown.includes('July trading day'), false, 'MTD must not include the previous month.');
+});
+
+test('Custom AI export uses explicit inclusive trading-day start and end dates', () => {
+  const tradesFixture = [
+    { id: 'before', date: '2026-08-16', symbol: 'AAPL', direction: 'Long', netProfitLoss: 1, notes: 'Before custom range' },
+    { id: 'start', date: '2026-08-17', symbol: 'MSFT', direction: 'Long', netProfitLoss: 2, notes: 'Custom start trade' },
+    { id: 'end', date: '2026-08-18', symbol: 'TSLA', direction: 'Long', netProfitLoss: 3, notes: 'Custom end trade' },
+    { id: 'after', date: '2026-08-19', symbol: 'NVDA', direction: 'Long', netProfitLoss: 4, notes: 'After custom range' },
+  ];
+  const { exports } = createExportContext(tradesFixture, 'custom', '2026-08-17', '2026-08-18');
+  const markdown = exports.buildExportForAiMarkdown(new Date('2026-08-20T12:00:00.000Z'));
+
+  assertIncludes(markdown, 'Timeframe: Custom (custom)', 'Custom should be available in the export selector.');
+  assertIncludes(markdown, 'Selected date range: 2026-08-17 to 2026-08-18', 'Custom should show the explicit selected range.');
+  assertIncludes(markdown, 'Custom start trade', 'Custom should include the start date.');
+  assertIncludes(markdown, 'Custom end trade', 'Custom should include the end date.');
+  assert.equal(markdown.includes('Before custom range'), false, 'Custom must exclude trades before the selected start.');
+  assert.equal(markdown.includes('After custom range'), false, 'Custom must exclude trades after the selected end.');
 });
 
 test('Export for AI markdown has clean single sections and timeframe changes alter the export', () => {
   const tradesFixture = realisticTrades();
   const weekMarkdown = buildMarkdown(tradesFixture, 'week');
-  const allMarkdown = buildMarkdown(tradesFixture, 'all');
+  const todayMarkdown = buildMarkdown(tradesFixture, 'today');
 
   [
     '## AI Coaching Instructions',
@@ -372,9 +461,10 @@ test('Export for AI markdown has clean single sections and timeframe changes alt
   });
 
   assertIncludes(weekMarkdown, 'Timeframe: WTD (week)', 'Week export should identify WTD.');
-  assertIncludes(allMarkdown, 'Timeframe: Beginning (all)', 'All-time export should identify Beginning.');
-  assertIncludes(allMarkdown, 'Old setup', 'All-time export should include earlier trades.');
-  assert.equal(weekMarkdown.includes('Old setup'), false, 'WTD export should not include earlier trades.');
+  assertIncludes(todayMarkdown, 'Timeframe: Today (today)', 'Today export should identify Today.');
+  assertIncludes(weekMarkdown, 'Chased a little.', 'WTD export should include the prior trading day inside the week.');
+  assert.equal(todayMarkdown.includes('Chased a little.'), false, 'Today export should not include prior trading days from the same week.');
+  assert.equal(weekMarkdown.includes('Old setup'), false, 'WTD export should not include earlier weeks.');
   assert.ok(weekMarkdown.split('\n').every((line) => !/\s+$/.test(line)), 'Markdown lines should not have trailing whitespace.');
 });
 
@@ -383,8 +473,9 @@ test('exportForAiMarkdown downloads a sensible markdown filename for the selecte
   const runner = createExportContext(tradesFixture, 'week');
   runner.exports.exportForAiMarkdown();
   const { link, markdown } = runner.getCapturedDownload();
+  const selection = runner.exports.getAiExportSelection(new Date(), tradesFixture);
   const expectedRange = runner.exports
-    .formatExportDateRange(runner.exports.getDnaResultsDateRange('week', new Date(), tradesFixture))
+    .formatExportDateRange(runner.exports.getAiExportDateRange(selection))
     .replace(/\s+to\s+/g, '_to_')
     .replace(/[^a-z0-9_-]+/gi, '-');
 
