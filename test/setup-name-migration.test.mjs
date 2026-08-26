@@ -95,9 +95,7 @@ test('the Play Book setup list is exactly the requested options, in order', () =
   assert.deepEqual(Array.from(PLAY_BOOK_SETUP_OPTIONS), [
     'Trend Continuation',
     'Countertrend Continuation',
-    'FRVP',
     'Momentum / Breakout',
-    'RBI / GBI',
     'Retrace / Bounce',
     'Support & Resistance',
     'Scalp',
@@ -107,17 +105,17 @@ test('the Play Book setup list is exactly the requested options, in order', () =
   assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('Custom...'), false, 'Custom... lives outside the fixed list, appended separately.');
 });
 
-test('the requested fixed setup names are real, selectable Play Book setups', () => {
+test('only the current fixed setup names are selectable Play Book setups', () => {
   const { isPlayBookSetup } = loadSetupModule();
 
   assert.equal(isPlayBookSetup('Trend Continuation'), true, 'Trend Continuation should be recognized as a fixed Play Book option.');
   assert.equal(isPlayBookSetup('Countertrend Continuation'), true, 'Countertrend Continuation should be recognized as a fixed Play Book option.');
   assert.equal(isPlayBookSetup('Momentum / Breakout'), true, 'Momentum / Breakout should be recognized as a fixed Play Book option.');
-  assert.equal(isPlayBookSetup('RBI / GBI'), true, 'RBI / GBI should be recognized as a fixed Play Book option.');
   assert.equal(isPlayBookSetup('Retrace / Bounce'), true, 'Retrace / Bounce should be recognized as a fixed Play Book option.');
   assert.equal(isPlayBookSetup('Support & Resistance'), true, 'Support & Resistance should be recognized as a fixed Play Book option.');
   assert.equal(isPlayBookSetup('Scalp'), true, 'Scalp should be recognized as a fixed Play Book option.');
-  assert.equal(isPlayBookSetup('FRVP'), true, 'FRVP should be recognized as a fixed Play Book option.');
+  assert.equal(isPlayBookSetup('RBI / GBI'), false, 'RBI / GBI should no longer be selectable.');
+  assert.equal(isPlayBookSetup('FRVP'), false, 'FRVP should no longer be selectable.');
 });
 
 test('clear retired setup names migrate to their new canonical name', () => {
@@ -172,6 +170,18 @@ test('normalizeSetupName leaves already-current and unrelated setup names untouc
   }
 });
 
+test('historical FRVP and RBI / GBI setup values remain unchanged', () => {
+  const { normalizeSetupName, normalizeTradeSetups } = loadSetupModule();
+  const historicalTrades = [
+    { id: 'frvp', setup: 'FRVP', notes: 'keep' },
+    { id: 'rbi-gbi', setup: 'RBI / GBI', notes: 'keep' },
+  ];
+
+  assert.equal(normalizeSetupName('FRVP'), 'FRVP');
+  assert.equal(normalizeSetupName('RBI / GBI'), 'RBI / GBI');
+  assert.deepEqual(Array.from(normalizeTradeSetups(historicalTrades), (trade) => ({ ...trade })), historicalTrades);
+});
+
 test('normalizeTradeSetups migrates legacy setup names across a full trade list without losing any other data', () => {
   const { normalizeTradeSetups, hasLegacySetupName } = loadSetupModule();
 
@@ -216,15 +226,13 @@ test('regression: saving a trade with no setup chosen falls back to Uncategorize
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: '', setupCustom: '', setup: '' })), 'Uncategorized setup');
   assert.notEqual(getSetupFormValue(makeFormData({ setupChoice: '', setupCustom: '', setup: '' })), 'Trend');
 
-  // A real, deliberate selection still saves normally.
+  // A real, deliberate current selection still saves normally.
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Trend Continuation', setupCustom: '', setup: '' })), 'Trend Continuation');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Countertrend Continuation', setupCustom: '', setup: '' })), 'Countertrend Continuation');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Momentum / Breakout', setupCustom: '', setup: '' })), 'Momentum / Breakout');
-  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'RBI / GBI', setupCustom: '', setup: '' })), 'RBI / GBI');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Retrace / Bounce', setupCustom: '', setup: '' })), 'Retrace / Bounce');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Support & Resistance', setupCustom: '', setup: '' })), 'Support & Resistance');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Scalp', setupCustom: '', setup: '' })), 'Scalp');
-  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'FRVP', setupCustom: '', setup: '' })), 'FRVP');
 
   // Custom behavior is unchanged.
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Custom...', setupCustom: 'My own setup', setup: '' })), 'My own setup');

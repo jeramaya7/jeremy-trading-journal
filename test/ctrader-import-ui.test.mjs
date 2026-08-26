@@ -167,11 +167,14 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(source, "'Trend Continuation'", 'The Play Book setup dropdown includes Trend Continuation.');
   assertIncludes(source, "'Countertrend Continuation'", 'The Play Book setup dropdown includes Countertrend Continuation.');
   assertIncludes(source, "'Momentum / Breakout'", 'The Play Book setup dropdown includes Momentum / Breakout.');
-  assertIncludes(source, "'RBI / GBI'", 'The Play Book setup dropdown includes RBI / GBI.');
   assertIncludes(source, "'Retrace / Bounce'", 'The Play Book setup dropdown includes Retrace / Bounce.');
   assertIncludes(source, "'Support & Resistance'", 'The Play Book setup dropdown includes Support & Resistance.');
   assertIncludes(source, "'Scalp'", 'The Play Book setup dropdown includes Scalp.');
-  assertIncludes(source, "'FRVP'", 'The Play Book setup dropdown includes FRVP.');
+  const setupOptionsStart = source.indexOf('const PLAY_BOOK_SETUP_OPTIONS = [');
+  const setupOptionsEnd = source.indexOf('];', setupOptionsStart);
+  const setupOptionsSource = source.slice(setupOptionsStart, setupOptionsEnd);
+  assert.equal(setupOptionsSource.includes("'RBI / GBI'"), false, 'The Play Book setup dropdown no longer includes RBI / GBI.');
+  assert.equal(setupOptionsSource.includes("'FRVP'"), false, 'The Play Book setup dropdown no longer includes FRVP.');
   assertIncludes(source, "const CUSTOM_SETUP_OPTION = 'Custom...';", 'The Play Book setup dropdown includes Custom... after the fixed list.');
   assert.ok(!source.includes("  'Trade Line Break',"), 'The Play Book setup dropdown no longer shows the misspelled setup label.');
   assert.ok(!source.includes("'Elephant Bar',") , 'The retired Elephant Bar label is no longer a selectable Play Book option (migrated to Momentum / Breakout instead).');
@@ -300,7 +303,7 @@ test('legacy setup names migrate to their current canonical name', () => {
   assertIncludes(source, "'The General Forecast': 'Other',", 'The General Forecast migrates to Other.');
   assertIncludes(source, "'X Confirm': 'Momentum / Breakout',", 'X Confirm migrates to Momentum / Breakout.');
   // The previous (DNA 25) 12-option Play Book list also migrates now that
-  // the Setup dropdown is down to 8 options.
+  // the Setup dropdown is down to 6 options.
   assertIncludes(source, "'Enter Retrace': 'Retrace / Bounce',", 'The retired Enter Retrace option migrates to Retrace / Bounce.');
   assertIncludes(source, "'General Forecast': 'Other',", 'General Forecast migrates to Other.');
   assertIncludes(source, "Breakout: 'Momentum / Breakout',", 'Breakout migrates to Momentum / Breakout.');
