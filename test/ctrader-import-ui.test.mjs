@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
+const stylesSource = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');
 const syncSource = await readFile(new URL('../src/ctrader-sync.js', import.meta.url), 'utf8');
 
 function assertIncludes(text, expected, message) {
@@ -238,46 +239,40 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   );
   assertIncludes(setupBody, "${field('Timeframe', renderTimeframeSelect(trade))}", 'Timeframe is in the Setup section.');
   assert.equal(setupBody.includes("${field('Mindset'"), false, 'Mindset is no longer in the Setup section.');
+  assertIncludes(stylesSource, '.edit-journal-row {\n  grid-template-columns: repeat(3, minmax(0, 1fr));\n}', 'State, Setup, and Timeframe use three equal-width columns.');
 
-  // Trade Review section: Trade Management, Exit Reason, and Loss Reason share the first
-  // review row (Loss Reason present in the DOM but hidden unless the trade
-  // is a Loss, so its value still round-trips through the save handler).
-  // Grade and Outcome Override share a second review row directly below,
-  // using the same 4-column grid — they occupy the first two columns and
-  // leave the rest empty, instead of each taking a full-width row.
+  // Trade Review: the four primary review fields share one equal-width row.
+  // Loss Reason remains in the DOM on its own row below so its conditional
+  // display and saved value continue to work exactly as before.
   const reviewBody = editFormBody.slice(reviewIndex, journalIndex);
   assertIncludes(reviewBody, "${field('Trade Management', renderTradeManagementSelect(trade))}", 'Trade Management is in Trade Review.');
   assert.equal(reviewBody.includes("field('Protected'"), false, 'Protected is no longer an editable Trade Review field.');
   assertIncludes(reviewBody, "${field('Exit Reason', renderCloseReasonSelect(trade))}", 'Exit Reason is in Trade Review.');
   assertIncludes(reviewBody, "${field('Loss Reason', renderLossReasonSelect(trade))}", 'Loss Reason is in Trade Review.');
-  assertIncludes(reviewBody, "${field('Grade', renderGradeSelect(trade))}", 'Grade is still in the Trade Review section, in its second row.');
-  assertIncludes(reviewBody, "${field('Outcome Override', renderOutcomeOverrideSelect(trade))}", 'Outcome Override is in the Trade Review section, alongside Grade.');
+  assertIncludes(reviewBody, "${field('Grade', renderGradeSelect(trade))}", 'Grade is in the Trade Review row.');
+  assertIncludes(reviewBody, "${field('Outcome Override', renderOutcomeOverrideSelect(trade))}", 'Outcome Override is in the Trade Review row.');
   assertIncludes(reviewBody, "class=\"edit-loss-reason-field\"${isLossOutcome ? '' : ' hidden'}", 'Loss Reason is only visible when the trade outcome is a Loss.');
   assertIncludes(editFormBody, "const isLossOutcome = classifyTradeOutcome(calculatePnl(trade), trade.outcomeOverride) === 'loss';", 'Loss outcome uses the shared classifier (respecting Outcome Override), matching the trade card\'s own Win/Loss/Breakeven label.');
 
-  // Trade Review renders exactly two edit-review-row grids: the first holds
-  // Trade Management/Exit Reason/(hidden) Loss Reason; the second holds only
-  // Grade and Outcome Override, reusing
-  // the same 4-column grid so both rows share column widths and alignment.
+  // Trade Review renders exactly one four-column grid in the requested order.
   const reviewRowMarker = '<div class="edit-form-row edit-review-row"';
-  const firstReviewRowStart = reviewBody.indexOf(reviewRowMarker);
-  const secondReviewRowStart = reviewBody.indexOf(reviewRowMarker, firstReviewRowStart + 1);
-  assert.notEqual(firstReviewRowStart, -1, 'The first edit-review-row should exist in Trade Review.');
-  assert.notEqual(secondReviewRowStart, -1, 'A second edit-review-row should exist in Trade Review, for Grade and Outcome Override.');
-
-  const firstReviewRowBody = reviewBody.slice(firstReviewRowStart, secondReviewRowStart);
-  assertIncludes(firstReviewRowBody, "renderTradeManagementSelect(trade)", 'Trade Management is inside the first review row.');
-  assert.equal(firstReviewRowBody.includes('renderProtectedDisplay'), false, 'Protected is absent from the first review row.');
-  assertIncludes(firstReviewRowBody, "renderCloseReasonSelect(trade)", 'Exit Reason is inside the first review row.');
-  assertIncludes(firstReviewRowBody, "renderLossReasonSelect(trade)", 'Loss Reason is inside the first review row.');
-  assert.equal(firstReviewRowBody.includes('renderGradeSelect'), false, 'Grade should not be inside the first review row.');
-  assert.equal(firstReviewRowBody.includes('renderOutcomeOverrideSelect'), false, 'Outcome Override should not be inside the first review row.');
-
-  const secondReviewRowEnd = reviewBody.indexOf('</div>', secondReviewRowStart);
-  const secondReviewRowBody = reviewBody.slice(secondReviewRowStart, secondReviewRowEnd);
-  assertIncludes(secondReviewRowBody, "renderGradeSelect(trade)", 'Grade is inside the second review row.');
-  assertIncludes(secondReviewRowBody, "renderOutcomeOverrideSelect(trade)", 'Outcome Override is inside the second review row.');
-  assert.equal(secondReviewRowBody.includes('renderTradeManagementSelect'), false, 'Trade Management should not be inside the second review row.');
+  const reviewRowStart = reviewBody.indexOf(reviewRowMarker);
+  const lossReasonStart = reviewBody.indexOf('<div class="edit-loss-reason-field"');
+  assert.notEqual(reviewRowStart, -1, 'The edit-review-row should exist in Trade Review.');
+  assert.equal(reviewBody.indexOf(reviewRowMarker, reviewRowStart + 1), -1, 'Trade Review should contain only one primary review row.');
+  const reviewRowBody = reviewBody.slice(reviewRowStart, lossReasonStart);
+  const reviewFields = [
+    'renderTradeManagementSelect(trade)',
+    'renderCloseReasonSelect(trade)',
+    'renderGradeSelect(trade)',
+    'renderOutcomeOverrideSelect(trade)',
+  ];
+  reviewFields.forEach((renderer) => assertIncludes(reviewRowBody, renderer, `${renderer} should be inside the primary review row.`));
+  assert.ok(reviewFields.every((renderer, index) => index === 0 || reviewRowBody.indexOf(reviewFields[index - 1]) < reviewRowBody.indexOf(renderer)), 'The four Trade Review fields should render in the requested order.');
+  assert.equal(reviewRowBody.includes('renderLossReasonSelect'), false, 'Loss Reason should remain on its own conditional row below.');
+  assertIncludes(stylesSource, '.edit-review-row {\n  grid-template-columns: repeat(4, minmax(0, 1fr));\n}', 'The four Trade Review fields use equal-width columns.');
+  assertIncludes(stylesSource, '@media (max-width: 980px)', 'Full Edit rows retain the existing tablet wrapping breakpoint.');
+  assertIncludes(stylesSource, '@media (max-width: 620px)', 'Full Edit rows retain the existing mobile single-column breakpoint.');
 
   // Journal section: Notes and Screenshot only (Tags removed).
   const journalBody = editFormBody.slice(journalIndex);

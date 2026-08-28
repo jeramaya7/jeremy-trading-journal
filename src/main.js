@@ -3084,13 +3084,11 @@ function editTradeForm(trade) {
           <div class="edit-form-row edit-review-row" aria-label="Trade review">
             ${field('Trade Management', renderTradeManagementSelect(trade))}
             ${field('Exit Reason', renderCloseReasonSelect(trade))}
-            <div class="edit-loss-reason-field"${isLossOutcome ? '' : ' hidden'}>
-              ${field('Loss Reason', renderLossReasonSelect(trade))}
-            </div>
-          </div>
-          <div class="edit-form-row edit-review-row" aria-label="Trade grade and outcome override">
             ${field('Grade', renderGradeSelect(trade))}
             ${field('Outcome Override', renderOutcomeOverrideSelect(trade))}
+          </div>
+          <div class="edit-loss-reason-field"${isLossOutcome ? '' : ' hidden'}>
+            ${field('Loss Reason', renderLossReasonSelect(trade))}
           </div>
         </div>
         <div class="edit-form-section">
