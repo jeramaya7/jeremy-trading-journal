@@ -233,7 +233,9 @@ const PLAY_BOOK_SETUP_OPTIONS = [
   'Retrace / Bounce',
   'Support & Resistance',
   'Scalp',
+  'Hedge',
 ];
+const DEFAULT_SETUP = 'Retrace / Bounce';
 const CUSTOM_SETUP_OPTION = 'Custom...';
 const LOSS_REASON_OPTIONS = [
   'Normal Loss',
@@ -259,10 +261,6 @@ const TRADE_TIMEFRAME_OPTIONS = [
   '4H',
   'Daily',
 ];
-const TRADE_PROTECTED_OPTIONS = [
-  'Yes',
-  'No',
-];
 const GRADE_OPTIONS = [
   'A+',
   'A',
@@ -282,31 +280,10 @@ const TRADE_MANAGEMENT_OPTIONS = [
 const LEGACY_TRADE_MANAGEMENT_MAP = {
   'Set & Forget': 'Set & Let',
 };
-// Protected is fully derived from Trade Management (Smart Protected) — this
-// map is the single source of truth for that derivation, used both to
-// render the read-only Protected value and to update it live when Trade
-// Management changes (see renderProtectedDisplay/getSmartProtectedValue and
-// the tradeManagement change listener in bindTradeCardEvents). Any Trade
-// Management value not listed here (including blank/None) defaults to 'No'.
-// Same Yes/No logic as before DNA 26's option cleanup: Trail Stop and Break
-// Even are the only two that mean risk was actually removed from the trade.
-const TRADE_MANAGEMENT_PROTECTED_MAP = {
-  'Trail Stop': 'Yes',
-  'Break Even': 'Yes',
-  'Set & Let': 'No',
-  'Set & Forget': 'No',
-  'Stop Loss': 'No',
-  'Manual Exit': 'No',
-  'Other': 'No',
-};
 
 function normalizeTradeManagement(tradeManagement) {
   const value = String(tradeManagement || '').trim();
   return LEGACY_TRADE_MANAGEMENT_MAP[value] || value;
-}
-
-function getSmartProtectedValue(tradeManagement) {
-  return TRADE_MANAGEMENT_PROTECTED_MAP[normalizeTradeManagement(tradeManagement)] || 'No';
 }
 
 const TRADE_MANAGEMENT_CLOSE_REASON_MAP = {
@@ -3019,18 +2996,6 @@ function renderTimeframeSelect(trade) {
   `;
 }
 
-// Protected is no longer independently editable — it's calculated
-// automatically from Trade Management (see TRADE_MANAGEMENT_PROTECTED_MAP
-// above). Rendered as a readonly text input (not a disabled <select>) so its
-// value still submits normally via FormData, exactly like the readonly
-// Entry/Exit Price inputs above. The tradeManagement change listener in
-// bindTradeCardEvents keeps this input's value in sync immediately whenever
-// Trade Management changes, before the trade is saved.
-function renderProtectedDisplay(trade) {
-  const value = getSmartProtectedValue(trade.tradeManagement);
-  return `<input name="protected" type="text" value="${escapeHtml(value)}" readonly aria-label="Protected (calculated automatically from Trade Management)" />`;
-}
-
 function renderGradeSelect(trade) {
   const current = String(trade.grade || '').trim();
   return `
@@ -3118,7 +3083,6 @@ function editTradeForm(trade) {
           <h4 class="edit-form-section-label">Trade Review</h4>
           <div class="edit-form-row edit-review-row" aria-label="Trade review">
             ${field('Trade Management', renderTradeManagementSelect(trade))}
-            ${field('Protected', renderProtectedDisplay(trade))}
             ${field('Exit Reason', renderCloseReasonSelect(trade))}
             <div class="edit-loss-reason-field"${isLossOutcome ? '' : ' hidden'}>
               ${field('Loss Reason', renderLossReasonSelect(trade))}
@@ -3215,7 +3179,6 @@ function editTradeFormQuickEdit(trade) {
           <h4 class="edit-form-section-label">Management</h4>
           <div class="quick-edit-row">
             ${field('Trade Management', renderTradeManagementSelect(trade))}
-            ${field('Protected', renderProtectedDisplay(trade))}
           </div>
           <div class="quick-edit-row">
             ${field('Exit Reason', renderCloseReasonSelect(trade))}
@@ -3531,7 +3494,7 @@ function renderManualTradeForm(today) {
         ${field('Date', '<input name="date" type="date" required value="' + today + '" />')}
         ${field('Symbol', '<input name="symbol" placeholder="SPY" required />')}
         ${field('Direction', '<select name="direction"><option>Long</option><option>Short</option></select>')}
-        ${field('Setup', '<input name="setup" placeholder="Breakout, pullback, VWAP..." />')}
+        ${field('Setup', renderPlayBookSetupSelect({ setup: DEFAULT_SETUP }))}
         ${field('Timeframe', renderTimeframeSelect({ timeframe: '1m' }))}
         ${field('Entry', '<input name="entry" type="number" min="0" step="0.01" required />')}
         ${field('Exit', '<input name="exit" type="number" min="0" step="0.01" required />')}
@@ -3695,6 +3658,9 @@ function bindEvents() {
   if (tradeForm) {
     tradeForm.addEventListener('submit', submitTrade, { signal });
     tradeForm.addEventListener('input', updateRiskPercentField, { signal });
+    tradeForm.querySelector('select[name="setupChoice"]')?.addEventListener('change', (event) => {
+      toggleCustomSetupInput(event.currentTarget);
+    }, { signal });
     screenshotInput?.addEventListener('change', changeScreenshot, { signal });
   }
 
@@ -3826,17 +3792,11 @@ function bindTradeCardEvents(tradeCardElement) {
       toggleCustomSetupInput(select);
     });
   });
-  // Smart Protected: whenever Trade Management changes in an open edit
-  // card, immediately recalculate the read-only Protected value in that
-  // same card — before Save, and without touching any other open card
-  // (scoped to this tradeCardElement, same as the rest of this function).
+  // Keep the suggested Exit Reason in sync with Trade Management until the
+  // user chooses an Exit Reason themselves.
   tradeCardElement.querySelectorAll('select[name="tradeManagement"]').forEach((select) => {
     select.addEventListener('change', () => {
       const form = select.closest('form');
-      const protectedInput = form?.querySelector('input[name="protected"]');
-      if (protectedInput) {
-        protectedInput.value = getSmartProtectedValue(select.value);
-      }
       const closeReasonSelect = form?.querySelector('select[name="closeReason"]');
       if (closeReasonSelect && closeReasonSelect.dataset.manuallyChanged !== 'true' && isSmartCloseReasonValue(closeReasonSelect.value, closeReasonSelect.dataset.tradeManagement)) {
         closeReasonSelect.value = getSmartCloseReasonValue(select.value);
@@ -4085,7 +4045,7 @@ async function submitTrade(event) {
     date: formData.get('date'),
     symbol: String(formData.get('symbol')).trim().toUpperCase(),
     direction: formData.get('direction'),
-    setup: normalizeSetupName(String(formData.get('setup')).trim()) || 'Uncategorized setup',
+    setup: getSetupFormValue(formData),
     // Read from the Add Trade form's own Timeframe dropdown (rendered via
     // the same shared renderTimeframeSelect() used everywhere else, and
     // pre-selected to 1m — see renderManualTradeForm()), so the saved value
@@ -4148,7 +4108,6 @@ async function buildTradeEditUpdate(form) {
     closeReason,
     state: String(formData.get('state')).trim(),
     timeframe: String(formData.get('timeframe')).trim(),
-    protected: String(formData.get('protected')).trim(),
     tradeManagement: String(formData.get('tradeManagement')).trim(),
     grade: String(formData.get('grade')).trim(),
     outcomeOverride: String(formData.get('outcomeOverride')).trim(),

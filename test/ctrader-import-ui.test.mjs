@@ -170,6 +170,7 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(source, "'Retrace / Bounce'", 'The Play Book setup dropdown includes Retrace / Bounce.');
   assertIncludes(source, "'Support & Resistance'", 'The Play Book setup dropdown includes Support & Resistance.');
   assertIncludes(source, "'Scalp'", 'The Play Book setup dropdown includes Scalp.');
+  assertIncludes(source, "'Hedge'", 'The Play Book setup dropdown includes Hedge.');
   const setupOptionsStart = source.indexOf('const PLAY_BOOK_SETUP_OPTIONS = [');
   const setupOptionsEnd = source.indexOf('];', setupOptionsStart);
   const setupOptionsSource = source.slice(setupOptionsStart, setupOptionsEnd);
@@ -238,8 +239,7 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(setupBody, "${field('Timeframe', renderTimeframeSelect(trade))}", 'Timeframe is in the Setup section.');
   assert.equal(setupBody.includes("${field('Mindset'"), false, 'Mindset is no longer in the Setup section.');
 
-  // Trade Review section: Trade Management, Protected (read-only, calculated
-  // from Trade Management), Exit Reason, and Loss Reason share the first
+  // Trade Review section: Trade Management, Exit Reason, and Loss Reason share the first
   // review row (Loss Reason present in the DOM but hidden unless the trade
   // is a Loss, so its value still round-trips through the save handler).
   // Grade and Outcome Override share a second review row directly below,
@@ -247,7 +247,7 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   // leave the rest empty, instead of each taking a full-width row.
   const reviewBody = editFormBody.slice(reviewIndex, journalIndex);
   assertIncludes(reviewBody, "${field('Trade Management', renderTradeManagementSelect(trade))}", 'Trade Management is in Trade Review.');
-  assertIncludes(reviewBody, "${field('Protected', renderProtectedDisplay(trade))}", 'Protected is in Trade Review.');
+  assert.equal(reviewBody.includes("field('Protected'"), false, 'Protected is no longer an editable Trade Review field.');
   assertIncludes(reviewBody, "${field('Exit Reason', renderCloseReasonSelect(trade))}", 'Exit Reason is in Trade Review.');
   assertIncludes(reviewBody, "${field('Loss Reason', renderLossReasonSelect(trade))}", 'Loss Reason is in Trade Review.');
   assertIncludes(reviewBody, "${field('Grade', renderGradeSelect(trade))}", 'Grade is still in the Trade Review section, in its second row.');
@@ -256,8 +256,8 @@ test('trade cards expose an edit flow for local journaling fields', () => {
   assertIncludes(editFormBody, "const isLossOutcome = classifyTradeOutcome(calculatePnl(trade), trade.outcomeOverride) === 'loss';", 'Loss outcome uses the shared classifier (respecting Outcome Override), matching the trade card\'s own Win/Loss/Breakeven label.');
 
   // Trade Review renders exactly two edit-review-row grids: the first holds
-  // Trade Management/Protected/Exit Reason/(hidden) Loss Reason, unchanged
-  // from before; the second holds only Grade and Outcome Override, reusing
+  // Trade Management/Exit Reason/(hidden) Loss Reason; the second holds only
+  // Grade and Outcome Override, reusing
   // the same 4-column grid so both rows share column widths and alignment.
   const reviewRowMarker = '<div class="edit-form-row edit-review-row"';
   const firstReviewRowStart = reviewBody.indexOf(reviewRowMarker);
@@ -267,7 +267,7 @@ test('trade cards expose an edit flow for local journaling fields', () => {
 
   const firstReviewRowBody = reviewBody.slice(firstReviewRowStart, secondReviewRowStart);
   assertIncludes(firstReviewRowBody, "renderTradeManagementSelect(trade)", 'Trade Management is inside the first review row.');
-  assertIncludes(firstReviewRowBody, "renderProtectedDisplay(trade)", 'Protected is inside the first review row.');
+  assert.equal(firstReviewRowBody.includes('renderProtectedDisplay'), false, 'Protected is absent from the first review row.');
   assertIncludes(firstReviewRowBody, "renderCloseReasonSelect(trade)", 'Exit Reason is inside the first review row.');
   assertIncludes(firstReviewRowBody, "renderLossReasonSelect(trade)", 'Loss Reason is inside the first review row.');
   assert.equal(firstReviewRowBody.includes('renderGradeSelect'), false, 'Grade should not be inside the first review row.');
@@ -302,8 +302,8 @@ test('legacy setup names migrate to their current canonical name', () => {
   assertIncludes(source, "'Support/Resistance': 'Support & Resistance',", 'Support/Resistance migrates to Support & Resistance.');
   assertIncludes(source, "'The General Forecast': 'Other',", 'The General Forecast migrates to Other.');
   assertIncludes(source, "'X Confirm': 'Momentum / Breakout',", 'X Confirm migrates to Momentum / Breakout.');
-  // The previous (DNA 25) 12-option Play Book list also migrates now that
-  // the Setup dropdown is down to 6 options.
+  // The previous (DNA 25) 12-option Play Book list also migrates to the
+  // current fixed options.
   assertIncludes(source, "'Enter Retrace': 'Retrace / Bounce',", 'The retired Enter Retrace option migrates to Retrace / Bounce.');
   assertIncludes(source, "'General Forecast': 'Other',", 'General Forecast migrates to Other.');
   assertIncludes(source, "Breakout: 'Momentum / Breakout',", 'Breakout migrates to Momentum / Breakout.');
@@ -321,7 +321,7 @@ test('legacy setup names migrate to their current canonical name', () => {
   assertIncludes(source, 'const migratedTrades = shouldMigrateSavedTrades\n    ? normalizeTradeMarketStates(normalizeTradeSetups(parsedTrades))\n    : parsedTrades;', 'Saved journal entries are normalized when migration is needed.');
   assertIncludes(source, 'window.localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedTrades));', 'Migrated saved journal entries are written back to localStorage.');
   assertIncludes(source, 'trades = normalizeTradeMarketStates(normalizeTradeSetups(nextTrades));', 'Imported and saved journal entries are normalized before persistence/export.');
-  assertIncludes(source, "setup: normalizeSetupName(String(formData.get('setup')).trim()) || 'Uncategorized setup',", 'Manual entries typed with a legacy setup name are normalized.');
+  assertIncludes(source, 'setup: getSetupFormValue(formData),', 'Manual entries save the selected shared Setup dropdown value.');
 });
 
 test('market state options are the simplified list and legacy values are preserved or safely mapped', () => {

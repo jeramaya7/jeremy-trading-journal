@@ -47,7 +47,6 @@ test('Quick Edit reuses the same form contract as Review so submitTradeEdit need
     'renderMarketStateSelect(trade)', // name="state"
     'renderTimeframeSelect(trade)', // name="timeframe"
     'renderTradeManagementSelect(trade)', // name="tradeManagement"
-    'renderProtectedDisplay(trade)', // name="protected" (read-only, calculated)
     'renderCloseReasonSelect(trade)', // name="closeReason"
     'renderGradeSelect(trade)', // name="grade"
     'renderOutcomeOverrideSelect(trade)', // name="outcomeOverride"
@@ -65,6 +64,7 @@ test('Quick Edit reuses the same form contract as Review so submitTradeEdit need
   for (const rendererCall of requiredSharedSelectCalls) {
     assertIncludes(quickEditSource, rendererCall, `Quick Edit must render its dropdown via ${rendererCall}, the same shared component Review uses, so the field name and options stay in sync.`);
   }
+  assert.equal(quickEditSource.includes("field('Protected'"), false, 'Quick Edit no longer renders a Protected control.');
 
   // Loss Reason is submitTradeEdit()-critical for the same reason and stays
   // conditionally hidden for non-loss trades, matching Review's behavior.
@@ -97,7 +97,6 @@ test('v1.1: related fields are paired into two-column rows to fit a 400-450px pa
     ["field('Initial Stop Loss'", "field('Final Stop Loss'"],
     ["field('Initial Take Profit'", "field('Final Take Profit'"],
     ["field('State'", "field('Setup'"],
-    ["field('Trade Management'", "field('Protected'"],
     ["field('Exit Reason'", "field('Loss Reason'"],
   ];
 

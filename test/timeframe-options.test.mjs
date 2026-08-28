@@ -166,8 +166,16 @@ test('the live "Add manual trade" screen itself renders a Timeframe dropdown, pr
   // requires.
   const code = [
     extractConst('TRADE_TIMEFRAME_OPTIONS'),
+    extractConst('LEGACY_SETUP_NAME_MAP'),
+    extractConst('PLAY_BOOK_SETUP_OPTIONS'),
+    extractConst('DEFAULT_SETUP'),
+    extractConst('CUSTOM_SETUP_OPTION'),
     extractFunction('escapeHtml'),
     extractFunction('renderSelectOption'),
+    extractFunction('renderSetupOption'),
+    extractFunction('normalizeSetupName'),
+    extractFunction('isPlayBookSetup'),
+    extractFunction('renderPlayBookSetupSelect'),
     extractFunction('renderTimeframeSelect'),
     extractFunction('icon'),
     "function field(label, control) { return `<label class=\"field\"><span>${label}</span>${control}</label>`; }",
@@ -181,6 +189,7 @@ test('the live "Add manual trade" screen itself renders a Timeframe dropdown, pr
 
   assert.match(formMarkup, /<option value="1m" selected>1m<\/option>/, 'The rendered Add Trade form must show 1m already selected in the Timeframe dropdown.');
   assert.equal(formMarkup.includes('<option value="" selected>'), false, 'The blank "None" option must not be the one selected on a brand-new trade.');
+  assert.match(formMarkup, /<option value="Retrace \/ Bounce" selected>Retrace \/ Bounce<\/option>/, 'The rendered Add Trade form must show Retrace / Bounce selected in the Setup dropdown.');
 });
 
 test('submitTrade saves whatever the Add Trade form\'s own Timeframe dropdown is set to (not a value disconnected from the visible UI)', () => {

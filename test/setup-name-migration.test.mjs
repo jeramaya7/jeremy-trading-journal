@@ -70,13 +70,14 @@ function loadSetupModule() {
   const code = [
     extractConst('LEGACY_SETUP_NAME_MAP'),
     extractConst('PLAY_BOOK_SETUP_OPTIONS'),
+    extractConst('DEFAULT_SETUP'),
     extractConst('CUSTOM_SETUP_OPTION'),
     extractFunction('normalizeSetupName'),
     extractFunction('hasLegacySetupName'),
     extractFunction('normalizeTradeSetups'),
     extractFunction('isPlayBookSetup'),
     extractFunction('getSetupFormValue'),
-    'module.exports = { LEGACY_SETUP_NAME_MAP, PLAY_BOOK_SETUP_OPTIONS, CUSTOM_SETUP_OPTION, normalizeSetupName, hasLegacySetupName, normalizeTradeSetups, isPlayBookSetup, getSetupFormValue };',
+    'module.exports = { LEGACY_SETUP_NAME_MAP, PLAY_BOOK_SETUP_OPTIONS, DEFAULT_SETUP, CUSTOM_SETUP_OPTION, normalizeSetupName, hasLegacySetupName, normalizeTradeSetups, isPlayBookSetup, getSetupFormValue };',
   ].join('\n\n');
 
   const context = { module: { exports: {} } };
@@ -86,7 +87,7 @@ function loadSetupModule() {
 }
 
 test('the Play Book setup list is exactly the requested options, in order', () => {
-  const { PLAY_BOOK_SETUP_OPTIONS, CUSTOM_SETUP_OPTION } = loadSetupModule();
+  const { PLAY_BOOK_SETUP_OPTIONS, DEFAULT_SETUP, CUSTOM_SETUP_OPTION } = loadSetupModule();
 
   // Array.from() rebuilds the array using this realm's Array constructor:
   // the extracted value was built inside a separate vm context, so a plain
@@ -99,7 +100,9 @@ test('the Play Book setup list is exactly the requested options, in order', () =
     'Retrace / Bounce',
     'Support & Resistance',
     'Scalp',
+    'Hedge',
   ]);
+  assert.equal(DEFAULT_SETUP, 'Retrace / Bounce', 'New manual trades default to Retrace / Bounce.');
   assert.equal(CUSTOM_SETUP_OPTION, 'Custom...', 'Custom... is appended after the fixed list, so it always renders last.');
   assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('None'), false, 'None is not a Play Book option.');
   assert.equal(PLAY_BOOK_SETUP_OPTIONS.includes('Custom...'), false, 'Custom... lives outside the fixed list, appended separately.');
@@ -114,6 +117,7 @@ test('only the current fixed setup names are selectable Play Book setups', () =>
   assert.equal(isPlayBookSetup('Retrace / Bounce'), true, 'Retrace / Bounce should be recognized as a fixed Play Book option.');
   assert.equal(isPlayBookSetup('Support & Resistance'), true, 'Support & Resistance should be recognized as a fixed Play Book option.');
   assert.equal(isPlayBookSetup('Scalp'), true, 'Scalp should be recognized as a fixed Play Book option.');
+  assert.equal(isPlayBookSetup('Hedge'), true, 'Hedge should be recognized as a fixed Play Book option.');
   assert.equal(isPlayBookSetup('RBI / GBI'), false, 'RBI / GBI should no longer be selectable.');
   assert.equal(isPlayBookSetup('FRVP'), false, 'FRVP should no longer be selectable.');
 });
@@ -156,7 +160,7 @@ test('setups retired with no clear replacement are left exactly as-is', () => {
   // option when edited (same as any value that was never on the list).
   const { normalizeSetupName, isPlayBookSetup } = loadSetupModule();
 
-  for (const retiredName of ['Trend', 'MA Cross', 'Event Bar', 'Counter Trend', 'MATX', 'MAX', 'Return to 200', 'Trend Line Break', 'Trade Line Break', 'EMA Continuation', 'EMA Bounce', 'EMA Cross', 'Trendline Break', 'Wide State Reversal', 'ORB', 'Ride the 🐋', 'Set & Forget', 'TB Retrace', 'Hedge']) {
+  for (const retiredName of ['Trend', 'MA Cross', 'Event Bar', 'Counter Trend', 'MATX', 'MAX', 'Return to 200', 'Trend Line Break', 'Trade Line Break', 'EMA Continuation', 'EMA Bounce', 'EMA Cross', 'Trendline Break', 'Wide State Reversal', 'ORB', 'Ride the 🐋', 'Set & Forget', 'TB Retrace']) {
     assert.equal(normalizeSetupName(retiredName), retiredName, `${retiredName} should not be renamed.`);
     assert.equal(isPlayBookSetup(retiredName), false, `${retiredName} is no longer a fixed Play Book option (kept as its own preserved value).`);
   }
@@ -165,7 +169,7 @@ test('setups retired with no clear replacement are left exactly as-is', () => {
 test('normalizeSetupName leaves already-current and unrelated setup names untouched', () => {
   const { normalizeSetupName } = loadSetupModule();
 
-  for (const currentName of ['Trend Continuation', 'Countertrend Continuation', 'Momentum / Breakout', 'RBI / GBI', 'Retrace / Bounce', 'Support & Resistance', 'Scalp', 'FRVP', 'Other', 'Custom...', '', 'Opening range breakout']) {
+  for (const currentName of ['Trend Continuation', 'Countertrend Continuation', 'Momentum / Breakout', 'RBI / GBI', 'Retrace / Bounce', 'Support & Resistance', 'Scalp', 'Hedge', 'FRVP', 'Other', 'Custom...', '', 'Opening range breakout']) {
     assert.equal(normalizeSetupName(currentName), currentName);
   }
 });
@@ -213,6 +217,21 @@ function makeFormData(fields) {
   return { get: (key) => (Object.prototype.hasOwnProperty.call(fields, key) ? fields[key] : null) };
 }
 
+test('new manual trades render the shared Setup dropdown with Retrace / Bounce as the default', () => {
+  assert.ok(
+    source.includes("${field('Setup', renderPlayBookSetupSelect({ setup: DEFAULT_SETUP }))}"),
+    'The Add Trade form should use the shared Setup dropdown with the new-trade default.',
+  );
+  assert.ok(
+    source.includes('setup: getSetupFormValue(formData),'),
+    'Saving a new manual trade should read the selected Setup dropdown value.',
+  );
+  assert.ok(
+    source.includes('tradeForm.querySelector(\'select[name="setupChoice"]\')?.addEventListener(\'change\''),
+    'The Add Trade Setup dropdown should keep the shared Custom setup input working.',
+  );
+});
+
 test('regression: saving a trade with no setup chosen falls back to Uncategorized setup, never the first Play Book option', () => {
   // Root cause of the earlier bug: removing the None placeholder option
   // left nothing selected for a blank-setup trade, so the browser would
@@ -233,6 +252,7 @@ test('regression: saving a trade with no setup chosen falls back to Uncategorize
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Retrace / Bounce', setupCustom: '', setup: '' })), 'Retrace / Bounce');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Support & Resistance', setupCustom: '', setup: '' })), 'Support & Resistance');
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Scalp', setupCustom: '', setup: '' })), 'Scalp');
+  assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Hedge', setupCustom: '', setup: '' })), 'Hedge');
 
   // Custom behavior is unchanged.
   assert.equal(getSetupFormValue(makeFormData({ setupChoice: 'Custom...', setupCustom: 'My own setup', setup: '' })), 'My own setup');
