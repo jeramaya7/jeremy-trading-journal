@@ -5,6 +5,7 @@ import vm from 'node:vm';
 
 const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
 const serverSource = await readFile(new URL('../src/server.js', import.meta.url), 'utf8');
+const stylesSource = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');
 
 function extractConst(name) {
   const marker = `const ${name} = `;
@@ -69,6 +70,17 @@ test('Trade Type is available and saved in Add Trade, Full Edit, and Quick Edit'
   assert.ok(source.includes("${field('Trade Type', renderTradeTypeSelect({ tradeType: DEFAULT_TRADE_TYPE }))}"));
   assert.ok(source.includes("${field('Trade Type', renderTradeTypeSelect(trade))}"));
   assert.equal(source.match(/tradeType: String\(formData\.get\('tradeType'\) \|\| DEFAULT_TRADE_TYPE\)\.trim\(\),/g)?.length, 2);
+});
+
+test('all three forms keep the four Setup dropdowns on one responsive row', () => {
+  assert.ok(source.includes('<div class="manual-setup-row" aria-label="Setup context">'));
+  assert.ok(source.includes('<div class="edit-form-row edit-journal-row" aria-label="Setup context">'));
+  assert.ok(source.includes('<div class="quick-edit-row quick-edit-setup-row">'));
+  assert.ok(source.includes("${field('State', renderMarketStateSelect({ state: DEFAULT_MARKET_STATE }))}"));
+  assert.ok(source.includes("state: String(formData.get('state') || DEFAULT_MARKET_STATE).trim(),"));
+  assert.ok(stylesSource.includes('grid-template-columns: repeat(4, minmax(0, 1fr));'));
+  assert.ok(stylesSource.includes('@media (max-width: 980px)'));
+  assert.ok(stylesSource.includes('@media (max-width: 620px)'));
 });
 
 test('Trade Type uses the existing annotation sync without affecting analytics', () => {

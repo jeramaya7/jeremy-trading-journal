@@ -166,6 +166,9 @@ test('the live "Add manual trade" screen itself renders a Timeframe dropdown, pr
   // requires.
   const code = [
     extractConst('TRADE_TIMEFRAME_OPTIONS'),
+    extractConst('MARKET_STATE_OPTIONS'),
+    extractConst('DEFAULT_MARKET_STATE'),
+    extractConst('LEGACY_MARKET_STATE_MAP'),
     extractConst('LEGACY_SETUP_NAME_MAP'),
     extractConst('PLAY_BOOK_SETUP_OPTIONS'),
     extractConst('DEFAULT_SETUP'),
@@ -174,6 +177,8 @@ test('the live "Add manual trade" screen itself renders a Timeframe dropdown, pr
     extractConst('DEFAULT_TRADE_TYPE'),
     extractFunction('escapeHtml'),
     extractFunction('renderSelectOption'),
+    extractFunction('normalizeMarketState'),
+    extractFunction('renderMarketStateSelect'),
     extractFunction('renderSetupOption'),
     extractFunction('normalizeSetupName'),
     extractFunction('isPlayBookSetup'),

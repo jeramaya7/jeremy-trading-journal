@@ -238,9 +238,14 @@ test('trade cards expose an edit flow for local journaling fields', () => {
     'State renders before Setup in the Setup section.',
   );
   assertIncludes(setupBody, "${field('Timeframe', renderTimeframeSelect(trade))}", 'Timeframe is in the Setup section.');
-  assertIncludes(setupBody, "${field('Trade Type', renderTradeTypeSelect(trade))}", 'Trade Type is available below the three-field Setup row.');
+  assertIncludes(setupBody, "${field('Trade Type', renderTradeTypeSelect(trade))}", 'Trade Type is in the Setup row.');
   assert.equal(setupBody.includes("${field('Mindset'"), false, 'Mindset is no longer in the Setup section.');
-  assertIncludes(stylesSource, '.edit-journal-row {\n  grid-template-columns: repeat(3, minmax(0, 1fr));\n}', 'State, Setup, and Timeframe use three equal-width columns.');
+  assertIncludes(stylesSource, '.edit-journal-row {\n  grid-template-columns: repeat(4, minmax(0, 1fr));\n}', 'State, Setup, Timeframe, and Trade Type use four equal-width columns.');
+  const setupRowStart = setupBody.indexOf('<div class="edit-form-row edit-journal-row"');
+  const setupRowEnd = setupBody.indexOf('</div>', setupRowStart);
+  const setupRowBody = setupBody.slice(setupRowStart, setupRowEnd);
+  ['renderMarketStateSelect(trade)', 'renderPlayBookSetupSelect(trade)', 'renderTimeframeSelect(trade)', 'renderTradeTypeSelect(trade)']
+    .forEach((renderer) => assertIncludes(setupRowBody, renderer, `${renderer} should be inside the single Full Edit Setup row.`));
 
   // Trade Review: the four primary review fields share one equal-width row.
   // Loss Reason remains in the DOM on its own row below so its conditional

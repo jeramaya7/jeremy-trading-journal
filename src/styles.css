@@ -627,6 +627,13 @@ h2 {
   margin: 1.25rem 0 1rem;
 }
 
+.manual-setup-row {
+  display: grid;
+  gap: 1rem;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .field {
   color: #43536b;
   display: flex;
@@ -1275,15 +1282,11 @@ a:focus-visible {
 }
 
 .edit-journal-row {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .edit-review-row {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.edit-trade-type-row {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .edit-collapsible {
@@ -1344,7 +1347,7 @@ a:focus-visible {
   .edit-price-row,
   .edit-journal-row,
   .edit-review-row,
-  .edit-trade-type-row {
+  .manual-setup-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1353,7 +1356,7 @@ a:focus-visible {
   .edit-price-row,
   .edit-journal-row,
   .edit-review-row,
-  .edit-trade-type-row {
+  .manual-setup-row {
     grid-template-columns: 1fr;
   }
 
@@ -1394,6 +1397,22 @@ a:focus-visible {
   display: grid;
   gap: 0.5rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.quick-edit-row.quick-edit-setup-row {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 980px) {
+  .quick-edit-row.quick-edit-setup-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .quick-edit-row.quick-edit-setup-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .quick-edit-form select,

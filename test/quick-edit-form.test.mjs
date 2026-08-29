@@ -97,7 +97,6 @@ test('v1.1: related fields are paired into two-column rows to fit a 400-450px pa
     ["field('Entry Price'", "field('Exit Price'"],
     ["field('Initial Stop Loss'", "field('Final Stop Loss'"],
     ["field('Initial Take Profit'", "field('Final Take Profit'"],
-    ["field('State'", "field('Setup'"],
     ["field('Exit Reason'", "field('Loss Reason'"],
   ];
 
@@ -113,14 +112,12 @@ test('v1.1: related fields are paired into two-column rows to fit a 400-450px pa
   assertIncludes(cssSource, '.quick-edit-row {\n  display: grid;', 'The quick-edit-row class lays fields out as a two-column grid.');
   assertIncludes(cssSource.replace(/quick-edit-row \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/s, 'MATCHED'), 'MATCHED', 'quick-edit-row uses a 2-column grid template.');
 
-  // Timeframe is on its own quick-edit-row, alone — Position was removed
-  // from the Setup section (DNA 26), so Timeframe no longer has a partner.
-  const timeframeIndex = quickEditSource.indexOf("field('Timeframe'");
-  const timeframeRowStart = quickEditSource.lastIndexOf('<div class="quick-edit-row">', timeframeIndex);
-  const timeframeRowEnd = quickEditSource.indexOf('</div>', timeframeRowStart);
-  const timeframeRow = quickEditSource.slice(timeframeRowStart, timeframeRowEnd);
-  assertIncludes(timeframeRow, "field('Timeframe'", 'Timeframe should be in its own quick-edit-row.');
-  assert.equal(timeframeRow.includes("field('State'"), false, 'Timeframe should no longer be paired with State (State now pairs with Setup instead).');
+  const setupRowStart = quickEditSource.indexOf('<div class="quick-edit-row quick-edit-setup-row">');
+  const setupRowEnd = quickEditSource.indexOf('</div>', setupRowStart);
+  const setupRow = quickEditSource.slice(setupRowStart, setupRowEnd);
+  const setupFields = ["field('State'", "field('Setup'", "field('Timeframe'", "field('Trade Type'"];
+  setupFields.forEach((setupField) => assertIncludes(setupRow, setupField, `${setupField} should be inside the single Quick Edit Setup row.`));
+  assertIncludes(cssSource, '.quick-edit-row.quick-edit-setup-row {\n  grid-template-columns: repeat(4, minmax(0, 1fr));\n}', 'Quick Edit uses four equal-width Setup columns on desktop.');
 
   // Grade is the final evaluation step, on its own row beneath Management's
   // quick-edit-row pairs — not paired with anything else.

@@ -3088,8 +3088,6 @@ function editTradeForm(trade) {
             ${field('State', renderMarketStateSelect(trade))}
             ${field('Setup', renderPlayBookSetupSelect(trade))}
             ${field('Timeframe', renderTimeframeSelect(trade))}
-          </div>
-          <div class="edit-form-row edit-trade-type-row">
             ${field('Trade Type', renderTradeTypeSelect(trade))}
           </div>
         </div>
@@ -3179,11 +3177,9 @@ function editTradeFormQuickEdit(trade) {
         </div>
         <div class="edit-form-section quick-edit-section">
           <h4 class="edit-form-section-label">Setup</h4>
-          <div class="quick-edit-row">
+          <div class="quick-edit-row quick-edit-setup-row">
             ${field('State', renderMarketStateSelect(trade))}
             ${field('Setup', renderPlayBookSetupSelect(trade))}
-          </div>
-          <div class="quick-edit-row">
             ${field('Timeframe', renderTimeframeSelect(trade))}
             ${field('Trade Type', renderTradeTypeSelect(trade))}
           </div>
@@ -3507,9 +3503,12 @@ function renderManualTradeForm(today) {
         ${field('Date', '<input name="date" type="date" required value="' + today + '" />')}
         ${field('Symbol', '<input name="symbol" placeholder="SPY" required />')}
         ${field('Direction', '<select name="direction"><option>Long</option><option>Short</option></select>')}
-        ${field('Setup', renderPlayBookSetupSelect({ setup: DEFAULT_SETUP }))}
-        ${field('Timeframe', renderTimeframeSelect({ timeframe: '1m' }))}
-        ${field('Trade Type', renderTradeTypeSelect({ tradeType: DEFAULT_TRADE_TYPE }))}
+        <div class="manual-setup-row" aria-label="Setup context">
+          ${field('State', renderMarketStateSelect({ state: DEFAULT_MARKET_STATE }))}
+          ${field('Setup', renderPlayBookSetupSelect({ setup: DEFAULT_SETUP }))}
+          ${field('Timeframe', renderTimeframeSelect({ timeframe: '1m' }))}
+          ${field('Trade Type', renderTradeTypeSelect({ tradeType: DEFAULT_TRADE_TYPE }))}
+        </div>
         ${field('Entry', '<input name="entry" type="number" min="0" step="0.01" required />')}
         ${field('Exit', '<input name="exit" type="number" min="0" step="0.01" required />')}
         ${field('Size', '<input name="size" type="number" min="0.01" step="0.01" required />')}
@@ -4059,6 +4058,7 @@ async function submitTrade(event) {
     date: formData.get('date'),
     symbol: String(formData.get('symbol')).trim().toUpperCase(),
     direction: formData.get('direction'),
+    state: String(formData.get('state') || DEFAULT_MARKET_STATE).trim(),
     setup: getSetupFormValue(formData),
     tradeType: String(formData.get('tradeType') || DEFAULT_TRADE_TYPE).trim(),
     // Read from the Add Trade form's own Timeframe dropdown (rendered via
