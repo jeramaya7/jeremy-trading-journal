@@ -46,6 +46,7 @@ test('Quick Edit reuses the same form contract as Review so submitTradeEdit need
     'renderPlayBookSetupSelect(trade)', // name="setupChoice" / name="setup"
     'renderMarketStateSelect(trade)', // name="state"
     'renderTimeframeSelect(trade)', // name="timeframe"
+    'renderTradeTypeSelect(trade)', // name="tradeType"
     'renderTradeManagementSelect(trade)', // name="tradeManagement"
     'renderCloseReasonSelect(trade)', // name="closeReason"
     'renderGradeSelect(trade)', // name="grade"

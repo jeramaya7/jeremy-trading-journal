@@ -89,7 +89,7 @@ const AUTO_SYNC_INTERVAL_MS = 12 * 1000;
 
 // Fields the backend persists to Supabase for cross-device annotation sync.
 // Must match JOURNAL_ANNOTATION_FIELDS in src/server.js.
-const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'timeframe', 'protected', 'tradeManagement', 'grade', 'closeReason', 'lossReason', 'tags', 'notes', 'adjustedStopLoss', 'adjustedTakeProfit', 'takeProfit', 'stopLoss', 'outcomeOverride'];
+const JOURNAL_ANNOTATION_FIELDS = ['setup', 'state', 'timeframe', 'tradeType', 'protected', 'tradeManagement', 'grade', 'closeReason', 'lossReason', 'tags', 'notes', 'adjustedStopLoss', 'adjustedTakeProfit', 'takeProfit', 'stopLoss', 'outcomeOverride'];
 
 const starterTrades = [
   {
@@ -227,16 +227,18 @@ const FRIENDLY_ASSET_NAMES = {
 };
 
 const PLAY_BOOK_SETUP_OPTIONS = [
-  'Trend Continuation',
   'Countertrend Continuation',
+  'Hedge',
   'Momentum / Breakout',
   'Retrace / Bounce',
-  'Support & Resistance',
   'Scalp',
-  'Hedge',
+  'Support & Resistance',
+  'Trend Continuation',
 ];
 const DEFAULT_SETUP = 'Retrace / Bounce';
 const CUSTOM_SETUP_OPTION = 'Custom...';
+const TRADE_TYPE_OPTIONS = ['Individual', 'Positioning'];
+const DEFAULT_TRADE_TYPE = TRADE_TYPE_OPTIONS[0];
 const LOSS_REASON_OPTIONS = [
   'Normal Loss',
   'Stop Too Tight',
@@ -2996,6 +2998,15 @@ function renderTimeframeSelect(trade) {
   `;
 }
 
+function renderTradeTypeSelect(trade) {
+  const current = String(trade.tradeType || DEFAULT_TRADE_TYPE).trim();
+  return `
+    <select name="tradeType" aria-label="Trade Type">
+      ${TRADE_TYPE_OPTIONS.map((option) => renderSelectOption(option, current)).join('')}
+    </select>
+  `;
+}
+
 function renderGradeSelect(trade) {
   const current = String(trade.grade || '').trim();
   return `
@@ -3077,6 +3088,9 @@ function editTradeForm(trade) {
             ${field('State', renderMarketStateSelect(trade))}
             ${field('Setup', renderPlayBookSetupSelect(trade))}
             ${field('Timeframe', renderTimeframeSelect(trade))}
+          </div>
+          <div class="edit-form-row edit-trade-type-row">
+            ${field('Trade Type', renderTradeTypeSelect(trade))}
           </div>
         </div>
         <div class="edit-form-section">
@@ -3171,6 +3185,7 @@ function editTradeFormQuickEdit(trade) {
           </div>
           <div class="quick-edit-row">
             ${field('Timeframe', renderTimeframeSelect(trade))}
+            ${field('Trade Type', renderTradeTypeSelect(trade))}
           </div>
         </div>
         <div class="edit-form-section quick-edit-section">
@@ -3494,6 +3509,7 @@ function renderManualTradeForm(today) {
         ${field('Direction', '<select name="direction"><option>Long</option><option>Short</option></select>')}
         ${field('Setup', renderPlayBookSetupSelect({ setup: DEFAULT_SETUP }))}
         ${field('Timeframe', renderTimeframeSelect({ timeframe: '1m' }))}
+        ${field('Trade Type', renderTradeTypeSelect({ tradeType: DEFAULT_TRADE_TYPE }))}
         ${field('Entry', '<input name="entry" type="number" min="0" step="0.01" required />')}
         ${field('Exit', '<input name="exit" type="number" min="0" step="0.01" required />')}
         ${field('Size', '<input name="size" type="number" min="0.01" step="0.01" required />')}
@@ -4044,6 +4060,7 @@ async function submitTrade(event) {
     symbol: String(formData.get('symbol')).trim().toUpperCase(),
     direction: formData.get('direction'),
     setup: getSetupFormValue(formData),
+    tradeType: String(formData.get('tradeType') || DEFAULT_TRADE_TYPE).trim(),
     // Read from the Add Trade form's own Timeframe dropdown (rendered via
     // the same shared renderTimeframeSelect() used everywhere else, and
     // pre-selected to 1m — see renderManualTradeForm()), so the saved value
@@ -4106,6 +4123,7 @@ async function buildTradeEditUpdate(form) {
     closeReason,
     state: String(formData.get('state')).trim(),
     timeframe: String(formData.get('timeframe')).trim(),
+    tradeType: String(formData.get('tradeType') || DEFAULT_TRADE_TYPE).trim(),
     tradeManagement: String(formData.get('tradeManagement')).trim(),
     grade: String(formData.get('grade')).trim(),
     outcomeOverride: String(formData.get('outcomeOverride')).trim(),

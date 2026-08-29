@@ -94,13 +94,13 @@ test('the Play Book setup list is exactly the requested options, in order', () =
   // deepEqual would otherwise fail on cross-realm prototype identity even
   // though the contents are identical.
   assert.deepEqual(Array.from(PLAY_BOOK_SETUP_OPTIONS), [
-    'Trend Continuation',
     'Countertrend Continuation',
+    'Hedge',
     'Momentum / Breakout',
     'Retrace / Bounce',
-    'Support & Resistance',
     'Scalp',
-    'Hedge',
+    'Support & Resistance',
+    'Trend Continuation',
   ]);
   assert.equal(DEFAULT_SETUP, 'Retrace / Bounce', 'New manual trades default to Retrace / Bounce.');
   assert.equal(CUSTOM_SETUP_OPTION, 'Custom...', 'Custom... is appended after the fixed list, so it always renders last.');

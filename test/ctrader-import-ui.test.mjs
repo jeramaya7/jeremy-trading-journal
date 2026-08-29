@@ -238,6 +238,7 @@ test('trade cards expose an edit flow for local journaling fields', () => {
     'State renders before Setup in the Setup section.',
   );
   assertIncludes(setupBody, "${field('Timeframe', renderTimeframeSelect(trade))}", 'Timeframe is in the Setup section.');
+  assertIncludes(setupBody, "${field('Trade Type', renderTradeTypeSelect(trade))}", 'Trade Type is available below the three-field Setup row.');
   assert.equal(setupBody.includes("${field('Mindset'"), false, 'Mindset is no longer in the Setup section.');
   assertIncludes(stylesSource, '.edit-journal-row {\n  grid-template-columns: repeat(3, minmax(0, 1fr));\n}', 'State, Setup, and Timeframe use three equal-width columns.');
 
