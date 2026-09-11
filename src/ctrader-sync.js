@@ -1,3 +1,7 @@
+export const DEFAULT_SETUP = 'Retrace / Bounce';
+export const DEFAULT_TRADE_MANAGEMENT = 'Trail Stop';
+export const DEFAULT_GRADE = 'A';
+
 export function buildCTraderSyncPlan(previewTrades, existingTrades, options = {}) {
   const seenSourceKeys = new Set();
   const journalTrades = Array.isArray(previewTrades)
@@ -135,10 +139,14 @@ export function convertCTraderPreviewTradeToJournalEntry(previewTrade, options =
     sourceTradeId,
     brokerSymbol,
     symbol: brokerSymbol || previewTrade.symbol,
-    setup: '',
+    setup: DEFAULT_SETUP,
     emotion: previewTrade.emotion || '',
     tags: '',
     notes: '',
+    ...(isBlankTradeValue(previewTrade.tradeManagement)
+      ? { tradeManagement: DEFAULT_TRADE_MANAGEMENT }
+      : {}),
+    ...(isBlankTradeValue(previewTrade.grade) ? { grade: DEFAULT_GRADE } : {}),
     // Final TP/SL default to the broker-reported initial TP/SL so the
     // journal never shows a blank "Final" value for a trade that hasn't
     // actually been adjusted yet. Still fully editable afterward — this

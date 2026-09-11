@@ -1,4 +1,4 @@
-import { applyCTraderImportedTradeUpdates, buildCTraderSyncPlan, getImportedTradeSourceKey } from './ctrader-sync.js';
+import { DEFAULT_GRADE, DEFAULT_TRADE_MANAGEMENT, applyCTraderImportedTradeUpdates, buildCTraderSyncPlan, getImportedTradeSourceKey } from './ctrader-sync.js';
 import { CTRADER_ENDPOINTS, buildCTraderOAuthUrl, fetchBackendJson, getBackendDiagnostics } from './backend-api.js';
 
 const STORAGE_KEY = 'jeremy-trading-journal:v1';
@@ -4061,6 +4061,8 @@ async function submitTrade(event) {
     state: String(formData.get('state') || DEFAULT_MARKET_STATE).trim(),
     setup: getSetupFormValue(formData),
     tradeType: String(formData.get('tradeType') || DEFAULT_TRADE_TYPE).trim(),
+    tradeManagement: DEFAULT_TRADE_MANAGEMENT,
+    grade: DEFAULT_GRADE,
     // Read from the Add Trade form's own Timeframe dropdown (rendered via
     // the same shared renderTimeframeSelect() used everywhere else, and
     // pre-selected to 1m — see renderManualTradeForm()), so the saved value

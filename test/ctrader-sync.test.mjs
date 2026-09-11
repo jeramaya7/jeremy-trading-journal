@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  DEFAULT_GRADE,
+  DEFAULT_SETUP,
+  DEFAULT_TRADE_MANAGEMENT,
   applyCTraderImportedTradeUpdates,
   buildCTraderSyncPlan,
   convertCTraderPreviewTradeToJournalEntry,
@@ -39,15 +42,54 @@ test('cTrader sync converts preview trades into journal entries', () => {
   assert.equal(journalTrade.id, 'ctrader-501');
   assert.equal(journalTrade.provider, 'ctrader');
   assert.equal(journalTrade.sourceTradeId, '501');
-  assert.equal(journalTrade.setup, '');
+  assert.equal(journalTrade.setup, 'Retrace / Bounce');
+  assert.equal(journalTrade.grade, 'A');
   assert.equal(journalTrade.emotion, 'Imported');
   assert.equal(journalTrade.tags, '');
   assert.equal(journalTrade.notes, '');
   assert.equal(journalTrade.importedAt, '2026-06-12T15:00:00.000Z');
 });
 
+test('cTrader import defaults blank Trade Management to Trail Stop', () => {
+  const journalTrade = convertCTraderPreviewTradeToJournalEntry(closedPreviewTrade, {
+    now: () => Date.parse('2026-06-12T15:00:00.000Z'),
+  });
 
-test('cTrader imports leave cTrader-provided setup, notes, and tags blank by default', () => {
+  assert.equal(DEFAULT_TRADE_MANAGEMENT, 'Trail Stop');
+  assert.equal(journalTrade.tradeManagement, 'Trail Stop');
+});
+
+test('cTrader import applies all new-trade defaults', () => {
+  const journalTrade = convertCTraderPreviewTradeToJournalEntry({
+    ...closedPreviewTrade,
+    setup: '',
+  }, {
+    now: () => Date.parse('2026-06-12T15:00:00.000Z'),
+  });
+
+  assert.equal(DEFAULT_SETUP, 'Retrace / Bounce');
+  assert.equal(DEFAULT_TRADE_MANAGEMENT, 'Trail Stop');
+  assert.equal(DEFAULT_GRADE, 'A');
+  assert.equal(journalTrade.setup, DEFAULT_SETUP);
+  assert.equal(journalTrade.tradeManagement, DEFAULT_TRADE_MANAGEMENT);
+  assert.equal(journalTrade.grade, DEFAULT_GRADE);
+});
+
+test('cTrader import defaults do not overwrite supplied Trade Management or Grade values', () => {
+  const journalTrade = convertCTraderPreviewTradeToJournalEntry({
+    ...closedPreviewTrade,
+    tradeManagement: 'Manual Exit',
+    grade: 'B',
+  }, {
+    now: () => Date.parse('2026-06-12T15:00:00.000Z'),
+  });
+
+  assert.equal(journalTrade.tradeManagement, 'Manual Exit');
+  assert.equal(journalTrade.grade, 'B');
+});
+
+
+test('cTrader imports use the DNA Setup default while leaving notes and tags blank', () => {
   const journalTrade = convertCTraderPreviewTradeToJournalEntry({
     ...closedPreviewTrade,
     setup: 'Broker setup',
@@ -58,7 +100,7 @@ test('cTrader imports leave cTrader-provided setup, notes, and tags blank by def
   });
 
   assert.equal(journalTrade.sourceTradeId, '501');
-  assert.equal(journalTrade.setup, '');
+  assert.equal(journalTrade.setup, 'Retrace / Bounce');
   assert.equal(journalTrade.tags, '');
   assert.equal(journalTrade.notes, '');
 });
@@ -158,6 +200,24 @@ test('re-syncing an already-imported trade never touches its saved Timeframe, bl
   assert.equal(syncPlan.importedCount, 0, 'Both trades are already in the journal, so nothing new should be imported.');
   assert.equal(updatedExistingTrades.trades[0].timeframe, '', 'A blank Timeframe on an existing trade must stay blank — re-sync must never apply the 1m default retroactively.');
   assert.equal(updatedExistingTrades.trades[1].timeframe, '4H', 'A Timeframe already set by the user on an existing trade must be completely unaffected by re-sync.');
+});
+
+test('re-syncing existing trades never applies the new defaults retroactively', () => {
+  const existingTrades = [
+    { id: 'ctrader-501', provider: 'ctrader', sourceTradeId: '501', symbol: 'EURUSD', brokerSymbol: 'EURUSD', tradeManagement: '', grade: '' },
+    { id: 'ctrader-906', provider: 'ctrader', sourceTradeId: '906', symbol: 'XAUUSD', brokerSymbol: 'XAUUSD', tradeManagement: 'Set & Let', grade: 'B' },
+  ];
+  const previewTrades = [
+    { ...closedPreviewTrade, sourceDealId: 501, symbol: 'EURUSD', brokerSymbol: 'EURUSD' },
+    { ...closedPreviewTrade, sourceDealId: 906, symbol: 'XAUUSD', brokerSymbol: 'XAUUSD' },
+  ];
+  const syncPlan = buildCTraderSyncPlan(previewTrades, existingTrades);
+  const updated = applyCTraderImportedTradeUpdates(existingTrades, syncPlan.skippedTrades);
+
+  assert.equal(updated.trades[0].tradeManagement, '');
+  assert.equal(updated.trades[1].tradeManagement, 'Set & Let');
+  assert.equal(updated.trades[0].grade, '');
+  assert.equal(updated.trades[1].grade, 'B');
 });
 
 test('cTrader sync imports only trades not already in the journal', () => {

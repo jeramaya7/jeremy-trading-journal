@@ -29,7 +29,7 @@ test('cTrader connect button starts OAuth on the Render backend and checks statu
 
 test('cTrader preview trades are converted into saved journal entries', () => {
   assertIncludes(syncSource, 'function convertCTraderPreviewTradeToJournalEntry(previewTrade, options = {})', 'Preview trades are converted before saving.');
-  assertIncludes(syncSource, "setup: '',", 'Imported entries leave saved journal setup blank by default.');
+  assertIncludes(syncSource, 'setup: DEFAULT_SETUP,', 'Imported entries use the requested default Setup.');
   assertIncludes(syncSource, "tags: '',", 'Imported entries leave saved journal tags blank by default.');
   assertIncludes(syncSource, "notes: '',", 'Imported entries leave saved journal notes blank by default.');
   assertIncludes(syncSource, 'importedAt: getImportedAt(options)', 'Imported entries record when they were saved locally.');
